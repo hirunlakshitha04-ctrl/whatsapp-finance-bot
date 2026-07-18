@@ -968,7 +968,7 @@ export async function POST(req: NextRequest) {
           { onConflict: 'phone_number' }
         );
 
-      // Clean, consistent structured preview — same layout every time,
+      // Clean, consistent structured   eview — same layout every time,
       // just in whichever language the AI detected for this message.
       const replyBody = buildTransactionPreview(txData, txData.language || preferredLanguage, userName);
 
