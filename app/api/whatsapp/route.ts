@@ -121,6 +121,22 @@ async function updateUser(phoneNumber: string, fields: Partial<AppUser>) {
   await supabase.from("users").update(fields).eq("phone_number", phoneNumber);
 }
 
+// ============================================================
+// 🧾 Shared formatting helpers
+// ============================================================
+// Every outgoing message goes through these so the bot always reads like
+// one voice: a short title line, then clean "label: value" rows, then
+// (optionally) a two-option action footer. Mirrors the layout in the
+// screenshot — nothing decorative added beyond what's already used.
+
+const DIVIDER = "‎"; // zero-width-ish visual breather between blocks, kept invisible
+
+function actionFooter(language: string): string {
+  return language === "si"
+    ? `-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`
+    : `-> Reply *Confirm* if this looks right.\n-> Reply *Edit* if something's wrong.`;
+}
+
 // Handles every step of the onboarding conversation. Always in English,
 // per spec — this is the one part of the bot that never switches language.
 async function handleOnboarding(user: AppUser, incomingText: string, from: string, to: string) {
@@ -131,7 +147,7 @@ async function handleOnboarding(user: AppUser, incomingText: string, from: strin
       await twilioClient.messages.create({
         from: to,
         to: from,
-        body: "Welcome! I'm your zero-friction expense tracker. What should I call you?",
+        body: "👋 Welcome! I'm your zero-friction expense tracker.\n\nWhat should I call you?",
       });
       return;
     }
@@ -144,12 +160,12 @@ async function handleOnboarding(user: AppUser, incomingText: string, from: strin
       from: to,
       to: from,
       body:
-        `Thanks, ${name}! We auto-detected your location.\n\n` +
+        `Thanks, ${name}! 🙌 We auto-detected your location.\n\n` +
+        `📍 Country: *${country}*\n` +
+        `💱 Currency: *${currency}*\n\n` +
         `Is this correct?\n` +
-        `📍 Country: ${country}\n` +
-        `💱 Currency: ${currency}\n\n` +
-        `[ Confirm ✅ ]   [ Edit Details ✏️ ]\n` +
-        `Reply *Confirm* or *Edit* to continue.`,
+        `-> Reply *Confirm* ✅ to continue.\n` +
+        `-> Reply *Edit* ✏️ to change it.`,
     });
     return;
   }
@@ -163,28 +179,27 @@ async function handleOnboarding(user: AppUser, incomingText: string, from: strin
         from: to,
         to: from,
         body:
-          `👑 *WELCOME TO THE FUTURE OF EXPENSE TRACKING.* 🚀\n\n` +
-          `${user.name}, your profile is now active and optimized. No apps. No friction. Just pure financial control.\n\n` +
-          `⚡ *THE KILLER FEATURES*\n\n` +
-          `🎤 *Zero-Friction Voice Notes [Omni-Lingual]*\n` +
-          `Too lazy to type? Just drop a quick voice note. Speak naturally in English, Sinhala, Singlish, or Arabic. Our advanced AI instantly transcribes and logs it.\n\n` +
-          `💬 *Natural Text Texting*\n` +
-          `Type exactly how you talk. No strict formats needed.\n` +
-          `• English: "Spent 450 for coffee"\n` +
-          `• Singlish: "threewheel ekata 300ක් giya"\n` +
-          `• Sinhala: "අම්මාට 5000ක් දුන්නා"\n\n` +
-          `🏦 *Bulletproof Loan & Debt Tracking*\n` +
-          `Keep full tabs on what you owe or what people owe you. The AI automatically parses loans, EMI payments, and credit card dues.\n` +
-          `• Example: "Paid 15,000 for Commercial Bank loan"\n` +
-          `• Example: "යාලුවාගෙන් 5000ක් ණයට ගත්තා"\n` +
-          `• Example: "Lease එකට 45,000ක් ගෙව්වා"\n\n` +
-          `🧠 *Instant Smart Categorization*\n` +
-          `The AI automatically extracts the amount, assigns it to your local currency, and categorizes it in real-time.\n\n` +
-          `📊 *Real-Time Financial Insights*\n` +
-          `Simply type "Summary" at any time to get a beautifully structured breakdown of your daily, weekly, or monthly burns and debt status.\n\n` +
-          `🎯 *TRY IT NOW*\n` +
-          `Own the moment. Test the engine right now by dropping your first text or voice note below! 👇\n` +
-          `Example: Try typing "Paid 50 for my credit card" or say it in a voice note!`,
+          `👑 *WELCOME TO THE FUTURE OF EXPENSE TRACKING* 🚀\n\n` +
+          `${user.name}, your profile is now active. No apps, no friction — just clean financial control.\n\n` +
+          `⚡ *Here's what you can do*\n\n` +
+          `🎤 *Voice Notes*\n` +
+          `Send a quick voice note in English, Sinhala, Singlish, or Arabic and it's logged automatically.\n\n` +
+          `💬 *Natural Text*\n` +
+          `Type exactly how you talk:\n` +
+          `• "Spent 450 for coffee"\n` +
+          `• "threewheel ekata 300ක් giya"\n` +
+          `• "අම්මාට 5000ක් දුන්නා"\n\n` +
+          `🏦 *Loan & Debt Tracking*\n` +
+          `Track what you owe or what people owe you:\n` +
+          `• "Paid 15,000 for Commercial Bank loan"\n` +
+          `• "යාලුවාගෙන් 5000ක් ණයට ගත්තා"\n` +
+          `• "Lease එකට 45,000ක් ගෙව්වා"\n\n` +
+          `🧠 *Smart Categorization*\n` +
+          `Amount, currency, and category are detected automatically.\n\n` +
+          `📊 *Real-Time Insights*\n` +
+          `Type *Summary* anytime for a clean breakdown of your spending and debts.\n\n` +
+          `🎯 *Try it now* — send your first text or voice note below 👇\n` +
+          `Example: "Paid 50 for my credit card"`,
       });
       return;
     }
@@ -195,8 +210,9 @@ async function handleOnboarding(user: AppUser, incomingText: string, from: strin
         from: to,
         to: from,
         body:
-          `No problem! Please reply with your correct details in this format:\n\n` +
-          `*Country, Currency*\n(e.g. "United Kingdom, GBP")`,
+          `No problem! Reply with your correct details in this format:\n\n` +
+          `*Country, Currency*\n` +
+          `(e.g. "United Kingdom, GBP")`,
       });
       return;
     }
@@ -220,11 +236,11 @@ async function handleOnboarding(user: AppUser, incomingText: string, from: strin
       from: to,
       to: from,
       body:
-        `Got it! Updated details:\n` +
-        `📍 Country: ${country}\n` +
-        `💱 Currency: ${currency}\n\n` +
-        `[ Confirm ✅ ]   [ Edit Details ✏️ ]\n` +
-        `Reply *Confirm* or *Edit* to continue.`,
+        `Got it! Updated details:\n\n` +
+        `📍 Country: *${country}*\n` +
+        `💱 Currency: *${currency}*\n\n` +
+        `-> Reply *Confirm* ✅ to continue.\n` +
+        `-> Reply *Edit* ✏️ to change it.`,
     });
     return;
   }
@@ -273,11 +289,6 @@ async function extractTransaction(text: string, userName: string, accountCurrenc
             "2. If they borrowed money (e.g., 'took 2000 from Kasun', 'කසුන්ගෙන් 2000ක් ගත්තා', 'කසුන්ගෙන් 2000ක් ණයට ගත්තා'), type is 'loan_taken'. Extract person name.\n" +
             "3. If someone is paying back/settling a loan (e.g., 'Kasun paid back 5000', 'කසුන් ණය බේරුවා 5000ක්', 'කසුන්ගෙන් 5000 ලැබුණා'), type is 'loan_settled'. Extract person name.\n\n" +
             "4. If a currency symbol or code is explicitly mentioned in the message (e.g. '$', 'USD', 'Rs.', 'LKR'), use that as \"currency\". Otherwise default to the account currency given above.\n\n" +
-            "5. Write a short, friendly WhatsApp reply in the \"bot_reply\" field, in the SAME language you detected in step 1 " +
-            `(Sinhala script for "si", English for "en"). Address the user as "${userName}", state the amount with its currency, ` +
-            "and mention the category (or the budget category, if this is a 'set_budget' action). Keep it to one sentence and end with ✅.\n" +
-            "6. Also write a one-line \"action_hint\" in the same language telling the user to reply Confirm to save or Edit to fix it " +
-            "(omit action_hint — set it to null — if action is 'set_budget', since budgets apply immediately).\n\n" +
             "Response MUST be in JSON format:\n" +
             "{\n" +
             '  "action": "log_transaction" | "set_budget",\n' +
@@ -287,9 +298,7 @@ async function extractTransaction(text: string, userName: string, accountCurrenc
             '  "amount": number,\n' +
             '  "person": "string" | null,\n' +
             '  "currency": "string",\n' +
-            '  "language": "en" | "si",\n' +
-            '  "bot_reply": "string",\n' +
-            '  "action_hint": "string" | null\n' +
+            '  "language": "en" | "si"\n' +
             "}",
         },
         {
@@ -381,8 +390,54 @@ async function extractFromImage(
   }
 }
 
+// 🧾 Clean, structured "I've tracked this" preview — same layout in
+// English or Sinhala, built deterministically so it always looks
+// tidy (no relying on the AI to freestyle the formatting). Matches the
+// row layout used everywhere else: emoji + label + bold value.
+function buildTransactionPreview(txData: any, language: string, userName: string): string {
+  const currency = txData.currency || "";
+  const amountStr = `${currency} ${txData.amount}`.trim();
+  const person = txData.person || "Unknown";
+
+  let typeLine = "";
+  if (txData.type === "loan_given") {
+    typeLine = language === "si"
+      ? `🤝 Type: *Loan Given (ණයට දුන්නා)* 🔴\n👤 Person: *${person}*\n`
+      : `🤝 Type: *Loan Given* 🔴\n👤 Person: *${person}*\n`;
+  } else if (txData.type === "loan_taken") {
+    typeLine = language === "si"
+      ? `🤝 Type: *Loan Taken (ණයට ගත්තා)* 🟢\n👤 Person: *${person}*\n`
+      : `🤝 Type: *Loan Taken* 🟢\n👤 Person: *${person}*\n`;
+  } else if (txData.type === "loan_settled") {
+    typeLine = language === "si"
+      ? `🤝 Type: *Loan Settle (ණය පියවීම)* 🟢\n👤 Person: *${person}*\n`
+      : `🤝 Type: *Loan Settled* 🟢\n👤 Person: *${person}*\n`;
+  } else if (txData.type === "income") {
+    typeLine = language === "si"
+      ? `💰 Type: *Income (ආදායම)* 🟢\n`
+      : `💰 Type: *Income* 🟢\n`;
+  } else {
+    typeLine = language === "si"
+      ? `💸 Type: *Expense (වියදම)* 🔴\n`
+      : `💸 Type: *Expense* 🔴\n`;
+  }
+
+  const intro = language === "si"
+    ? `📝 ${userName}, මම මේක track කරගත්තා:\n\n`
+    : `📝 ${userName}, I've tracked this:\n\n`;
+
+  return (
+    intro +
+    `📝 Description: *${txData.item}*\n` +
+    `🗂️ Category: *${txData.category}*\n` +
+    typeLine +
+    `💵 Amount: *${amountStr}*\n\n` +
+    actionFooter(language)
+  );
+}
+
 // ✅ Database Save & Quick Budget Status
-async function handleConfirmTransaction(phoneNumber: string) {
+async function handleConfirmTransaction(phoneNumber: string, userName: string, language: string) {
   try {
     const { data: session, error: sessionError } = await supabase
       .from('user_sessions')
@@ -391,7 +446,12 @@ async function handleConfirmTransaction(phoneNumber: string) {
       .single();
 
     if (sessionError || !session?.pending_transaction) {
-      return { success: false, message: "මචං, කන්ෆර්ම් කරන්න කිසිම ගනුදෙනුවක් හම්බවුණේ නැහැ! 🧐" };
+      return {
+        success: false,
+        message: language === "si"
+          ? `${userName}, කන්ෆර්ම් කරන්න කිසිම ගනුදෙනුවක් හම්බවුණේ නැහැ! 🧐`
+          : `${userName}, I couldn't find any transaction to confirm! 🧐`
+      };
     }
 
     const pendingTx = session.pending_transaction;
@@ -437,29 +497,43 @@ async function handleConfirmTransaction(phoneNumber: string) {
       .limit(1)
       .maybeSingle();
 
+    const currency = pendingTx.currency || 'LKR';
+
     let budgetFeedback = "";
     if (budgetData) {
       const limit = budgetData.amount_limit;
       if (totalCategoryExpense > limit) {
-        budgetFeedback = `\n\n🚨 *බජට් එක පැන්නා මචං!* ඔයා මේ මාසේ *${pendingTx.category}* බජට් එක (Rs. ${limit}) සීමාව පන්නලා තියෙන්නේ! (මුළු වියදම: Rs. ${totalCategoryExpense})`;
+        budgetFeedback = language === "si"
+          ? `\n\n🚨 *බජට් එක පැන්නා මචං!* ඔයා මේ මාසේ *${pendingTx.category}* බජට් එක (${currency} ${limit}) සීමාව පන්නලා තියෙන්නේ! (මුළු වියදම: ${currency} ${totalCategoryExpense})`
+          : `\n\n🚨 *Budget exceeded!* You've gone over your *${pendingTx.category}* budget (${currency} ${limit}) for this month! (Total spent: ${currency} ${totalCategoryExpense})`;
       } else {
         const remaining = limit - totalCategoryExpense;
-        budgetFeedback = `\n\n🎯 *${pendingTx.category}* බජට් එකෙන් තව *Rs. ${remaining}* ඉතුරුයි.`;
+        budgetFeedback = language === "si"
+          ? `\n\n🎯 *${pendingTx.category}* බජට් එකෙන් තව *${currency} ${remaining}* ඉතුරුයි.`
+          : `\n\n🎯 You have *${currency} ${remaining}* left in your *${pendingTx.category}* budget.`;
       }
     }
 
     await supabase.from('user_sessions').delete().eq('phone_number', phoneNumber);
 
-    return { 
-      success: true, 
-      message: `✅ සිරාවටම සේව් කරගත්තා මචං!\n\n` +
-               `🔹 *${pendingTx.item}* (${pendingTx.category})\n` +
-               `💰 *Rs. ${pendingTx.amount}*` + budgetFeedback
-    };
+    const successMessage = language === "si"
+      ? `✅ සිරාවටම සේව් කරගත්තා ${userName}!\n\n` +
+        `💠 *${pendingTx.item}* _(${pendingTx.category})_\n` +
+        `💰 *${currency} ${pendingTx.amount}*` + budgetFeedback
+      : `✅ Saved, ${userName}!\n\n` +
+        `💠 *${pendingTx.item}* _(${pendingTx.category})_\n` +
+        `💰 *${currency} ${pendingTx.amount}*` + budgetFeedback;
+
+    return { success: true, message: successMessage };
 
   } catch (error) {
     console.error("Error confirming transaction:", error);
-    return { success: false, message: "🚨 අප්පට සිරි, ඩේටාබේස් එකට සේව් වෙද්දී පොඩි අවුලක් ගියා මචං!" };
+    return {
+      success: false,
+      message: language === "si"
+        ? `${userName}, ඩේටාබේස් එකට සේව් වෙද්දී පොඩි අවුලක් ගියා! 🚨`
+        : `${userName}, something went wrong saving that to the database! 🚨`
+    };
   }
 }
 
@@ -502,7 +576,7 @@ export async function POST(req: NextRequest) {
       await twilioClient.messages.create({
         from: to,
         to: from,
-        body: "Welcome! I'm your zero-friction expense tracker. What should I call you?",
+        body: "👋 Welcome! I'm your zero-friction expense tracker.\n\nWhat should I call you?",
       });
       return new NextResponse("OK", { status: 200 });
     }
@@ -523,7 +597,7 @@ export async function POST(req: NextRequest) {
     // ==========================================
     if (normalizedBody.includes("confirm")) {
       console.log(`✅ ${from} ගේ Transaction එක Confirm කරන්න හදන්නේ...`);
-      const result = await handleConfirmTransaction(from);
+      const result = await handleConfirmTransaction(from, userName, preferredLanguage);
       
       await twilioClient.messages.create({
         from: to,
@@ -541,7 +615,10 @@ export async function POST(req: NextRequest) {
       await twilioClient.messages.create({
         from: to,
         to: from,
-        body: "හරි මචං, වැරදුණු තැන හදලා මෙන්න මේ විදිහට ආයෙත් මැසේජ් එකක් දාන්න:\n\n*\"[විස්තරය] [ගාණ]\"* (උදා: අමිලට 5000ක් දුන්නා)"
+        body:
+          `හරි මචං, වැරදුණු තැන හදලා මෙන්න මේ විදිහට ආයෙත් මැසේජ් එකක් දාන්න:\n\n` +
+          `*"[විස්තරය] [ගාණ]"*\n` +
+          `(උදා: අමිලට 5000ක් දුන්නා)`
       });
 
       return new NextResponse("OK", { status: 200 });
@@ -583,16 +660,16 @@ export async function POST(req: NextRequest) {
 
       let breakdown = "";
       if (budgetLimits && budgetLimits.length > 0) {
-        breakdown += `🎯 *සෙට් කරපු බජට් සීමාවන්:*\n`;
+        breakdown += `🎯 *සෙට් කරපු බජට් සීමාවන්*\n`;
         budgetLimits.forEach(b => {
           const spent = categoryTotals[b.category] || 0;
           const limit = b.amount_limit;
           const diff = limit - spent;
-          const status = diff >= 0 ? `✅ (Rs. ${diff} ඉතුරුයි)` : `🚨 (Rs. ${Math.abs(diff)} පැන්නා!)`;
-          breakdown += `• *${b.category}:* Rs. ${spent} / Rs. ${limit} ${status}\n`;
+          const status = diff >= 0 ? `✅ Rs. ${diff} ඉතුරුයි` : `🚨 Rs. ${Math.abs(diff)} පැන්නා!`;
+          breakdown += `• *${b.category}:* Rs. ${spent} / Rs. ${limit} — ${status}\n`;
         });
       } else {
-        breakdown += `📂 *වියදම් බෙදී ගිය හැටි:*\n`;
+        breakdown += `📂 *වියදම් බෙදී ගිය හැටි*\n`;
         for (const [cat, amt] of Object.entries(categoryTotals)) {
           breakdown += `• *${cat}:* Rs. ${amt}\n`;
         }
@@ -600,11 +677,12 @@ export async function POST(req: NextRequest) {
 
       const remaining = totalIncome - totalExpense;
 
-      const responseMsg = `📊 *මෙන්න මේ මාසේ බජට් එක, මචං!*\n\n` +
-                          `💵 *මුළු ආදායම:* Rs. ${totalIncome}\n` +
-                          `💸 *මුළු වියදම:* Rs. ${totalExpense}\n` +
-                          `⚖️ *ඉතිරි මුළු මුදල:* Rs. ${remaining}\n\n` +
-                          `${breakdown || "තවම ගනුදෙනු කිසිවක් සිදුකර නැත."}`;
+      const responseMsg =
+        `📊 *මෙන්න මේ මාසේ බජට් එක, මචං!*\n\n` +
+        `💵 මුළු ආදායම: *Rs. ${totalIncome}*\n` +
+        `💸 මුළු වියදම: *Rs. ${totalExpense}*\n` +
+        `⚖️ ඉතිරි මුළු මුදල: *Rs. ${remaining}*\n\n` +
+        `${breakdown || "තවම ගනුදෙනු කිසිවක් සිදුකර නැත."}`;
 
       await twilioClient.messages.create({
         from: to,
@@ -661,7 +739,7 @@ export async function POST(req: NextRequest) {
       const people = Object.keys(personBalances);
 
       if (people.length > 0) {
-        breakdown += `\n👤 *පුද්ගලයන් අනුව විස්තරය:*\n`;
+        breakdown += `\n👤 *පුද්ගලයන් අනුව විස්තරය*\n`;
         people.forEach(person => {
           const balance = personBalances[person];
           if (balance > 0) {
@@ -674,11 +752,12 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const responseMsg = `🤝 *මෙන්න ඔයාගේ ණය ගනුදෙනු ලෙජරය, මචං!*\n\n` +
-                          `🟢 *ලැබෙන්න තියෙන මුළු මුදල:* Rs. ${totalReceivable}\n` +
-                          `🔴 *ගෙවන්න තියෙන මුළු මුදල:* Rs. ${totalPayable}\n` +
-                          `⚖️ *ශේෂය (Net Debt):* Rs. ${totalReceivable - totalPayable}\n` +
-                          `${breakdown || "\nසටහන් කරගත් ණය ගනුදෙනු කිසිවක් නැත."}`;
+      const responseMsg =
+        `🤝 *මෙන්න ඔයාගේ ණය ගනුදෙනු ලෙජරය, මචං!*\n\n` +
+        `🟢 ලැබෙන්න තියෙන මුළු මුදල: *Rs. ${totalReceivable}*\n` +
+        `🔴 ගෙවන්න තියෙන මුළු මුදල: *Rs. ${totalPayable}*\n` +
+        `⚖️ ශේෂය (Net Debt): *Rs. ${totalReceivable - totalPayable}*\n` +
+        `${breakdown || "\nසටහන් කරගත් ණය ගනුදෙනු කිසිවක් නැත."}`;
 
       await twilioClient.messages.create({
         from: to,
@@ -802,8 +881,8 @@ export async function POST(req: NextRequest) {
             from: to,
             to: from,
             body: preferredLanguage === "si"
-              ? "Audio එක කියවා ගැනීමට නොහැකි විය. නැවත උත්සාහ කරන්න."
-              : "Sorry, I couldn't process that voice note. Please try again."
+              ? "😔 Audio එක කියවා ගැනීමට නොහැකි විය. නැවත උත්සාහ කරන්න."
+              : "😔 Sorry, I couldn't process that voice note. Please try again."
           });
           return new NextResponse("OK", { status: 200 });
         }
@@ -864,11 +943,14 @@ export async function POST(req: NextRequest) {
 
         if (budgetError) throw budgetError;
 
+        const budgetMsg = txData.language === "si"
+          ? `🎯 හරි ${userName}, මම මේ මාසෙට *${txData.category}* බජට් සීමාව *${txData.currency} ${txData.amount}* විදිහට සෙට් කරගත්තා! 🚀`
+          : `🎯 Done, ${userName}! Your *${txData.category}* budget for this month is now *${txData.currency} ${txData.amount}* 🚀`;
+
         await twilioClient.messages.create({
           from: to,
           to: from,
-          body: txData.bot_reply ||
-            `🎯 Done, ${userName}! Your *${txData.category}* budget for this month is now *${txData.currency} ${txData.amount}* 🚀`
+          body: budgetMsg
         });
 
         return new NextResponse("OK", { status: 200 });
@@ -886,15 +968,9 @@ export async function POST(req: NextRequest) {
           { onConflict: 'phone_number' }
         );
 
-      // The AI writes the natural-language confirmation itself, in
-      // whichever language it detected — this replaces the old
-      // hardcoded Sinhala-only preview message.
-      const fallbackHint = preferredLanguage === "si"
-        ? "-> හරිනම් *Confirm* කියලා reply කරන්න.\n-> වැරදියි නම් *Edit* කියලා reply කරන්න."
-        : "-> Reply *Confirm* if this looks right.\n-> Reply *Edit* if something's wrong.";
-
-      const replyBody = (txData.bot_reply || `${userName}, I've tracked this: ${txData.item} — ${txData.currency} ${txData.amount}`) +
-        `\n\n${txData.action_hint || fallbackHint}`;
+      // Clean, consistent structured preview — same layout every time,
+      // just in whichever language the AI detected for this message.
+      const replyBody = buildTransactionPreview(txData, txData.language || preferredLanguage, userName);
 
       await twilioClient.messages.create({
         from: to,
@@ -907,8 +983,8 @@ export async function POST(req: NextRequest) {
         from: to,
         to: from,
         body: preferredLanguage === "si"
-          ? `මට පැහැදිලිව ගනුදෙනුවක් හෝ බජට් එකක් අඳුරගන්න බැරි වුණා ${userName}. 'බස් එකට 200ක් ගියා', 'Food budget 5000' වගේ එකක් එවන්න, නැතහොත් බිල්පතක photo එකක් දාන්න. 🚀`
-          : `Sorry ${userName}, I couldn't quite understand that as a transaction or budget. Try something like 'Spent $15 on lunch', 'Food budget 5000', or send a photo of a receipt. 🚀`
+          ? `😕 මට පැහැදිලිව ගනුදෙනුවක් හෝ බජට් එකක් අඳුරගන්න බැරි වුණා ${userName}.\n\nට්‍රයි කරන්න:\n• "බස් එකට 200ක් ගියා"\n• "Food budget 5000"\n• බිල්පතක photo එකක්`
+          : `😕 Sorry ${userName}, I couldn't quite understand that as a transaction or budget.\n\nTry something like:\n• "Spent $15 on lunch"\n• "Food budget 5000"\n• A photo of a receipt`
       });
     }
 
