@@ -16,9 +16,6 @@ const twilioClient = twilio(
 // ============================================================
 // 🌍 Country / Currency detection from the WhatsApp phone number
 // ============================================================
-// This is a lightweight calling-code lookup covering common countries.
-// For full ITU coverage in production, swap this for `libphonenumber-js`
-// (parsePhoneNumber -> country) combined with a country->currency map.
 const CALLING_CODE_MAP: Record<string, { country: string; currency: string }> = {
   "1": { country: "United States / Canada", currency: "USD" },
   "44": { country: "United Kingdom", currency: "GBP" },
@@ -59,10 +56,8 @@ const CALLING_CODE_MAP: Record<string, { country: string; currency: string }> = 
 };
 
 function detectCountryCurrency(rawPhoneNumber: string): { country: string; currency: string } {
-  // "whatsapp:+94771234567" -> "94771234567"
   const digits = rawPhoneNumber.replace("whatsapp:", "").replace(/\D/g, "");
 
-  // Try longest calling codes first so e.g. "971" isn't mistaken for "9"+"71"
   for (const len of [3, 2, 1]) {
     const prefix = digits.slice(0, len);
     if (CALLING_CODE_MAP[prefix]) {
@@ -76,13 +71,6 @@ function detectCountryCurrency(rawPhoneNumber: string): { country: string; curre
 // ============================================================
 // 👤 User / Onboarding helpers
 // ============================================================
-// Expects a `users` table in Supabase with columns:
-//   phone_number (text, PK), name (text), country (text),
-//   currency (text), preferred_language (text, default 'en'),
-//   status (text: 'awaiting_name' | 'awaiting_confirmation' |
-//                 'awaiting_edit' | 'active'),
-//   created_at (timestamptz, default now())
-
 type UserStatus = "awaiting_name" | "awaiting_confirmation" | "awaiting_edit" | "active";
 
 interface AppUser {
@@ -124,21 +112,12 @@ async function updateUser(phoneNumber: string, fields: Partial<AppUser>) {
 // ============================================================
 // 🧾 Shared formatting helpers
 // ============================================================
-// Every outgoing message goes through these so the bot always reads like
-// one voice: a short title line, then clean "label: value" rows, then
-// (optionally) a two-option action footer. Mirrors the layout in the
-// screenshot — nothing decorative added beyond what's already used.
-
-const DIVIDER = "‎"; // zero-width-ish visual breather between blocks, kept invisible
-
 function actionFooter(language: string): string {
   return language === "si"
     ? `-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`
     : `-> Reply *Confirm* if this looks right.\n-> Reply *Edit* if something's wrong.`;
 }
 
-// Handles every step of the onboarding conversation. Always in English,
-// per spec — this is the one part of the bot that never switches language.
 async function handleOnboarding(user: AppUser, incomingText: string, from: string, to: string) {
   if (user.status === "awaiting_name") {
     const name = incomingText.trim();
@@ -264,10 +243,6 @@ function getExtensionFromContentType(contentType: string): { ext: string; mime: 
   return { ext, mime: clean || "audio/ogg" };
 }
 
-// 🤖 AI Transaction & Budget Extractor (Text/Voice)
-// Now language-aware: detects whichever language the user wrote/spoke in
-// (English, Sinhala, or Singlish) and writes the bot's confirmation reply
-// back in that SAME language, addressed to the user by name.
 async function extractTransaction(text: string, userName: string, accountCurrency: string) {
   try {
     const response = await openai.chat.completions.create({
@@ -316,9 +291,6 @@ async function extractTransaction(text: string, userName: string, accountCurrenc
   }
 }
 
-// 📸 Smart Bill Photo Scanner (Image Extractor)
-// There's no user-written text to detect language from here, so we fall
-// back to the user's last known preferred_language (stored on their profile).
 async function extractFromImage(
   mediaUrl: string,
   contentType: string,
@@ -390,10 +362,6 @@ async function extractFromImage(
   }
 }
 
-// 🧾 Clean, structured "I've tracked this" preview — same layout in
-// English or Sinhala, built deterministically so it always looks
-// tidy (no relying on the AI to freestyle the formatting). Matches the
-// row layout used everywhere else: emoji + label + bold value.
 function buildTransactionPreview(txData: any, language: string, userName: string): string {
   const currency = txData.currency || "";
   const amountStr = `${currency} ${txData.amount}`.trim();
@@ -436,16 +404,67 @@ function buildTransactionPreview(txData: any, language: string, userName: string
   );
 }
 
+// ============================================================
+// 💾 SESSION HELPERS  (this is the part that was fixed)
+// ============================================================
+// FIX #1: the original code called .upsert() but never checked the
+// returned `error`, and never confirmed the row actually landed.
+// If the upsert silently failed (bad `onConflict` target, RLS policy,
+// schema mismatch, etc.) the user would see the "I've tracked this"
+// preview even though nothing was saved — then "Confirm" would find
+// nothing. Now we check the error AND log exactly what got written.
+async function savePendingTransaction(phoneNumber: string, txData: any) {
+  const { data, error } = await supabase
+    .from("user_sessions")
+    .upsert(
+      {
+        phone_number: phoneNumber,
+        pending_transaction: txData,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "phone_number" }
+    )
+    .select("phone_number, pending_transaction")
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ Failed to save pending_transaction to user_sessions:", error);
+    return { success: false };
+  }
+
+  console.log("💾 DEBUG SESSION DATA (saved):", JSON.stringify(data));
+  return { success: true, data };
+}
+
+// FIX #2: use maybeSingle() instead of single(). single() throws a
+// Postgrest error (PGRST116) when zero rows match, which added noise
+// and made it harder to tell "no session yet" apart from a real DB
+// error. maybeSingle() just returns null cleanly in that case.
+async function getPendingTransaction(phoneNumber: string) {
+  const { data, error } = await supabase
+    .from("user_sessions")
+    .select("pending_transaction")
+    .eq("phone_number", phoneNumber)
+    .maybeSingle();
+
+  console.log(
+    "🔎 DEBUG SESSION DATA (read):",
+    JSON.stringify({ phoneNumber, data, error })
+  );
+
+  return { data, error };
+}
+
 // ✅ Database Save & Quick Budget Status
 async function handleConfirmTransaction(phoneNumber: string, userName: string, language: string) {
   try {
-    const { data: session, error: sessionError } = await supabase
-      .from('user_sessions')
-      .select('pending_transaction')
-      .eq('phone_number', phoneNumber)
-      .single();
+    const { data: session, error: sessionError } = await getPendingTransaction(phoneNumber);
 
-    if (sessionError || !session?.pending_transaction) {
+    if (sessionError) {
+      console.error("❌ Error reading session:", sessionError);
+    }
+
+    if (!session?.pending_transaction) {
       return {
         success: false,
         message: language === "si"
@@ -563,16 +582,10 @@ export async function POST(req: NextRequest) {
     // ==========================================
     // 0. ONBOARDING GATE (Strictly English)
     // ==========================================
-    // Every brand-new number goes through the same English-only flow:
-    // ask name -> auto-detect country/currency -> confirm -> activate.
-    // Only once status === "active" does the bot switch into the
-    // dynamic multilingual flow below.
     let user = await getUser(from);
 
     if (!user) {
       user = await createUser(from);
-      // First-ever contact: this message is just a greeting, not their name.
-      // Prompt for the name and wait for their next reply.
       await twilioClient.messages.create({
         from: to,
         to: from,
@@ -598,7 +611,7 @@ export async function POST(req: NextRequest) {
     if (normalizedBody.includes("confirm")) {
       console.log(`✅ ${from} ගේ Transaction එක Confirm කරන්න හදන්නේ...`);
       const result = await handleConfirmTransaction(from, userName, preferredLanguage);
-      
+
       await twilioClient.messages.create({
         from: to,
         to: from,
@@ -611,7 +624,7 @@ export async function POST(req: NextRequest) {
     if (normalizedBody.includes("edit")) {
       console.log(`✏️ ${from} ට එඩිට් කරන්න ඕන වෙලා. Session එක clear කරනවා.`);
       await supabase.from('user_sessions').delete().eq('phone_number', from);
-      
+
       await twilioClient.messages.create({
         from: to,
         to: from,
@@ -703,8 +716,8 @@ export async function POST(req: NextRequest) {
         .eq('phone_number', from)
         .in('type', ['loan_given', 'loan_taken', 'loan_settled']);
 
-      let totalReceivable = 0; 
-      let totalPayable = 0;    
+      let totalReceivable = 0;
+      let totalPayable = 0;
       const personBalances: Record<string, number> = {};
 
       loanTxs?.forEach(tx => {
@@ -886,10 +899,10 @@ export async function POST(req: NextRequest) {
           });
           return new NextResponse("OK", { status: 200 });
         }
-      } 
+      }
       else if (mediaContentType.startsWith("image/")) {
         console.log(`📸 Image (Bill) එකක් අහුවුණා. URL: ${mediaUrl}`);
-        
+
         await twilioClient.messages.create({
           from: to,
           to: from,
@@ -909,15 +922,12 @@ export async function POST(req: NextRequest) {
         );
         console.log("🤖 OpenAI Image Extracted Data:", txData);
       }
-    } 
+    }
     else if (userText && !userText.startsWith("[")) {
       txData = await extractTransaction(userText, userName, accountCurrency);
       console.log("🤖 OpenAI Extracted Data:", txData);
     }
 
-    // Remember whichever language the user just used, so the next
-    // image-only message (with no text to detect from) still replies
-    // in the language they're currently speaking.
     if (txData?.language && txData.language !== preferredLanguage) {
       await updateUser(from, { preferred_language: txData.language });
     }
@@ -926,10 +936,10 @@ export async function POST(req: NextRequest) {
     // 3. REPLY GENERATION
     // ==========================================
     if (txData && txData.amount) {
-      
+
       if (txData.action === "set_budget") {
         console.log(`🎯 ${from} ගේ ${txData.category} බජට් එක සෙට් කරනවා: Rs. ${txData.amount}`);
-        
+
         const { error: budgetError } = await supabase
           .from('budgets')
           .upsert(
@@ -957,19 +967,23 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(`💾 තාවකාලිකව data ටික user_sessions එකට දානවා...`);
-      await supabase
-        .from('user_sessions')
-        .upsert(
-          { 
-            phone_number: from, 
-            pending_transaction: txData,
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: 'phone_number' }
-        );
 
-      // Clean, consistent structured   eview — same layout every time,
-      // just in whichever language the AI detected for this message.
+      // FIX: check the save result. If it failed, tell the user instead
+      // of silently showing a preview for a transaction that was never
+      // actually persisted (which is what caused "Confirm" to fail).
+      const saveResult = await savePendingTransaction(from, txData);
+
+      if (!saveResult.success) {
+        await twilioClient.messages.create({
+          from: to,
+          to: from,
+          body: preferredLanguage === "si"
+            ? `😔 ${userName}, මේ transaction එක තාවකාලිකව save කරගන්න බැරි වුණා. ආයෙත් ට්‍රයි කරන්න.`
+            : `😔 ${userName}, I couldn't save that transaction for review. Please try sending it again.`
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+
       const replyBody = buildTransactionPreview(txData, txData.language || preferredLanguage, userName);
 
       await twilioClient.messages.create({
