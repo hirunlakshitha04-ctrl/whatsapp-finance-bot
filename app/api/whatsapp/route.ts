@@ -143,7 +143,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
     
-    return `✅ සිරාවටම සේව් කරගත්තා ${userProfile.name} මචං!\n\n🔹 *${tx.item}* (${tx.category})\n💰 *${tx.currency} ${tx.amount}*`;
+    return `✅ සිරාවටම සේဝ် කරගත්තා ${userProfile.name} මචං!\n\n🔹 *${tx.item}* (${tx.category})\n💰 *${tx.currency} ${tx.amount}*`;
   } catch (err) {
     console.error("❌ DB Insert Error:", err);
     return "🚨 අප්පට සිරි, ඩේටාබේස් එකට සේව් වෙද්දී පොඩි අවුලක් ගියා මචං!";
@@ -158,13 +158,14 @@ export async function POST(req: NextRequest) {
     
     const formData = await req.formData();
     const rawFrom = formData.get("From") as string; // 'whatsapp:+94771234567'
-    const rawTo = formData.get("To") as string;
+    const rawTo = formData.get("To") as string;     // 'whatsapp:+14155238886'
     const mediaUrl = formData.get("MediaUrl0") as string | null;
     const mediaContentType = (formData.get("MediaContentType0") as string) || "";
     const body = ((formData.get("Body") as string) || "").trim();
 
+    // මෙතනින් whatsapp: කෑල්ල දෙකෙන්ම ඉවත් කරනවා එවිට පිරිසිදු ෆෝන් නම්බර්ස් විතරක් ඉතිරි වේ
     const from = rawFrom.replace("whatsapp:", "");
-    const to = rawTo;
+    const to = rawTo.replace("whatsapp:", "");
     const normalizedBody = body.toLowerCase();
 
     // 1. යූසර් සහ එයාගේ වර්තමාන ස්ටෙප් එක DB එකෙන් ලබාගැනීම
