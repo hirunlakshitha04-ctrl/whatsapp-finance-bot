@@ -9,22 +9,29 @@ export default function CheckoutPage() {
   const handleCheckout = async () => {
     setLoading(true);
     try {
+      // ✅ Current Active Domain එකටම Request එක යවන Relative Path එක
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           variantId: process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_VARIANT_ID,
-          userId: 'USER_SUPABASE_ID', // Supabase logged-in User ID
-          userEmail: 'user@example.com', // Supabase logged-in User Email
+          userId: 'test-user-id',
+          userEmail: 'test@example.com',
         }),
       });
 
       const data = await res.json();
+      console.log('Checkout Response:', data);
+
       if (data.url) {
-        window.location.href = data.url; // Lemon Squeezy Checkout Page එකට Redirect වෙනවා
+        // Lemon Squeezy Checkout Page එකට Redirect වෙනවා
+        window.location.href = data.url; 
+      } else {
+        alert('Checkout Failed: ' + (data.error || 'Unable to generate checkout URL'));
       }
     } catch (error) {
       console.error('Checkout failed:', error);
+      alert('Network/Server error occurred. Please check console.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +86,7 @@ export default function CheckoutPage() {
         <button
           onClick={handleCheckout}
           disabled={loading}
-          className="w-full py-4 px-6 rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:opacity-90 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-4 px-6 rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:opacity-90 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
         >
           {loading ? (
             <span className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-slate-900 border-t-transparent" />
