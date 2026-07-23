@@ -1,4 +1,3 @@
-// app/api/whatsapp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { OpenAI } from "openai";
@@ -16,23 +15,18 @@ interface ExtractedData {
   currency: string;
 }
 
-interface OnboardingData {
-  name?: string;
-  country?: string;
-}
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 
 // AI Engine: Text Parser
-async function extractTransaction(text: string, nativeCurrency: string): Promise<ExtractedData | null> {
+async function extractTransaction(text: string, nativeCurrency: string, language: string): Promise<ExtractedData | null> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a financial parsing core. Analyze text (multilingual: English, Sinhalese, Singlish).
+          content: `You are a financial parsing core. Analyze text (multilingual: English, Sinhalese, Arabic, Singlish, etc. Preference lang: ${language}).
 Determine action: 'log_transaction' OR 'set_budget'.
 Match exactly one Category: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Other].
 
@@ -111,7 +105,7 @@ async function extractFromImage(
   }
 }
 
-// DB Handler: Transaction Comfirmation
+// DB Handler: Transaction Confirmation
 async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
   try {
     const { data: session } = await supabase
@@ -121,7 +115,9 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .single();
 
     if (!session?.pending_transaction) {
-      return "⚠️ මචං, Confirm කරන්න කිසිම ගනුදෙනුවක් හම්බවුණේ නැහැ! 🧐";
+      return userProfile.language === "si" 
+        ? "⚠️ Confirm කරන්න කිසිම ගනුදෙනුවක් හම්බවුණේ නැහැ!"
+        : "⚠️ No pending transaction found to confirm!";
     }
 
     const tx = session.pending_transaction as ExtractedData;
@@ -137,16 +133,22 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
 
     if (insErr) throw insErr;
 
-    // Session එක reset කර යූසර්ව Active මට්ටමේ තැබීම
+    // Reset session state back to ACTIVE
     await supabase
       .from('user_sessions')
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
     
-    return `✅ සිරාවටම සේဝ် කරගත්තා ${userProfile.name} මචං!\n\n🔹 *${tx.item}* (${tx.category})\n💰 *${tx.currency} ${tx.amount}*`;
+    const nickname = userProfile.nickname || userProfile.name || "Friend";
+
+    if (userProfile.language === "si") {
+      return `✅ සිරාවටම සේව් කරගත්තා ${nickname}!\n\n🔹 *${tx.item}* (${tx.category})\n💰 *${tx.currency} ${tx.amount}*`;
+    } else {
+      return `✅ Saved successfully, ${nickname}!\n\n🔹 *${tx.item}* (${tx.category})\n💰 *${tx.currency} ${tx.amount}*`;
+    }
   } catch (err) {
     console.error("❌ DB Insert Error:", err);
-    return "🚨 අප්පට සිරි, ඩේටාබේස් එකට සේව් වෙද්දී පොඩි අවුලක් ගියා මචං!";
+    return "🚨 Database save failed. Please try again.";
   }
 }
 
@@ -157,117 +159,87 @@ export async function POST(req: NextRequest) {
     const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
     
     const formData = await req.formData();
-    const rawFrom = formData.get("From") as string; // 'whatsapp:+94771234567'
-    const rawTo = formData.get("To") as string;     // 'whatsapp:+14155238886'
+    const rawFrom = formData.get("From") as string; 
+    const rawTo = formData.get("To") as string;     
     const mediaUrl = formData.get("MediaUrl0") as string | null;
     const mediaContentType = (formData.get("MediaContentType0") as string) || "";
     const body = ((formData.get("Body") as string) || "").trim();
 
-    // මෙතනින් whatsapp: කෑල්ල දෙකෙන්ම ඉවත් කරනවා එවිට පිරිසිදු ෆෝන් නම්බර්ස් විතරක් ඉතිරි වේ
+    // Clean Phone Numbers
     const from = rawFrom.replace("whatsapp:", "");
     const to = rawTo.replace("whatsapp:", "");
     const normalizedBody = body.toLowerCase();
 
-    // 1. යූසර් සහ එයාගේ වර්තමාන ස්ටෙප් එක DB එකෙන් ලබාගැනීම
+    // 1. Fetch User Profile from Supabase (Populated via Web Registration Form)
     const { data: userProfile } = await supabase.from('users').select('*').eq('phone_number', from).maybeSingle();
-    const { data: sessionState } = await supabase.from('user_sessions').select('*').eq('phone_number', from).maybeSingle();
 
     // ==========================================
-    // PHASE A: ONBOARDING FUNNEL (අලුත් යූසර් කෙනෙක් නම්)
+    // UNREGISTERED USER FLOW
     // ==========================================
     if (!userProfile) {
-      // ස්ටෙප් A0: වෙබ් එකෙන් නැතිව ඩිරෙක්ට් මැසේජ් එකක් දැමූ විට
-      if (!sessionState) {
-        await supabase.from('user_sessions').insert({ phone_number: from, step: 'PENDING_NAME' });
-        await twilioClient.messages.create({ 
-          from: `whatsapp:${to}`, to: `whatsapp:${from}`, 
-          body: "👋 Welcome to Global Expense Tracker! ලෙජරය ඇක්ටිව් කරන්න කලින් ප්‍රශ්න 3කට උත්තර දෙන්න මචං.\n\nඔයාගේ සම්පූර්ණ නම (Name) මොකක්ද?" 
-        });
-        return new NextResponse("OK", { status: 200 });
-      }
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+      const registerMsg = `👋 Welcome to Global Expense Tracker!\n\n` +
+        `You are not registered yet. Please complete your profile on our website first:\n\n` +
+        `👉 ${websiteUrl}/register\n\n` +
+        `Once registered, send a message here to start tracking! 🚀`;
 
-      // ස්ටෙප් A1: නම ලැබුණු පසු රට විමසීම
-      if (sessionState.step === 'PENDING_NAME') {
-        await supabase.from('user_sessions').update({ 
-          step: 'PENDING_COUNTRY', 
-          onboarding_data: { name: body } 
-        }).eq('phone_number', from);
+      await twilioClient.messages.create({
+        from: `whatsapp:${to}`,
+        to: `whatsapp:${from}`,
+        body: registerMsg,
+      });
 
-        await twilioClient.messages.create({ 
-          from: `whatsapp:${to}`, to: `whatsapp:${from}`, 
-          body: `නියමයි *${body}*! 🌍 ඔයා දැනට ජීවත් වෙන රට (Country) මොකක්ද?` 
-        });
-        return new NextResponse("OK", { status: 200 });
-      }
-
-      // ස්ටෙප් A2: රට ලැබුණු පසු Currency එක විමසීම
-      if (sessionState.step === 'PENDING_COUNTRY') {
-        const currentData = (sessionState.onboarding_data as OnboardingData) || {};
-        const onboardingData = { ...currentData, country: body };
-        
-        await supabase.from('user_sessions').update({ 
-          step: 'PENDING_CURRENCY', 
-          onboarding_data: onboardingData 
-        }).eq('phone_number', from);
-
-        await twilioClient.messages.create({ 
-          from: `whatsapp:${to}`, to: `whatsapp:${from}`, 
-          body: "එළකිරි! අවසාන වශයෙන් ඔයා පාවිච්චි කරන මුදල් වර්ගයේ කෝඩ් එක එවන්න මචං. (උදා: LKR, USD, EUR, AED)" 
-        });
-        return new NextResponse("OK", { status: 200 });
-      }
-
-      // ස්ටෙප් A3: Currency එක ලැබුණු පසු Confirm/Edit කිරීම
-      if (sessionState.step === 'PENDING_CURRENCY') {
-        const baseProfile = (sessionState.onboarding_data as OnboardingData) || {};
-        
-        if (normalizedBody.includes('edit')) {
-          await supabase.from('user_sessions').update({ step: 'PENDING_NAME', onboarding_data: {} }).eq('phone_number', from);
-          await twilioClient.messages.create({ 
-            from: `whatsapp:${to}`, to: `whatsapp:${from}`, 
-            body: "හරි මචං, අපි මුල ඉඳන් පටන් ගමු. ඔයාගේ නම එවන්න." 
-          });
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        if (normalizedBody.includes('confirm')) {
-          const finalCurrency = (sessionState.pending_transaction as any)?.currency || 'USD';
-          
-          // ස්ථිරවම යූසර්ව රෙජිස්ටර් කිරීම
-          await supabase.from('users').insert({
-            phone_number: from,
-            name: baseProfile.name!,
-            country: baseProfile.country!,
-            currency: finalCurrency
-          });
-
-          await supabase.from('user_sessions').update({ step: 'ACTIVE', pending_transaction: null, onboarding_data: null }).eq('phone_number', from);
-          
-          await twilioClient.messages.create({ 
-            from: `whatsapp:${to}`, to: `whatsapp:${from}`, 
-            body: `🚀 සුපිරි මචං! ඔයාගේ Global Expense Account එක සාර්ථකව ඇක්ටිව් වුණා.\n\nදැන් ඔයාට පුළුවන් "කෑම වලට 450", "ගෑස් බිල 3200" වගේ මැසේජ් දාලා හෝ බිල්පත් වල ෆොටෝ දාලා වියදම් සටහන් කරන්න.` 
-          });
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        // තොරතුරු නිවැරදිද කියා පෙන්වන Preview මැසේජ් එක
-        const currencyCode = body.toUpperCase().replace(/[^A-Z]/g, '');
-        await supabase.from('user_sessions').update({ pending_transaction: { currency: currencyCode } }).eq('phone_number', from);
-        
-        await twilioClient.messages.create({
-          from: `whatsapp:${to}`, to: `whatsapp:${from}`,
-          body: `🔍 ඔයාගේ විස්තර ටික මෙන්න මචං:\n\n👤 නම: *${baseProfile.name}*\n🌍 රට: *${baseProfile.country}*\n💱 Currency: *${currencyCode}*\n\nසියල්ල නිවැරදි නම් *Confirm* කියලත්, වෙනස් කරන්න ඕනේ නම් *Edit* කියලත් එවන්න.`
-        });
-        return new NextResponse("OK", { status: 200 });
-      }
       return new NextResponse("OK", { status: 200 });
     }
 
     // ==========================================
-    // PHASE B: ACTIVE USER TRANSACTION LOGIC
+    // REGISTERED USER - SESSION VERIFICATION
+    // ==========================================
+    const { data: sessionState } = await supabase.from('user_sessions').select('*').eq('phone_number', from).maybeSingle();
+
+    // First Message after Web Registration
+    if (!sessionState) {
+      await supabase.from('user_sessions').insert({ phone_number: from, step: 'ACTIVE' });
+
+      const nickname = userProfile.nickname || userProfile.name || "Friend";
+      const currency = userProfile.currency || "USD";
+      const userLang = userProfile.language || "en";
+
+      let welcomeMsg = "";
+      if (userLang === "si") {
+        welcomeMsg = `👋 ආයුබෝවන් ${nickname}!\n\n` +
+          `ඔබගේ Global Expense Tracker ගිණුම සක්‍රීයයි! (${currency})\n\n` +
+          `💡 **වියදම් ලොග් කරන්නේ මෙහෙමයි:**\n` +
+          `• "කෑම වලට 450"\n` +
+          `• "Spent 15 USD for lunch"\n` +
+          `• නැතහොත් ඕනෑම බිල්පතක ඡායාරූපයක් (Bill Photo) මෙතැනට එවන්න!\n\n` +
+          `ලොග් කරන්න අවශ්‍ය වියදම දැන්ම ටයිප් කර එවන්න. 🚀`;
+      } else {
+        welcomeMsg = `👋 Welcome ${nickname}!\n\n` +
+          `Your Global Expense Tracker account is fully active in **${currency}**!\n\n` +
+          `💡 **How to log expenses:**\n` +
+          `• "Food 15 ${currency}"\n` +
+          `• "Spent 50 on Petrol"\n` +
+          `• Or simply send a photo of any receipt/bill!\n\n` +
+          `Send your first expense now to start tracking! 🚀`;
+      }
+
+      await twilioClient.messages.create({
+        from: `whatsapp:${to}`,
+        to: `whatsapp:${from}`,
+        body: welcomeMsg,
+      });
+
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // ==========================================
+    // ACTIVE USER TRANSACTION LOGIC
     // ==========================================
     const userCurrency = userProfile.currency || "USD";
+    const userLang = userProfile.language || "en";
 
+    // Handle Transaction Confirmation / Cancel
     if (normalizedBody === "confirm") {
       const respMessage = await handleConfirmTransaction(from, userProfile);
       await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: respMessage });
@@ -276,29 +248,46 @@ export async function POST(req: NextRequest) {
 
     if (normalizedBody === "edit") {
       await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: "හරි මචං, වැරදුණු තැන හදලා නිවැරදි විස්තරය ආයෙත් එවන්න." });
+      const cancelMsg = userLang === "si" 
+        ? "හරි මචං, වැරදුණු තැන හදලා නිවැරදි විස්තරය ආයෙත් එවන්න."
+        : "No problem! Please re-send the correct expense details.";
+      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: cancelMsg });
       return new NextResponse("OK", { status: 200 });
     }
 
+    // AI Expense Extraction
     let extractedTx: ExtractedData | null = null;
 
     if (mediaUrl && mediaContentType.startsWith("image/")) {
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: "📸 මචං, මම ඔයා එවපු බිල්පත කියවමින් ඉන්නේ. තත්පරයක් දෙන්න... ⏳" });
+      const scanningMsg = userLang === "si" 
+        ? "📸 මචං, මම ඔයා එවපු බිල්පත කියවමින් ඉන්නේ. තත්පරයක් දෙන්න... ⏳"
+        : "📸 Scanning your receipt... Please wait a moment ⏳";
+      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: scanningMsg });
+      
       extractedTx = await extractFromImage(mediaUrl, mediaContentType, TWILIO_SID, TWILIO_TOKEN, userCurrency);
     } else if (body) {
-      extractedTx = await extractTransaction(body, userCurrency);
+      extractedTx = await extractTransaction(body, userCurrency, userLang);
     }
 
+    // Confirmation Preview Prompt
     if (extractedTx && extractedTx.amount) {
-      // තහවුරු කරන තෙක් තාවකාලිකව Session එකේ තැබීම
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
-      let details = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${extractedTx.amount}*\n\n`;
-      details += `-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      let details = "";
+      if (userLang === "si") {
+        details = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${extractedTx.amount}*\n\n` +
+          `-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      } else {
+        details = `📝 Item: *${extractedTx.item}*\n🗂️ Category: *${extractedTx.category}*\n💰 Amount: *${extractedTx.currency} ${extractedTx.amount}*\n\n` +
+          `-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`;
+      }
       
       await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: details });
     } else {
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: "මට ඒක පැහැදිලිව අඳුරගන්න බැරි වුණා මචං. 'බස් එකට 200ක් ගියා' වගේ එකක් එවන්න, නැතහොත් බිල්පතක photo එකක් දාන්න. 🚀" });
+      const fallbackMsg = userLang === "si"
+        ? "මට ඒක පැහැදිලිව අඳුරගන්න බැරි වුණා මචං. 'බස් එකට 200ක් ගියා' වගේ එකක් එවන්න, නැතහොත් බිල්පතක photo එකක් දාන්න. 🚀"
+        : "I couldn't clearly parse that. Try something like 'Spent 20 on Lunch' or send a photo of a receipt. 🚀";
+      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: fallbackMsg });
     }
 
     return new NextResponse("OK", { status: 200 });
