@@ -2,18 +2,17 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { variantId, userId, userEmail } = await req.json();
+    const { variantId, userEmail, userId } = await req.json();
 
-    // Environment variables හරියට තියෙනවද බලන්න check එකක්
     const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-    const selectedVariantId = variantId || process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
+    const targetVariantId = variantId || process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
 
-    if (!apiKey || !storeId || !selectedVariantId) {
-      console.error('Missing Environment Variables:', { apiKey: !!apiKey, storeId, selectedVariantId });
+    // Check Env
+    if (!apiKey || !storeId || !targetVariantId) {
       return NextResponse.json(
-        { error: 'Server configuration error. Missing API Key or Store/Variant ID.' },
-        { status: 500 }
+        { error: `Missing Env variables! storeId: ${storeId}, variantId: ${targetVariantId}` },
+        { status: 400 }
       );
     }
 
@@ -31,7 +30,7 @@ export async function POST(req: Request) {
             checkout_data: {
               email: userEmail || 'test@example.com',
               custom: {
-                user_id: userId || 'guest',
+                user_id: String(userId || 'guest_user'),
               },
             },
           },
@@ -45,7 +44,7 @@ export async function POST(req: Request) {
             variant: {
               data: {
                 type: 'variants',
-                id: String(selectedVariantId),
+                id: String(targetVariantId),
               },
             },
           },
@@ -53,16 +52,18 @@ export async function POST(req: Request) {
       }),
     });
 
-    const data = await response.json();
+    const resData = await response.json();
 
     if (!response.ok) {
-      console.error('Lemon Squeezy API Error:', data);
-      return NextResponse.json({ error: data.errors?.[0]?.detail || 'Lemon Squeezy API Error' }, { status: response.status });
+      console.error('Lemon Squeezy API Returned Error:', JSON.stringify(resData));
+      // Lemon Squeezy එකෙන් ආපු exact error එක frontend එකට යවනවා
+      const errorMessage = resData?.errors?.[0]?.detail || resData?.errors?.[0]?.title || 'Lemon Squeezy Error';
+      return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
-    return NextResponse.json({ url: data.data.attributes.url });
-  } catch (error: any) {
-    console.error('Checkout creation internal error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ url: resData.data.attributes.url });
+  } catch (err: any) {
+    console.error('Fetch Crash:', err);
+    return NextResponse.json({ error: err.message || 'Server Fetch Failed' }, { status: 500 });
   }
 }
