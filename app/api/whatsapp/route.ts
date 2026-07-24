@@ -20,7 +20,7 @@ interface ExtractedData {
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 
-// Updated to Twilio Sandbox WhatsApp Number
+// Twilio Sandbox WhatsApp Number
 const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
 // 1. 🎤 Voice to Text Transcriber (Whisper API)
@@ -64,28 +64,28 @@ async function extractTransaction(
       messages: [
         {
           role: "system",
-          content: `You are Broo.ai, a smart financial assistant bot.
+          content: `You are Broo.ai, a close financial buddy for Sri Lankans.
 User Profile Details:
-- Preferred Language: "${language}" (English, Sinhala, Singlish, Arabic, Tamil, etc.)
+- Preferred Language: "${language}"
 - Call User As: "${nickname}"
 - Base Currency: "${nativeCurrency}"
 
-Determine action:
-1. 'log_transaction' -> For Expenses, Income, Loans.
-2. 'set_budget' -> For setting monthly budgets.
+CRITICAL TONE & FORMAT RULES:
+1. NEVER write formal book Sinhala (DO NOT use "ඔබේ", "ප්‍රවර්ගය", "සනාථ කිරීමට", "ලබා දෙවන්න").
+2. Speak like a close friend in natural spoken Sinhala/Singlish (e.g. "මචං", "Bro", "හරි").
+3. Determine action: 'log_transaction' (Expense/Income/Loan) or 'set_budget'.
+4. Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
 
-Category list: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
-
-Return pure JSON matching this schema:
+Return pure JSON matching this exact structure:
 {
   "action": "log_transaction" | "set_budget",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
   "item": "clear description string",
-  "category": "String",
+  "category": "Category name",
   "amount": number,
   "person": "string" | null,
   "currency": "${nativeCurrency}",
-  "confirmation_message": "Friendly confirmation text strictly written in the user's preferred language (${language}) addressing them as (${nickname}), summarizing the item/amount, and asking to reply 'Confirm' or 'Edit'."
+  "confirmation_message": "📝 විස්තරය: *<item>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
 }`
         },
         { role: "user", content: text }
@@ -121,7 +121,8 @@ async function extractFromImage(
       messages: [
         {
           role: "system",
-          content: `Extract financial total and merchant from this receipt. Currency: ${nativeCurrency}. Output JSON:
+          content: `Extract total amount and merchant from receipt. Base Currency: ${nativeCurrency}.
+Never use formal written Sinhala. Return pure JSON:
 {
   "action": "log_transaction",
   "type": "expense",
@@ -130,7 +131,7 @@ async function extractFromImage(
   "amount": number,
   "person": null,
   "currency": "${nativeCurrency}",
-  "confirmation_message": "Friendly confirmation text strictly in user's preferred language (${language}) addressing them as (${nickname}) summarizing the extracted receipt details and asking to reply 'Confirm' or 'Edit'."
+  "confirmation_message": "📝 විස්තරය: *<merchant_name>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
 }`
         },
         {
@@ -150,7 +151,7 @@ async function extractFromImage(
   }
 }
 
-// 4. 💾 DB Handler: Confirmation Logic with Dynamic Response
+// 4. 💾 DB Handler: Confirmation Logic with Friendly AI Response
 async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
   try {
     const { data: session } = await supabase
@@ -160,10 +161,9 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .single();
 
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
-    const userLang = userProfile.preferred_language || userProfile.language || "Singlish";
 
     if (!session?.pending_transaction) {
-      return `⚠️ Hi ${nickname}, no pending transaction found to confirm!`;
+      return `⚠️ Machan ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`;
     }
 
     const tx = session.pending_transaction as ExtractedData;
@@ -180,7 +180,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
         .update({ pending_transaction: null, step: 'ACTIVE' })
         .eq('phone_number', phoneNumber);
 
-      return `🎯 ${nickname}, your monthly budget of ${tx.currency} ${tx.amount} has been saved successfully!`;
+      return `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක ${tx.currency} ${tx.amount} විදිහට සේව් කරගත්තා! 🚀`;
     }
 
     // Save Transaction to Supabase
@@ -202,19 +202,21 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // AI Dynamic Confirmation Response in User's Language
+    // AI Dynamic Confirmation Response in Casual Singlish / Spoken Sinhala
     const aiSavePrompt = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{
         role: "system",
-        content: `Generate a short success message in user's language (${userLang}). Address user as: "${nickname}". Mention Item: "${tx.item}", Category: "${tx.category}", Amount: "${tx.currency} ${tx.amount}". Add friendly emojis.`
+        content: `You are Broo.ai, a close friend. Generate a short 1-sentence success response in natural Sri Lankan spoken Sinhala/Singlish.
+        Address user as "${nickname}". Mention Item: "${tx.item}", Category: "${tx.category}", Amount: "${tx.currency} ${tx.amount}".
+        Examples: "එළකිරි ${nickname}! ${tx.item} එකට ගිය ${tx.currency} ${tx.amount} සේව් කරගත්තා! 🚀" or "හරි ${nickname}, ${tx.item} ගාන හරිම ලස්සනට සේව් වුණා! 👍"`
       }]
     });
 
-    return aiSavePrompt.choices[0].message.content || `✅ Saved ${tx.item} (${tx.currency} ${tx.amount})`;
+    return aiSavePrompt.choices[0].message.content || `✅ හරි ${nickname}, ${tx.item} (${tx.currency} ${tx.amount}) සේව් වුණා! 🚀`;
   } catch (err) {
     console.error("❌ DB Insert Error:", err);
-    return "🚨 Database save failed. Please try again.";
+    return "🚨 අෆ්ෆට, Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?";
   }
 }
 
@@ -239,7 +241,7 @@ export async function POST(req: NextRequest) {
     // UNREGISTERED USER
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-      const registerMsg = `👋 Welcome to Broo.ai!\n\nYou are not registered yet. Please complete your profile first:\n👉 ${websiteUrl}/register`;
+      const registerMsg = `👋 Welcome to Broo.ai!\n\nමචං ඔයා තවම Register වෙලා නෑ. කලින් මෙතනින් Profile එක complete කරලා එන්නකෝ:\n👉 ${websiteUrl}/register`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -260,7 +262,7 @@ export async function POST(req: NextRequest) {
     const isPaid = userProfile.is_paid || false;
 
     if (!isPaid && trialEndsAt && now > trialEndsAt) {
-      const expiredMsg = `⏳ Hey ${nickname}! Your 7-Day Free Trial has expired.\n\nSubscribe here to continue tracking: 👉 ${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
+      const expiredMsg = `⏳ Machan ${nickname}! ඔයාගේ 7-Day Free Trial එක ඉවරයි බං.\n\nදිගටම track කරන්න මෙතනින් Subscribe වෙන්න: 👉 ${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
@@ -274,7 +276,7 @@ export async function POST(req: NextRequest) {
 
     if (!sessionState) {
       await supabase.from('user_sessions').insert({ phone_number: from, step: 'ACTIVE' });
-      const welcomeMsg = `👋 Welcome ${nickname}!\n\nYour Broo.ai account is active in **${userCurrency}**!\nSend a text, voice note 🎙️, or receipt photo 📸 to start tracking! 🚀`;
+      const welcomeMsg = `👋 එළකිරි ${nickname}!\n\nBroo.ai එක active වුණා (${userCurrency}).\nඕනෑම expense එකක් Text එකකින්, Voice note එකකින් 🎙️, නැත්නම් Receipt photo එකකින් 📸 එවන්න! 🚀`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -297,7 +299,7 @@ export async function POST(req: NextRequest) {
 
     if (normalizedBody === "edit") {
       await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
-      const cancelMsg = `No problem ${nickname}! Please send the corrected details.`;
+      const cancelMsg = `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
@@ -326,8 +328,9 @@ export async function POST(req: NextRequest) {
     if (extractedTx && extractedTx.amount) {
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
-      const previewMsg = extractedTx.confirmation_message || 
-        `📝 Item: *${extractedTx.item}*\n🗂️ Category: *${extractedTx.category}*\n💰 Amount: *${extractedTx.currency} ${extractedTx.amount}*\n\nReply *Confirm* or *Edit*`;
+      const fallbackPreview = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${extractedTx.amount}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      
+      const previewMsg = extractedTx.confirmation_message || fallbackPreview;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -335,7 +338,7 @@ export async function POST(req: NextRequest) {
         body: previewMsg,
       });
     } else {
-      const fallbackMsg = `Sorry ${nickname}, I couldn't clearly parse that. Try something like "Spent 500 for lunch", send a voice note, or a receipt photo! 🚀`;
+      const fallbackMsg = `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක්, voice note එකක් හෝ receipt photo එකක් දාන්න! 🚀`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
