@@ -68,9 +68,8 @@ async function extractTransaction(
 User Profile: Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
 INSTRUCTIONS FOR CONFIRMATION MESSAGE:
-- Provide a clear, formatted confirmation preview.
-- DO NOT translate numbers into words (Keep raw numeric amount).
-- Use natural spoken/casual language matching the user's preferred language.
+- Parse whether the input is an 'expense', 'income', or 'loan'.
+- Keep item name short, simple, and clean.
 
 Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
 
@@ -82,8 +81,7 @@ Return pure JSON:
   "category": "Category name",
   "amount": number,
   "person": "string" | null,
-  "currency": "${nativeCurrency}",
-  "confirmation_message": "📝 විස්තරය: *<item>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
+  "currency": "${nativeCurrency}"
 }`
         },
         { role: "user", content: text }
@@ -128,8 +126,7 @@ Return pure JSON:
   "category": "Food" | "Transport" | "Bills" | "Shopping" | "Entertainment" | "Medical" | "Education" | "Other",
   "amount": number,
   "person": null,
-  "currency": "${nativeCurrency}",
-  "confirmation_message": "📝 විස්තරය: *<item>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
+  "currency": "${nativeCurrency}"
 }`
         },
         {
@@ -201,7 +198,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // Format Amount safely with commas (e.g., 150,000)
+    // Format Amount safely with commas (e.g., LKR 150,000)
     const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
     const isIncome = tx.type === 'income';
 
@@ -220,9 +217,9 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
     } 
     else {
       // Default: Singlish / English
-      const verb = isIncome ? "received for" : "spent on";
+      const verb = isIncome ? "ලැබුණු" : "ගිය";
       const emoji = isIncome ? "🎉" : "🚀";
-      return `Elakiri ${nickname}! *${formattedAmount}* ${verb} ${tx.item} has been saved successfully! ${emoji}`;
+      return `එළකිරි ${nickname}! ${tx.item} එකට ${verb} *${formattedAmount}* සේව් කරගත්තා! ${emoji}`;
     }
 
   } catch (err) {
@@ -340,9 +337,9 @@ export async function POST(req: NextRequest) {
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = extractedTx.amount.toLocaleString();
-      const fallbackPreview = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${formattedNumber}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      const typeTag = extractedTx.type === 'income' ? '🟢 Income (ආදායම)' : '🔴 Expense (වියදම)';
       
-      const previewMsg = extractedTx.confirmation_message || fallbackPreview;
+      const previewMsg = `📝 විස්තරය: *${extractedTx.item}*\n🏷️ වර්ගය: *${typeTag}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${formattedNumber}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
