@@ -14,11 +14,14 @@ interface ExtractedData {
   amount: number;
   person: string | null;
   currency: string;
-  confirmation_message?: string; // User Language එකෙන් හදන Preview Text එක
+  confirmation_message?: string;
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+
+// Your Twilio WhatsApp Number
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+15619564051";
 
 // 1. 🎤 Voice to Text Transcriber (Whisper API)
 async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken: string): Promise<string | null> {
@@ -61,15 +64,15 @@ async function extractTransaction(
       messages: [
         {
           role: "system",
-          content: `You are Broo.ai, a financial assistant bot.
-User Info:
-- Preferred Language: "${language}" (Could be English, Sinhala, Singlish, Arabic, Tamil, etc.)
+          content: `You are Broo.ai, a smart financial assistant bot.
+User Profile Details:
+- Preferred Language: "${language}" (English, Sinhala, Singlish, Arabic, Tamil, etc.)
 - Call User As: "${nickname}"
 - Base Currency: "${nativeCurrency}"
 
 Determine action:
-1. 'log_transaction' -> Expense, Income, Loan.
-2. 'set_budget' -> Setting monthly budget.
+1. 'log_transaction' -> For Expenses, Income, Loans.
+2. 'set_budget' -> For setting monthly budgets.
 
 Category list: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
 
@@ -82,7 +85,7 @@ Return pure JSON matching this schema:
   "amount": number,
   "person": "string" | null,
   "currency": "${nativeCurrency}",
-  "confirmation_message": "Friendly preview message generated strictly in the user's preferred language (${language}) using nickname (${nickname}) asking them to reply 'Confirm' or 'Edit'."
+  "confirmation_message": "Friendly confirmation text strictly written in the user's preferred language (${language}) addressing them as (${nickname}), summarizing the item/amount, and asking to reply 'Confirm' or 'Edit'."
 }`
         },
         { role: "user", content: text }
@@ -118,7 +121,7 @@ async function extractFromImage(
       messages: [
         {
           role: "system",
-          content: `Extract values from receipt. Currency: ${nativeCurrency}. Output JSON:
+          content: `Extract financial total and merchant from this receipt. Currency: ${nativeCurrency}. Output JSON:
 {
   "action": "log_transaction",
   "type": "expense",
@@ -127,13 +130,13 @@ async function extractFromImage(
   "amount": number,
   "person": null,
   "currency": "${nativeCurrency}",
-  "confirmation_message": "Friendly preview message strictly in user's language (${language}) using nickname (${nickname}) asking to reply 'Confirm' or 'Edit'."
+  "confirmation_message": "Friendly confirmation text strictly in user's preferred language (${language}) addressing them as (${nickname}) summarizing the extracted receipt details and asking to reply 'Confirm' or 'Edit'."
 }`
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Parse receipt details." },
+            { type: "text", text: "Parse receipt details accurately." },
             { type: "image_url", image_url: { url: `data:${contentType};base64,${base64Image}` } }
           ]
         }
@@ -147,7 +150,7 @@ async function extractFromImage(
   }
 }
 
-// 4. 💾 DB Handler: Confirmation logic with dynamic AI response
+// 4. 💾 DB Handler: Confirmation Logic with Dynamic Response
 async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
   try {
     const { data: session } = await supabase
@@ -177,10 +180,10 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
         .update({ pending_transaction: null, step: 'ACTIVE' })
         .eq('phone_number', phoneNumber);
 
-      return `🎯 ${nickname}, your monthly budget of ${tx.currency} ${tx.amount} is set successfully!`;
+      return `🎯 ${nickname}, your monthly budget of ${tx.currency} ${tx.amount} has been saved successfully!`;
     }
 
-    // Save Transaction
+    // Save Transaction to Supabase
     const { error: insErr } = await supabase.from('transactions').insert([{
       phone_number: phoneNumber,
       type: tx.type,
@@ -193,18 +196,18 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
 
     if (insErr) throw insErr;
 
-    // Reset Session
+    // Reset Session State
     await supabase
       .from('user_sessions')
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // AI dynamic save confirmation in user's language
+    // AI Dynamic Confirmation Response in User's Language
     const aiSavePrompt = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{
         role: "system",
-        content: `Generate a short success confirmation message in user language: "${userLang}". Mention nickname: "${nickname}", Item: "${tx.item}", Category: "${tx.category}", Amount: "${tx.currency} ${tx.amount}". Add suitable emojis.`
+        content: `Generate a short success message in user's language (${userLang}). Address user as: "${nickname}". Mention Item: "${tx.item}", Category: "${tx.category}", Amount: "${tx.currency} ${tx.amount}". Add friendly emojis.`
       }]
     });
 
@@ -223,13 +226,11 @@ export async function POST(req: NextRequest) {
     
     const formData = await req.formData();
     const rawFrom = formData.get("From") as string; 
-    const rawTo = formData.get("To") as string;     
     const mediaUrl = formData.get("MediaUrl0") as string | null;
     const mediaContentType = (formData.get("MediaContentType0") as string) || "";
     const body = ((formData.get("Body") as string) || "").trim();
 
     const from = rawFrom.replace("whatsapp:", "");
-    const to = rawTo.replace("whatsapp:", "");
     const normalizedBody = body.toLowerCase();
 
     // Fetch User Profile
@@ -238,8 +239,13 @@ export async function POST(req: NextRequest) {
     // UNREGISTERED USER
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-      const registerMsg = `👋 Welcome to Broo.ai!\n\nYou are not registered yet. Complete your profile first:\n👉 ${websiteUrl}/register`;
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: registerMsg });
+      const registerMsg = `👋 Welcome to Broo.ai!\n\nYou are not registered yet. Please complete your profile first:\n👉 ${websiteUrl}/register`;
+      
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: registerMsg,
+      });
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -248,14 +254,18 @@ export async function POST(req: NextRequest) {
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
 
-    // TRIAL EXPIRY CHECK
+    // FREE TRIAL EXPIRY CHECK
     const now = new Date();
     const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
     const isPaid = userProfile.is_paid || false;
 
     if (!isPaid && trialEndsAt && now > trialEndsAt) {
-      const expiredMsg = `⏳ Hey ${nickname}! Your 7-Day Free Trial has expired.\n\nSubscribe here to continue: 👉 ${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: expiredMsg });
+      const expiredMsg = `⏳ Hey ${nickname}! Your 7-Day Free Trial has expired.\n\nSubscribe here to continue tracking: 👉 ${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: expiredMsg,
+      });
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -264,26 +274,39 @@ export async function POST(req: NextRequest) {
 
     if (!sessionState) {
       await supabase.from('user_sessions').insert({ phone_number: from, step: 'ACTIVE' });
-      const welcomeMsg = `👋 Welcome ${nickname}!\n\nYour Broo.ai account is active in **${userCurrency}**!\nSend a text, voice note, or bill photo to start tracking! 🚀`;
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: welcomeMsg });
+      const welcomeMsg = `👋 Welcome ${nickname}!\n\nYour Broo.ai account is active in **${userCurrency}**!\nSend a text, voice note 🎙️, or receipt photo 📸 to start tracking! 🚀`;
+      
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: welcomeMsg,
+      });
       return new NextResponse("OK", { status: 200 });
     }
 
-    // CONFIRM / EDIT HANDLER
+    // CONFIRM / EDIT HANDLERS
     if (normalizedBody === "confirm") {
       const respMessage = await handleConfirmTransaction(from, userProfile);
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: respMessage });
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: respMessage,
+      });
       return new NextResponse("OK", { status: 200 });
     }
 
     if (normalizedBody === "edit") {
       await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
-      const cancelMsg = `No problem ${nickname}! Send the corrected details.`;
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: cancelMsg });
+      const cancelMsg = `No problem ${nickname}! Please send the corrected details.`;
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: cancelMsg,
+      });
       return new NextResponse("OK", { status: 200 });
     }
 
-    // EXTRACTION ENGINE
+    // EXTRACTION ENGINE (IMAGE / VOICE / TEXT)
     let extractedTx: ExtractedData | null = null;
 
     if (mediaUrl) {
@@ -306,10 +329,18 @@ export async function POST(req: NextRequest) {
       const previewMsg = extractedTx.confirmation_message || 
         `📝 Item: *${extractedTx.item}*\n🗂️ Category: *${extractedTx.category}*\n💰 Amount: *${extractedTx.currency} ${extractedTx.amount}*\n\nReply *Confirm* or *Edit*`;
       
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: previewMsg });
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: previewMsg,
+      });
     } else {
-      const fallbackMsg = `Sorry ${nickname}, I couldn't parse that. Try something like "Spent 500 for lunch" or send a receipt photo. 🚀`;
-      await twilioClient.messages.create({ from: `whatsapp:${to}`, to: `whatsapp:${from}`, body: fallbackMsg });
+      const fallbackMsg = `Sorry ${nickname}, I couldn't clearly parse that. Try something like "Spent 500 for lunch", send a voice note, or a receipt photo! 🚀`;
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: fallbackMsg,
+      });
     }
 
     return new NextResponse("OK", { status: 200 });
