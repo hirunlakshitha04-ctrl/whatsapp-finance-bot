@@ -20,8 +20,8 @@ interface ExtractedData {
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 
-// Your Twilio WhatsApp Number
-const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+15619564051";
+// Updated to Twilio Sandbox WhatsApp Number
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
 // 1. 🎤 Voice to Text Transcriber (Whisper API)
 async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken: string): Promise<string | null> {
