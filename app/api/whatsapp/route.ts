@@ -64,19 +64,17 @@ async function extractTransaction(
       messages: [
         {
           role: "system",
-          content: `You are Broo.ai, a close financial buddy for Sri Lankans.
-User Profile Details:
-- Preferred Language: "${language}"
-- Call User As: "${nickname}"
-- Base Currency: "${nativeCurrency}"
+          content: `You are Broo.ai, a smart financial assistant.
+User Profile: Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
-CRITICAL TONE & FORMAT RULES:
-1. NEVER write formal book Sinhala (DO NOT use "ඔබේ", "ප්‍රවර්ගය", "සනාථ කිරීමට", "ලබා දෙවන්න").
-2. Speak like a close friend in natural spoken Sinhala/Singlish (e.g. "මචං", "Bro", "හරි").
-3. Determine action: 'log_transaction' (Expense/Income/Loan) or 'set_budget'.
-4. Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
+INSTRUCTIONS FOR CONFIRMATION MESSAGE:
+- Provide a clear, formatted confirmation preview.
+- DO NOT translate numbers into words (Keep raw numeric amount).
+- Use natural spoken/casual language matching the user's preferred language.
 
-Return pure JSON matching this exact structure:
+Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
+
+Return pure JSON:
 {
   "action": "log_transaction" | "set_budget",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
@@ -122,7 +120,7 @@ async function extractFromImage(
         {
           role: "system",
           content: `Extract total amount and merchant from receipt. Base Currency: ${nativeCurrency}.
-Never use formal written Sinhala. Return pure JSON:
+Return pure JSON:
 {
   "action": "log_transaction",
   "type": "expense",
@@ -131,7 +129,7 @@ Never use formal written Sinhala. Return pure JSON:
   "amount": number,
   "person": null,
   "currency": "${nativeCurrency}",
-  "confirmation_message": "📝 විස්තරය: *<merchant_name>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
+  "confirmation_message": "📝 විස්තරය: *<item>*\n🗂️ කාණ්ඩය: *<category>*\n💰 ගාණ: *${nativeCurrency} <amount>*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්."
 }`
         },
         {
@@ -151,7 +149,7 @@ Never use formal written Sinhala. Return pure JSON:
   }
 }
 
-// 4. 💾 DB Handler: Confirmation Logic with Friendly AI Response
+// 4. 💾 DB Handler: Safe Multi-language Confirmation Response
 async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
   try {
     const { data: session } = await supabase
@@ -161,9 +159,10 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .single();
 
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
+    const userLang = (userProfile.preferred_language || userProfile.language || "singlish").toLowerCase();
 
     if (!session?.pending_transaction) {
-      return `⚠️ Machan ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`;
+      return `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`;
     }
 
     const tx = session.pending_transaction as ExtractedData;
@@ -180,7 +179,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
         .update({ pending_transaction: null, step: 'ACTIVE' })
         .eq('phone_number', phoneNumber);
 
-      return `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක ${tx.currency} ${tx.amount} විදිහට සේව් කරගත්තා! 🚀`;
+      return `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක ${tx.currency} ${tx.amount.toLocaleString()} විදිහට සේව් කරගත්තා! 🚀`;
     }
 
     // Save Transaction to Supabase
@@ -202,21 +201,33 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // AI Dynamic Confirmation Response in Casual Singlish / Spoken Sinhala
-    const aiSavePrompt = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{
-        role: "system",
-        content: `You are Broo.ai, a close friend. Generate a short 1-sentence success response in natural Sri Lankan spoken Sinhala/Singlish.
-        Address user as "${nickname}". Mention Item: "${tx.item}", Category: "${tx.category}", Amount: "${tx.currency} ${tx.amount}".
-        Examples: "එළකිරි ${nickname}! ${tx.item} එකට ගිය ${tx.currency} ${tx.amount} සේව් කරගත්තා! 🚀" or "හරි ${nickname}, ${tx.item} ගාන හරිම ලස්සනට සේව් වුණා! 👍"`
-      }]
-    });
+    // Format Amount safely with commas (e.g., 150,000)
+    const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
+    const isIncome = tx.type === 'income';
 
-    return aiSavePrompt.choices[0].message.content || `✅ හරි ${nickname}, ${tx.item} (${tx.currency} ${tx.amount}) සේව් වුණා! 🚀`;
+    // MULTI-LANGUAGE DYNAMIC CODE RESPONSES (No AI hallucination/translation glitches)
+    if (userLang.includes("sinhala") || userLang.includes("සිංහල")) {
+      const verb = isIncome ? "ලැබුණු" : "ගිය";
+      const emoji = isIncome ? "🎉" : "🚀";
+      return `එළකිරි ${nickname}! ${tx.item} එකට ${verb} *${formattedAmount}* සේව් කරගත්තා! ${emoji}`;
+    } 
+    else if (userLang.includes("arabic") || userLang.includes("العربية")) {
+      const verb = isIncome ? "تمت إضافة" : "تم تسجيل";
+      return `ممتاز ${nickname}! ${verb} *${formattedAmount}* لـ ${tx.item} بنجاح! 🎉`;
+    } 
+    else if (userLang.includes("tamil") || userLang.includes("தமிழ்")) {
+      return `சூப்பர் ${nickname}! ${tx.item} தொகை *${formattedAmount}* சேமிக்கப்பட்டது! 🎉`;
+    } 
+    else {
+      // Default: Singlish / English
+      const verb = isIncome ? "received for" : "spent on";
+      const emoji = isIncome ? "🎉" : "🚀";
+      return `Elakiri ${nickname}! *${formattedAmount}* ${verb} ${tx.item} has been saved successfully! ${emoji}`;
+    }
+
   } catch (err) {
     console.error("❌ DB Insert Error:", err);
-    return "🚨 අෆ්ෆට, Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?";
+    return "🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?";
   }
 }
 
@@ -328,7 +339,8 @@ export async function POST(req: NextRequest) {
     if (extractedTx && extractedTx.amount) {
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
-      const fallbackPreview = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${extractedTx.amount}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      const formattedNumber = extractedTx.amount.toLocaleString();
+      const fallbackPreview = `📝 විස්තරය: *${extractedTx.item}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${formattedNumber}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
       
       const previewMsg = extractedTx.confirmation_message || fallbackPreview;
       
