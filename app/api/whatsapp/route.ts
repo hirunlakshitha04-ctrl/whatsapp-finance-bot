@@ -7,7 +7,7 @@ import FormFormat from "form-data";
 
 // Types Definition
 interface ExtractedData {
-  action: "log_transaction" | "set_budget";
+  action: "log_transaction" | "set_budget" | "set_starting_balance";
   type: "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null;
   item: string;
   category: string;
@@ -67,15 +67,15 @@ async function extractTransaction(
           content: `You are Broo.ai, a smart financial assistant.
 User Profile: Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
-INSTRUCTIONS FOR CONFIRMATION MESSAGE:
-- Parse whether the input is an 'expense', 'income', or 'loan'.
+INSTRUCTIONS:
+- Parse whether the input is an 'expense', 'income', 'loan', 'set_budget', or 'set_starting_balance'.
 - Keep item name short, simple, and clean.
 
-Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Loan, Budget, Other].
+Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Starting Balance, Loan, Budget, Other].
 
 Return pure JSON:
 {
-  "action": "log_transaction" | "set_budget",
+  "action": "log_transaction" | "set_budget" | "set_starting_balance",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
   "item": "clear description string",
   "category": "Category name",
@@ -198,11 +198,11 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // Format Amount safely with commas (e.g., LKR 150,000)
+    // Format Amount safely with commas
     const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
     const isIncome = tx.type === 'income';
 
-    // MULTI-LANGUAGE DYNAMIC CODE RESPONSES (No AI hallucination/translation glitches)
+    // MULTI-LANGUAGE RESPONSES
     if (userLang.includes("sinhala") || userLang.includes("සිංහල")) {
       const verb = isIncome ? "ලැබුණු" : "ගිය";
       const emoji = isIncome ? "🎉" : "🚀";
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
     const from = rawFrom.replace("whatsapp:", "");
     const normalizedBody = body.toLowerCase();
 
-    // Fetch User Profile
+    // 1️⃣ Fetch User Profile
     const { data: userProfile } = await supabase.from('users').select('*').eq('phone_number', from).maybeSingle();
 
     // UNREGISTERED USER
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
 
-    // FREE TRIAL EXPIRY CHECK
+    // 2️⃣ FREE TRIAL EXPIRY CHECK
     const now = new Date();
     const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
     const isPaid = userProfile.is_paid || false;
@@ -279,22 +279,63 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // SESSION VERIFICATION
-    const { data: sessionState } = await supabase.from('user_sessions').select('*').eq('phone_number', from).maybeSingle();
+    // 3️⃣ SESSION VERIFICATION & FETCHING
+    let { data: sessionState } = await supabase.from('user_sessions').select('*').eq('phone_number', from).maybeSingle();
 
     if (!sessionState) {
-      await supabase.from('user_sessions').insert({ phone_number: from, step: 'ACTIVE' });
-      const welcomeMsg = `👋 එළකිරි ${nickname}!\n\nBroo.ai එක active වුණා (${userCurrency}).\nඕනෑම expense එකක් Text එකකින්, Voice note එකකින් 🎙️, නැත්නම් Receipt photo එකකින් 📸 එවන්න! 🚀`;
+      const { data: newSession } = await supabase
+        .from('user_sessions')
+        .insert({ phone_number: from, step: 'AWAITING_STARTING_BALANCE' })
+        .select()
+        .single();
+      sessionState = newSession;
+    }
+
+    // 4️⃣ FIRST-TIME REGISTRATION REDIRECT MESSAGE
+    if (normalizedBody.includes("registered") || normalizedBody.includes("hi broo")) {
+      await supabase.from('user_sessions').update({ step: 'AWAITING_STARTING_BALANCE' }).eq('phone_number', from);
       
+      const welcomeMessage = `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 Example: *"Mage gava 50000 thiyenava"* හෝ *"25000"*`;
+
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
-        body: welcomeMsg,
+        body: welcomeMessage,
       });
       return new NextResponse("OK", { status: 200 });
     }
 
-    // CONFIRM / EDIT HANDLERS
+    // 5️⃣ STEP: AWAITING STARTING BALANCE
+    if (sessionState?.step === 'AWAITING_STARTING_BALANCE') {
+      const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
+
+      if (extracted && extracted.amount) {
+        // Save Starting Balance as Initial Income
+        await supabase.from('transactions').insert([{
+          phone_number: from,
+          type: 'income',
+          item: 'Starting Capital',
+          category: 'Starting Balance',
+          amount: extracted.amount,
+          currency: userCurrency
+        }]);
+
+        // Change User Step to Active
+        await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
+
+        // Send Success Message + User Friendly Guidelines
+        const guidelineMsg = `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${userCurrency} ${extracted.amount.toLocaleString()}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n> (Voice note 🎙️ / Receipt Photo 📸 එවන්නත් පුළුවන්)\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`;
+
+        await twilioClient.messages.create({
+          from: TWILIO_WHATSAPP_NUMBER,
+          to: `whatsapp:${from}`,
+          body: guidelineMsg,
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+    }
+
+    // 6️⃣ CONFIRM / EDIT HANDLERS
     if (normalizedBody === "confirm") {
       const respMessage = await handleConfirmTransaction(from, userProfile);
       await twilioClient.messages.create({
@@ -316,7 +357,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // EXTRACTION ENGINE (IMAGE / VOICE / TEXT)
+    // 7️⃣ EXTRACTION ENGINE (IMAGE / VOICE / TEXT)
     let extractedTx: ExtractedData | null = null;
 
     if (mediaUrl) {
@@ -332,7 +373,7 @@ export async function POST(req: NextRequest) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
-    // SEND PREVIEW TO USER
+    // 8️⃣ SEND PREVIEW TO USER
     if (extractedTx && extractedTx.amount) {
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
