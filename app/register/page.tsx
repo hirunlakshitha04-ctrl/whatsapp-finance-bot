@@ -1,26 +1,46 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import { 
+  Bot, 
+  Sparkles, 
+  User, 
+  Phone, 
+  Globe, 
+  Smile, 
+  Languages, 
+  Coins, 
+  MapPin, 
+  ShieldCheck, 
+  ArrowRight, 
+  CheckCircle2,
+  Lock,
+  Mail,
+  KeyRound,
+  Loader2
+} from "lucide-react";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Singleton Supabase Client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Comprehensive Global Lists
 const WORLD_COUNTRIES = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
-  "Bahrain", "Bangladesh", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Brazil",
-  "Bulgaria", "Canada", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
-  "Denmark", "Dominican Republic", "Ecuador", "Egypt", "Estonia", "Ethiopia", "Finland", "France", "Georgia", "Germany",
-  "Ghana", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq",
-  "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kuwait", "Lebanon", "Malaysia",
-  "Maldives", "Mexico", "Monaco", "Morocco", "Nepal", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
-  "Pakistan", "Panama", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Saudi Arabia",
-  "Singapore", "South Africa", "South Korea", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Taiwan", "Thailand",
-  "Turkey", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vietnam", "Zimbabwe"
+  "United States", "Sri Lanka", "United Kingdom", "Australia", "Canada", "United Arab Emirates", 
+  "Qatar", "Saudi Arabia", "Kuwait", "Singapore", "Malaysia", "India", "Germany", "France", "Italy", 
+  "Japan", "South Korea", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", 
+  "Armenia", "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belarus", "Belgium", "Belize", 
+  "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Brazil", "Bulgaria", "Chile", "China", 
+  "Colombia", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Dominican Republic", 
+  "Ecuador", "Egypt", "Estonia", "Ethiopia", "Finland", "Georgia", "Ghana", "Greece", "Guatemala", 
+  "Honduras", "Hong Kong", "Hungary", "Iceland", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", 
+  "Jamaica", "Jordan", "Kazakhstan", "Kenya", "Lebanon", "Maldives", "Mexico", "Monaco", "Morocco", 
+  "Nepal", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman", "Pakistan", "Panama", "Peru", 
+  "Philippines", "Poland", "Portugal", "Romania", "Russia", "South Africa", "Spain", "Sweden", 
+  "Switzerland", "Taiwan", "Thailand", "Turkey", "Ukraine", "Uruguay", "Uzbekistan", "Vietnam", "Zimbabwe"
 ];
 
 const WORLD_LANGUAGES = [
@@ -49,8 +69,8 @@ const WORLD_LANGUAGES = [
 ];
 
 const WORLD_CURRENCIES = [
-  { code: "LKR", name: "LKR - Sri Lankan Rupee" },
   { code: "USD", name: "USD - US Dollar" },
+  { code: "LKR", name: "LKR - Sri Lankan Rupee" },
   { code: "EUR", name: "EUR - Euro" },
   { code: "GBP", name: "GBP - British Pound" },
   { code: "AED", name: "AED - UAE Dirham" },
@@ -78,22 +98,29 @@ const WORLD_CURRENCIES = [
 ];
 
 function RegisterForm() {
+  const [isMounted, setIsMounted] = useState(false);
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") || "free";
 
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
+    password: "",
     phone_number: "",
     address: "",
-    country: "Sri Lanka",
-    language: "si",
-    currency: "LKR",
+    country: "United States",
+    language: "en",
+    currency: "USD",
     nickname: "",
     privacy_accepted: false,
   });
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -118,16 +145,42 @@ function RegisterForm() {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      setLoading(false);
+      return;
+    }
+
     let cleanedPhone = formData.phone_number.replace(/[^0-9+]/g, "");
     if (!cleanedPhone.startsWith("+")) {
       cleanedPhone = `+${cleanedPhone}`;
     }
 
     try {
-      // 1. Save user details into Supabase
-      const { error } = await supabase.from("users").upsert(
+      // 🎯 Calculate 7-Day Free Trial Expiry Date
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+      // 1. Supabase Auth Sign Up
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            phone_number: cleanedPhone,
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      // 2. Database Users Table Record (Updated with 7-Day Free Trial)
+      const { error: dbError } = await supabase.from("users").upsert(
         [
           {
+            id: authData.user?.id, // Link with Supabase Auth ID if available
+            email: formData.email,
             phone_number: cleanedPhone,
             name: formData.name,
             address: formData.address,
@@ -136,23 +189,25 @@ function RegisterForm() {
             currency: formData.currency,
             nickname: formData.nickname || formData.name,
             plan_type: planParam,
-            is_paid: false, // Will become true after successful checkout for paid plans
+            is_paid: false,
+
+            // 🎯 STEP 02 ADDITIONS: Trial Status & Expiry Date
+            trial_ends_at: trialEndsAt.toISOString(),
+            subscription_status: "trial",
           },
         ],
         { onConflict: "phone_number" }
       );
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
-      // 2. Dynamic Redirect Flow based on Plan Type
+      // 3. Redirect Logic
       if (planParam === "free") {
-        // Free Plan -> Directly to WhatsApp Bot
         const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
-        const defaultText = encodeURIComponent("Hi, I just registered!");
+        const defaultText = encodeURIComponent("Hi Broo, I just registered!");
         const whatsappUrl = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
         window.location.href = whatsappUrl;
       } else {
-        // Paid Plan (Pro/Business) -> Redirect to Checkout Page
         window.location.href = `/checkout?plan=${planParam}&phone=${encodeURIComponent(cleanedPhone)}`;
       }
     } catch (err: any) {
@@ -163,52 +218,84 @@ function RegisterForm() {
     }
   };
 
+  if (!isMounted) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+        <span className="text-xs font-mono uppercase tracking-wider">Loading Broo.ai Form...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative z-10 w-full max-w-4xl p-6 md:p-10 rounded-3xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] text-white">
+    <div 
+      className="relative z-10 w-full max-w-4xl p-6 md:p-10 rounded-3xl bg-slate-900/70 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_0_rgba(0,0,0,0.8)] text-white"
+      suppressHydrationWarning
+    >
+      
       {/* Header Bar */}
       <div className="flex justify-between items-center pb-6 border-b border-white/10 mb-8">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 font-black text-lg">
-            $
+        <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+            <Bot className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold tracking-wider text-xl bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent">
-            GLOBAL EXPENSE
+          <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            Broo<span className="text-purple-400">.ai</span>
           </span>
-        </div>
-        <div className="text-xs uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold">
+        </Link>
+        <div className="text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           {planParam} Plan
         </div>
       </div>
 
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
         {/* Left Side Info */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className="lg:col-span-5 space-y-6">
           <h1 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">
             Stop Money <br />
-            <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
               Disappearing.
             </span>
           </h1>
-          <p className="text-gray-400 text-sm leading-relaxed">
-            Connect your personal profile, select your local currency & language, and let AI track every expense seamlessly on WhatsApp.
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Connect your personal profile, select your local currency & language, and let <b>Broo.ai</b> track every expense seamlessly on WhatsApp.
           </p>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2.5 text-xs text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Zero manual entry required</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+              <span>Instant AI receipt scanner & parser</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span>Multi-currency real-time budgeting</span>
+            </div>
+          </div>
         </div>
 
-        {/* Right Side Glass Form */}
+        {/* Right Side Form */}
         <div className="lg:col-span-7">
           {errorMsg && (
-            <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3 rounded-xl text-xs mb-4">
-              {errorMsg}
+            <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3.5 rounded-xl text-xs mb-4 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Row 1: Name & Phone */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+            
+            {/* Row 1: Name & WhatsApp Phone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  Full Name *
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-cyan-400" /> Full Name *
                 </label>
                 <input
                   type="text"
@@ -217,13 +304,13 @@ function RegisterForm() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="John Doe"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  WhatsApp Number *
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Number *
                 </label>
                 <input
                   type="text"
@@ -231,26 +318,61 @@ function RegisterForm() {
                   required
                   value={formData.phone_number}
                   onChange={handleChange}
-                  placeholder="+94771234567"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  placeholder="+14155238886"
+                  suppressHydrationWarning
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 />
               </div>
             </div>
 
-            {/* Row 2: Country & Nickname */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Row 2: Email & Password */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  Country
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-sky-400" /> Email Address *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="john@example.com"
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-indigo-400" /> Password *
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Country & Nickname */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-pink-400" /> Country
                 </label>
                 <select
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  suppressHydrationWarning
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_COUNTRIES.map((c) => (
-                    <option key={c} value={c} className="bg-gray-900 text-white">
+                    <option key={c} value={c} className="bg-slate-900 text-white">
                       {c}
                     </option>
                   ))}
@@ -258,34 +380,35 @@ function RegisterForm() {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  How to call you?
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Smile className="w-3.5 h-3.5 text-amber-400" /> How to call you?
                 </label>
                 <input
                   type="text"
                   name="nickname"
                   value={formData.nickname}
                   onChange={handleChange}
-                  placeholder="Machan / Sir / Bro"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  placeholder="John / Bro / Buddy"
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 />
               </div>
             </div>
 
-            {/* Row 3: Language & Currency */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Row 4: Language & Currency */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  Preferred Language
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Languages className="w-3.5 h-3.5 text-cyan-400" /> Preferred Language
                 </label>
                 <select
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  suppressHydrationWarning
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_LANGUAGES.map((lang) => (
-                    <option key={lang.code} value={lang.code} className="bg-gray-900 text-white">
+                    <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
                       {lang.name}
                     </option>
                   ))}
@@ -293,17 +416,18 @@ function RegisterForm() {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                  Base Currency
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-emerald-400" /> Base Currency
                 </label>
                 <select
                   name="currency"
                   value={formData.currency}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                  suppressHydrationWarning
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_CURRENCIES.map((curr) => (
-                    <option key={curr.code} value={curr.code} className="bg-gray-900 text-white">
+                    <option key={curr.code} value={curr.code} className="bg-slate-900 text-white">
                       {curr.name}
                     </option>
                   ))}
@@ -313,8 +437,8 @@ function RegisterForm() {
 
             {/* Address */}
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-amber-400/80 mb-1 font-medium">
-                Address (Optional)
+              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" /> Address (Optional)
               </label>
               <input
                 type="text"
@@ -322,7 +446,7 @@ function RegisterForm() {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="City or Street Address"
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition"
+                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
               />
             </div>
 
@@ -334,10 +458,10 @@ function RegisterForm() {
                 name="privacy_accepted"
                 checked={formData.privacy_accepted}
                 onChange={handleChange}
-                className="w-4 h-4 accent-amber-500 rounded bg-black/50 border-white/20"
+                className="w-4 h-4 accent-purple-500 rounded bg-slate-950 border-white/20 cursor-pointer"
               />
-              <label htmlFor="privacy" className="text-xs text-gray-400 cursor-pointer">
-                I agree to the <span className="text-amber-400 underline">Privacy Policy</span> & Terms.
+              <label htmlFor="privacy" className="text-xs text-slate-400 cursor-pointer">
+                I agree to the <span className="text-purple-300 underline">Privacy Policy</span> & Terms.
               </label>
             </div>
 
@@ -345,16 +469,30 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] transition transform active:scale-95 disabled:opacity-50"
+              className="w-full mt-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-90 transition transform active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading
-                ? "PROCESSING..."
-                : planParam === "free"
-                ? "START ON WHATSAPP 🚀"
-                : "PROCEED TO PAYMENT 💳"}
+              {loading ? (
+                <span>CREATING ACCOUNT...</span>
+              ) : planParam === "free" ? (
+                <>
+                  <span>START ON WHATSAPP 🚀</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>PROCEED TO PAYMENT 💳</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
         </div>
+      </div>
+
+      {/* Footer Note */}
+      <div className="mt-8 pt-4 border-t border-white/5 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <span>End-to-End Encrypted Data Security by Broo.ai</span>
       </div>
     </div>
   );
@@ -362,13 +500,12 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen relative flex items-center justify-center p-4 bg-black overflow-hidden font-sans">
-      {/* Background Glowing Ambient Orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-600/30 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-orange-600/20 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-yellow-600/20 rounded-full blur-[130px] pointer-events-none" />
+    <main className="min-h-screen relative flex items-center justify-center p-4 bg-[#07090e] overflow-hidden font-sans">
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
 
-      <Suspense fallback={<div className="text-white text-sm">Loading Glass UI...</div>}>
+      <Suspense fallback={<div className="text-white text-sm">Loading Broo.ai Form...</div>}>
         <RegisterForm />
       </Suspense>
     </main>
