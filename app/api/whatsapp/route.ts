@@ -38,7 +38,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
-// 🌍 DYNAMIC AI SYSTEM MESSAGE TRANSLATOR (SUPPORTS ANY LANGUAGE FROM DROPDOWN)
+// 🌍 ULTIMATE FORMATTED MULTI-LANGUAGE SYSTEM MESSAGES
 async function getLocalizedMessages(
   lang: string, 
   nickname: string, 
@@ -46,16 +46,18 @@ async function getLocalizedMessages(
   websiteUrl: string, 
   contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string } = {}
 ): Promise<LocalizedMessages> {
-  const targetLang = lang || "English";
+  const targetLang = (lang || "English").trim();
 
-  // Check for Singlish specifically if mapped from dropdown
+  // 1. SINGLISH FORMATTED TEMPLATE
   if (targetLang.toLowerCase() === "singlish") {
     return {
-      welcome: `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 Example: *"Mage gava 50000 thiyenava"* හෝ *"25000"*`,
-      guidelines: `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${currency} ${contextData.amount || "0"}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\nMachan ${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\nMachan ${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
-      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nMachan ${nickname}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`,
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
+      
+      guidelines: `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${currency} ${contextData.amount || "0"}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
+      
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n${nickname}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`,
       noPending: `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
       budgetSaved: `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක *${currency} ${contextData.amount || "0"}* විදිහට සේව් කරගත්තා! 🚀`,
       savedMsg: `එළකිරි ${nickname}! *${contextData.item || ""}* එකට ${contextData.isIncome ? 'ලැබුණු' : 'ගිය'} *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! ${contextData.isIncome ? '🎉' : '🚀'}`,
@@ -64,37 +66,45 @@ async function getLocalizedMessages(
       directError: `🚨 Direct save වෙද්දී අවුලක් වුණා මචං.`,
       editCancel: `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
       fallback: `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
+      
       preview: `📝 විස්තරය: *${contextData.item || ""}*\n🏷️ වර්ගය: *${contextData.typeTag || ""}*\n🗂️ කාණ්ඩය: *${contextData.category || ""}*\n💰 ගාණ: *${currency} ${contextData.amount || "0"}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`
     };
   }
 
-  // AI-powered Translation Engine for all Dropdown Languages
+  // 2. DYNAMIC TRANSLATION ENGINE FOR ALL OTHER DROPDOWN LANGUAGES
   try {
-    const prompt = `Translate the system response templates for financial assistant "Broo.ai" into target language: "${targetLang}".
-User Name: "${nickname}", Currency: "${currency}", Web Link: "${websiteUrl}/#pricing".
+    const prompt = `You are generating formatted WhatsApp UI system messages for "Broo.ai" (a personal finance bot).
+Target User Language: "${targetLang}".
+User Nickname: "${nickname}".
+Currency Code: "${currency}".
+Website URL: "${websiteUrl}/#pricing".
 
-Dynamic Values to embed directly where needed:
+Dynamic values to embed:
 - amount: "${contextData.amount || ''}"
 - item: "${contextData.item || ''}"
 - typeTag: "${contextData.typeTag || ''}"
 - category: "${contextData.category || ''}"
 
-Return JSON matching this exact structure with natural, polite translations in ${targetLang}:
+Return pure JSON with localized texts in "${targetLang}". Keep all WhatsApp formatting marks like *, _, |, --- intact!
+
 {
-  "welcome": "Welcome message asking for starting balance/capital",
-  "guidelines": "Confirmation of starting balance (${currency} ${contextData.amount || ''}) and quick usage guide",
-  "proFeatureImage": "Notice that Receipt Scanning is a Pro feature + upgrade link",
-  "proFeatureVoice": "Notice that Voice Notes is a Pro feature + upgrade link",
-  "limitReached": "Notice that 30/30 scan limit is reached + upgrade link",
-  "noPending": "Warning that there is no pending transaction to confirm",
-  "budgetSaved": "Success message for budget set to ${currency} ${contextData.amount || ''}",
-  "savedMsg": "Success message for saved transaction (${contextData.item || ''} - ${currency} ${contextData.amount || ''})",
-  "autoSavedMsg": "Auto-save confirmation message for Broo Max",
-  "dbError": "Error message for database failure",
-  "directError": "Error message for direct save failure",
-  "editCancel": "Response when user cancels/edits input",
-  "fallback": "Friendly fallback message when input is not understood",
-  "preview": "Formatted summary showing Description (${contextData.item || ''}), Type (${contextData.typeTag || ''}), Category (${contextData.category || ''}), Amount (${currency} ${contextData.amount || ''}) and asking to reply Confirm or Edit."
+  "welcome": "👋 Welcome ${nickname}!\\n\\nI am your Personal Finance Assistant *Broo.ai*! 🚀\\n\\nTo start, what is your current **Starting Balance / Capital** in your account?\\n\\n💡 Example: *\\\"50000\\\"* or *\\\"25000\\\"*",
+  
+  "guidelines": "🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || '0'}*! 🎉\\n\\n--- 💡 *Broo.ai Quick Guide* ---\\n\\n💸 *Log Expense:*\\n| \\\"Spent 500 for lunch\\\" / \\\"Bus fare 80\\\"\\n\\n💰 *Add Income:*\\n| \\\"Got salary 150000\\\" / \\\"Got bonus 10000\\\"\\n\\n🎯 *Set Monthly Budget:*\\n| \\\"Set budget 50000\\\"\\n\\n🚀 *Send your first Expense or Income now!*",
+  
+  "proFeatureImage": "🔒 *AI Receipt Scanning is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
+  "proFeatureVoice": "🔒 *Voice Notes is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
+  "limitReached": "⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\\n\\n${nickname}, upgrade to BROO MAX:\\n👉 ${websiteUrl}/#pricing",
+  "noPending": "⚠️ Hi ${nickname}, there is no pending transaction to confirm!",
+  "budgetSaved": "🎯 Awesome ${nickname}! Your monthly budget is set to *${currency} ${contextData.amount || '0'}*! 🚀",
+  "savedMsg": "Awesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
+  "autoSavedMsg": "⚡ *Auto Saved!*\\n\\nAwesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
+  "dbError": "🚨 An error occurred while saving to database.",
+  "directError": "🚨 An error occurred during direct save.",
+  "editCancel": "No problem ${nickname}! Send the corrected details.",
+  "fallback": "Sorry ${nickname}, I couldn't understand that. Try sending \\\"Spent 500 for lunch\\\"! 🚀",
+  
+  "preview": "📝 Description: *${contextData.item || ''}*\\n🏷️ Type: *${contextData.typeTag || ''}*\\n🗂️ Category: *${contextData.category || ''}*\\n💰 Amount: *${currency} ${contextData.amount || '0'}*\\n\\n-> Reply *Confirm* to save.\\n-> Reply *Edit* to change."
 }`;
 
     const res = await openai.chat.completions.create({
@@ -105,21 +115,21 @@ Return JSON matching this exact structure with natural, polite translations in $
 
     return JSON.parse(res.choices[0].message.content || "{}") as LocalizedMessages;
   } catch (err) {
-    console.error("❌ Translation Engine Error, falling back to English:", err);
+    console.error("❌ Translation Engine Error:", err);
     return {
-      welcome: `👋 Welcome ${nickname}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀\n\nTo start tracking, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
-      guidelines: `🎯 Awesome ${nickname}! Your Starting Balance is set to *${currency} ${contextData.amount || "0"}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n> "Got salary 150000"\n\n🎯 *Set Monthly Budget:*\n> "Set budget 50000"`,
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n${nickname}, upgrade to Broo Core or Max:\n👉 ${websiteUrl}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n${nickname}, upgrade to Broo Core or Max:\n👉 ${websiteUrl}/#pricing`,
-      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n${nickname}, upgrade to BROO MAX:\n👉 ${websiteUrl}/#pricing`,
+      welcome: `👋 Welcome ${nickname}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀`,
+      guidelines: `🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || "0"}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Salary labuna 150000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*`,
       noPending: `⚠️ Hi ${nickname}, there is no pending transaction to confirm!`,
-      budgetSaved: `🎯 Saved! Your budget for this month is *${currency} ${contextData.amount || "0"}*! 🚀`,
-      savedMsg: `Awesome ${nickname}! Saved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*! 🚀`,
-      autoSavedMsg: `⚡ *Auto Saved!*\n\nSaved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*! 🚀`,
+      budgetSaved: `🎯 Saved! Your budget is *${currency} ${contextData.amount || "0"}*!`,
+      savedMsg: `Awesome ${nickname}! Saved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
+      autoSavedMsg: `⚡ *Auto Saved!*\n\nSaved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
       dbError: `🚨 An error occurred while saving to database.`,
       directError: `🚨 An error occurred during direct save.`,
       editCancel: `No problem ${nickname}! Send the corrected details.`,
-      fallback: `Sorry ${nickname}, I couldn't understand that. Try sending "Spent 500 for lunch"! 🚀`,
+      fallback: `Sorry ${nickname}, I couldn't understand that.`,
       preview: `📝 Description: *${contextData.item || ""}*\n🏷️ Type: *${contextData.typeTag || ""}*\n🗂️ Category: *${contextData.category || ""}*\n💰 Amount: *${currency} ${contextData.amount || "0"}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`
     };
   }
@@ -153,7 +163,7 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
   }
 }
 
-// 2. 🧠 AI Engine: Text / Voice Parser (Supports Any Language Choice)
+// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language)
 async function extractTransaction(
   text: string, 
   nativeCurrency: string, 
@@ -167,11 +177,11 @@ async function extractTransaction(
         {
           role: "system",
           content: `You are Broo.ai, a smart financial assistant.
-User Preferences -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
+User Settings -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
 INSTRUCTIONS:
-- Translate and format the "item" description string into the user's selected language (${language}).
-- Translate the "category" name into the user's selected language (${language}).
+- Translate the extracted "item" description string strictly into the user's selected language (${language}).
+- Translate the "category" name strictly into the user's selected language (${language}).
 - Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
 
 Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Starting Balance, Loan, Budget, Other].
@@ -180,8 +190,8 @@ Return pure JSON:
 {
   "action": "log_transaction" | "set_budget" | "set_starting_balance",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
-  "item": "description string translated in ${language}",
-  "category": "category translated in ${language}",
+  "item": "description string in ${language}",
+  "category": "category string in ${language}",
   "amount": number,
   "person": "string" | null,
   "currency": "${nativeCurrency}"
@@ -198,7 +208,7 @@ Return pure JSON:
   }
 }
 
-// 3. 📸 AI Engine: Vision Receipt Parser (Supports Any Language Choice)
+// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language)
 async function extractFromImage(
   mediaUrl: string, 
   contentType: string, 
