@@ -17,13 +17,115 @@ interface ExtractedData {
   confirmation_message?: string;
 }
 
+interface LocalizedMessages {
+  welcome: string;
+  guidelines: string;
+  proFeatureImage: string;
+  proFeatureVoice: string;
+  limitReached: string;
+  noPending: string;
+  budgetSaved: string;
+  savedMsg: string;
+  autoSavedMsg: string;
+  dbError: string;
+  directError: string;
+  editCancel: string;
+  fallback: string;
+  preview: string;
+}
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-
-// Twilio Sandbox WhatsApp Number
 const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
-// 1. 🎤 Voice to Text Transcriber (Whisper API)
+// 🌍 DYNAMIC AI SYSTEM MESSAGE TRANSLATOR (SUPPORTS ANY LANGUAGE FROM DROPDOWN)
+async function getLocalizedMessages(
+  lang: string, 
+  nickname: string, 
+  currency: string, 
+  websiteUrl: string, 
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string } = {}
+): Promise<LocalizedMessages> {
+  const targetLang = lang || "English";
+
+  // Check for Singlish specifically if mapped from dropdown
+  if (targetLang.toLowerCase() === "singlish") {
+    return {
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 Example: *"Mage gava 50000 thiyenava"* හෝ *"25000"*`,
+      guidelines: `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${currency} ${contextData.amount || "0"}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\nMachan ${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\nMachan ${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nMachan ${nickname}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`,
+      noPending: `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
+      budgetSaved: `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක *${currency} ${contextData.amount || "0"}* විදිහට සේව් කරගත්තා! 🚀`,
+      savedMsg: `එළකිරි ${nickname}! *${contextData.item || ""}* එකට ${contextData.isIncome ? 'ලැබුණු' : 'ගිය'} *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! ${contextData.isIncome ? '🎉' : '🚀'}`,
+      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි ${nickname}! *${contextData.item || ""}* එකට ගිය *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! 🚀`,
+      dbError: `🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?`,
+      directError: `🚨 Direct save වෙද්දී අවුලක් වුණා මචං.`,
+      editCancel: `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
+      fallback: `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
+      preview: `📝 විස්තරය: *${contextData.item || ""}*\n🏷️ වර්ගය: *${contextData.typeTag || ""}*\n🗂️ කාණ්ඩය: *${contextData.category || ""}*\n💰 ගාණ: *${currency} ${contextData.amount || "0"}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`
+    };
+  }
+
+  // AI-powered Translation Engine for all Dropdown Languages
+  try {
+    const prompt = `Translate the system response templates for financial assistant "Broo.ai" into target language: "${targetLang}".
+User Name: "${nickname}", Currency: "${currency}", Web Link: "${websiteUrl}/#pricing".
+
+Dynamic Values to embed directly where needed:
+- amount: "${contextData.amount || ''}"
+- item: "${contextData.item || ''}"
+- typeTag: "${contextData.typeTag || ''}"
+- category: "${contextData.category || ''}"
+
+Return JSON matching this exact structure with natural, polite translations in ${targetLang}:
+{
+  "welcome": "Welcome message asking for starting balance/capital",
+  "guidelines": "Confirmation of starting balance (${currency} ${contextData.amount || ''}) and quick usage guide",
+  "proFeatureImage": "Notice that Receipt Scanning is a Pro feature + upgrade link",
+  "proFeatureVoice": "Notice that Voice Notes is a Pro feature + upgrade link",
+  "limitReached": "Notice that 30/30 scan limit is reached + upgrade link",
+  "noPending": "Warning that there is no pending transaction to confirm",
+  "budgetSaved": "Success message for budget set to ${currency} ${contextData.amount || ''}",
+  "savedMsg": "Success message for saved transaction (${contextData.item || ''} - ${currency} ${contextData.amount || ''})",
+  "autoSavedMsg": "Auto-save confirmation message for Broo Max",
+  "dbError": "Error message for database failure",
+  "directError": "Error message for direct save failure",
+  "editCancel": "Response when user cancels/edits input",
+  "fallback": "Friendly fallback message when input is not understood",
+  "preview": "Formatted summary showing Description (${contextData.item || ''}), Type (${contextData.typeTag || ''}), Category (${contextData.category || ''}), Amount (${currency} ${contextData.amount || ''}) and asking to reply Confirm or Edit."
+}`;
+
+    const res = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+
+    return JSON.parse(res.choices[0].message.content || "{}") as LocalizedMessages;
+  } catch (err) {
+    console.error("❌ Translation Engine Error, falling back to English:", err);
+    return {
+      welcome: `👋 Welcome ${nickname}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀\n\nTo start tracking, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
+      guidelines: `🎯 Awesome ${nickname}! Your Starting Balance is set to *${currency} ${contextData.amount || "0"}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n> "Got salary 150000"\n\n🎯 *Set Monthly Budget:*\n> "Set budget 50000"`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n${nickname}, upgrade to Broo Core or Max:\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n${nickname}, upgrade to Broo Core or Max:\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n${nickname}, upgrade to BROO MAX:\n👉 ${websiteUrl}/#pricing`,
+      noPending: `⚠️ Hi ${nickname}, there is no pending transaction to confirm!`,
+      budgetSaved: `🎯 Saved! Your budget for this month is *${currency} ${contextData.amount || "0"}*! 🚀`,
+      savedMsg: `Awesome ${nickname}! Saved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*! 🚀`,
+      autoSavedMsg: `⚡ *Auto Saved!*\n\nSaved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*! 🚀`,
+      dbError: `🚨 An error occurred while saving to database.`,
+      directError: `🚨 An error occurred during direct save.`,
+      editCancel: `No problem ${nickname}! Send the corrected details.`,
+      fallback: `Sorry ${nickname}, I couldn't understand that. Try sending "Spent 500 for lunch"! 🚀`,
+      preview: `📝 Description: *${contextData.item || ""}*\n🏷️ Type: *${contextData.typeTag || ""}*\n🗂️ Category: *${contextData.category || ""}*\n💰 Amount: *${currency} ${contextData.amount || "0"}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`
+    };
+  }
+}
+
+// 1. 🎤 Voice to Text Transcriber
 async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken: string): Promise<string | null> {
   try {
     const response = await axios.get(mediaUrl, {
@@ -51,7 +153,7 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
   }
 }
 
-// 2. 🧠 AI Engine: Text / Voice Parser
+// 2. 🧠 AI Engine: Text / Voice Parser (Supports Any Language Choice)
 async function extractTransaction(
   text: string, 
   nativeCurrency: string, 
@@ -65,11 +167,12 @@ async function extractTransaction(
         {
           role: "system",
           content: `You are Broo.ai, a smart financial assistant.
-User Profile: Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
+User Preferences -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
 INSTRUCTIONS:
-- Parse whether the input is an 'expense', 'income', 'loan', 'set_budget', or 'set_starting_balance'.
-- Keep item name short, simple, and clean.
+- Translate and format the "item" description string into the user's selected language (${language}).
+- Translate the "category" name into the user's selected language (${language}).
+- Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
 
 Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Starting Balance, Loan, Budget, Other].
 
@@ -77,8 +180,8 @@ Return pure JSON:
 {
   "action": "log_transaction" | "set_budget" | "set_starting_balance",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
-  "item": "clear description string",
-  "category": "Category name",
+  "item": "description string translated in ${language}",
+  "category": "category translated in ${language}",
   "amount": number,
   "person": "string" | null,
   "currency": "${nativeCurrency}"
@@ -95,7 +198,7 @@ Return pure JSON:
   }
 }
 
-// 3. 📸 AI Engine: Vision Receipt Parser
+// 3. 📸 AI Engine: Vision Receipt Parser (Supports Any Language Choice)
 async function extractFromImage(
   mediaUrl: string, 
   contentType: string, 
@@ -117,13 +220,15 @@ async function extractFromImage(
       messages: [
         {
           role: "system",
-          content: `Extract total amount and merchant from receipt. Base Currency: ${nativeCurrency}.
+          content: `Extract total amount and merchant from receipt image. Base Currency: ${nativeCurrency}.
+Write the "item" merchant name and "category" in the user's selected language: ${language}.
+
 Return pure JSON:
 {
   "action": "log_transaction",
   "type": "expense",
-  "item": "Merchant/Store Name",
-  "category": "Food" | "Transport" | "Bills" | "Shopping" | "Entertainment" | "Medical" | "Education" | "Other",
+  "item": "Merchant/Store Name translated in ${language}",
+  "category": "Category Name translated in ${language}",
   "amount": number,
   "person": null,
   "currency": "${nativeCurrency}"
@@ -146,9 +251,8 @@ Return pure JSON:
   }
 }
 
-// Helper: Save Direct Transaction (For Broo Max Auto-Confirm Feature)
-async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: ExtractedData): Promise<string> {
-  const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
+// Helper: Save Direct Transaction
+async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: ExtractedData, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
   const { error } = await supabase.from('transactions').insert([{
     phone_number: phoneNumber,
     type: tx.type,
@@ -159,17 +263,19 @@ async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: 
     currency: tx.currency || userProfile.currency
   }]);
 
+  const formattedAmount = tx.amount.toLocaleString();
+  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount });
+
   if (error) {
     console.error("❌ Auto Save Error:", error);
-    return "🚨 Direct save වෙද්දී අවුලක් වුණා මචං.";
+    return msgs.directError;
   }
 
-  const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
-  return `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි ${nickname}! ${tx.item} එකට ගිය *${formattedAmount}* සාර්ථකව සේව් කරගත්තා! 🚀`;
+  return msgs.autoSavedMsg;
 }
 
-// 4. 💾 DB Handler: Safe Multi-language Confirmation Response
-async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
+// 4. 💾 DB Handler: Multi-language Confirmation Response
+async function handleConfirmTransaction(phoneNumber: string, userProfile: any, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
   try {
     const { data: session } = await supabase
       .from('user_sessions')
@@ -177,14 +283,21 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .eq('phone_number', phoneNumber)
       .single();
 
-    const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
-    const userLang = (userProfile.preferred_language || userProfile.language || "singlish").toLowerCase();
+    const emptyMsgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
 
     if (!session?.pending_transaction) {
-      return `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`;
+      return emptyMsgs.noPending;
     }
 
     const tx = session.pending_transaction as ExtractedData;
+    const formattedAmount = tx.amount.toLocaleString();
+    const isIncome = tx.type === 'income';
+
+    const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { 
+      item: tx.item, 
+      amount: formattedAmount, 
+      isIncome 
+    });
 
     // Handle Budget Set
     if (tx.action === "set_budget") {
@@ -198,7 +311,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
         .update({ pending_transaction: null, step: 'ACTIVE' })
         .eq('phone_number', phoneNumber);
 
-      return `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක ${tx.currency} ${tx.amount.toLocaleString()} විදිහට සේව් කරගත්තා! 🚀`;
+      return msgs.budgetSaved;
     }
 
     // Save Transaction to Supabase
@@ -220,33 +333,12 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any): 
       .update({ pending_transaction: null, step: 'ACTIVE' })
       .eq('phone_number', phoneNumber);
 
-    // Format Amount safely with commas
-    const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
-    const isIncome = tx.type === 'income';
-
-    // MULTI-LANGUAGE RESPONSES
-    if (userLang.includes("sinhala") || userLang.includes("සිංහල")) {
-      const verb = isIncome ? "ලැබුණු" : "ගිය";
-      const emoji = isIncome ? "🎉" : "🚀";
-      return `එළකිරි ${nickname}! ${tx.item} එකට ${verb} *${formattedAmount}* සේව් කරගත්තා! ${emoji}`;
-    } 
-    else if (userLang.includes("arabic") || userLang.includes("العربية")) {
-      const verb = isIncome ? "تمت إضافة" : "تم تسجيل";
-      return `ممتاز ${nickname}! ${verb} *${formattedAmount}* لـ ${tx.item} بنجاح! 🎉`;
-    } 
-    else if (userLang.includes("tamil") || userLang.includes("தமிழ்")) {
-      return `சூப்பர் ${nickname}! ${tx.item} தொகை *${formattedAmount}* சேமிக்கப்பட்டது! 🎉`;
-    } 
-    else {
-      // Default: Singlish / English
-      const verb = isIncome ? "ලැබුණු" : "ගිය";
-      const emoji = isIncome ? "🎉" : "🚀";
-      return `එළකිරි ${nickname}! ${tx.item} එකට ${verb} *${formattedAmount}* සේව් කරගත්තා! ${emoji}`;
-    }
+    return msgs.savedMsg;
 
   } catch (err) {
     console.error("❌ DB Insert Error:", err);
-    return "🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?";
+    const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
+    return msgs.dbError;
   }
 }
 
@@ -271,7 +363,7 @@ export async function POST(req: NextRequest) {
     // UNREGISTERED USER
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-      const registerMsg = `👋 Welcome to Broo.ai!\n\nමචං ඔයා තවම Register වෙලා නෑ. කලින් මෙතනින් Profile එක complete කරලා එන්නකෝ:\n👉 ${websiteUrl}/register`;
+      const registerMsg = `👋 Welcome to Broo.ai!\n\nPlease complete your registration first:\n👉 ${websiteUrl}/register`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -282,10 +374,12 @@ export async function POST(req: NextRequest) {
     }
 
     const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-    const userLang = userProfile.preferred_language || userProfile.language || "Singlish";
+    
+    // READ USER'S SELECTED LANGUAGE FROM DATABASE (Matches Dropdown values)
+    const userLang = userProfile.language || userProfile.preferred_language || "English";
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
-    
+
     // User Plan Identification: 'lite' | 'core' | 'max'
     const userPlan = (userProfile.plan || "lite").toLowerCase();
 
@@ -293,23 +387,24 @@ export async function POST(req: NextRequest) {
     const isImage = mediaUrl && mediaContentType.startsWith("image/");
     const isAudio = mediaUrl && mediaContentType.startsWith("audio/");
 
+    // Fetch basic localized notices
+    const baseMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl);
+
     // 🛑 BROO LITE LIMITS
     if (userPlan === "lite") {
       if (isImage) {
-        const msg = `🔒 *AI Receipt Scanning is a Pro Feature!*\n\nMachan ${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. AI Receipt Scans ලබා ගැනීමට Broo Core හෝ Max වලට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`;
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: msg });
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureImage });
         return new NextResponse("OK", { status: 200 });
       }
       if (isAudio) {
-        const msg = `🔒 *Voice Notes is a Pro Feature!*\n\nMachan ${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`;
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: msg });
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureVoice });
         return new NextResponse("OK", { status: 200 });
       }
     }
 
-    // 🛑 BROO CORE LIMITS (30 Receipt Scans / Month Limit Check)
+    // 🛑 BROO CORE LIMITS
     if (userPlan === "core" && isImage) {
-      const currentMonth = new Date().toISOString().slice(0, 7); // Format: "2026-08"
+      const currentMonth = new Date().toISOString().slice(0, 7);
 
       const { data: usage } = await supabase
         .from('monthly_usage')
@@ -321,12 +416,10 @@ export async function POST(req: NextRequest) {
       const currentScanCount = usage?.scan_count || 0;
 
       if (currentScanCount >= 30) {
-        const limitMsg = `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nMachan ${nickname}, මේ මාසෙ ඔයාගේ Core Plan Receipt Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`;
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: limitMsg });
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.limitReached });
         return new NextResponse("OK", { status: 200 });
       }
 
-      // Increment Month Scan Count
       await supabase.from('monthly_usage').upsert({
         phone_number: from,
         month_year: currentMonth,
@@ -350,12 +443,10 @@ export async function POST(req: NextRequest) {
     if (normalizedBody.includes("registered") || normalizedBody.includes("hi broo")) {
       await supabase.from('user_sessions').update({ step: 'AWAITING_STARTING_BALANCE' }).eq('phone_number', from);
       
-      const welcomeMessage = `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 Example: *"Mage gava 50000 thiyenava"* හෝ *"25000"*`;
-
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
-        body: welcomeMessage,
+        body: baseMsgs.welcome,
       });
       return new NextResponse("OK", { status: 200 });
     }
@@ -365,7 +456,6 @@ export async function POST(req: NextRequest) {
       const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
 
       if (extracted && extracted.amount) {
-        // Save Starting Balance as Initial Income
         await supabase.from('transactions').insert([{
           phone_number: from,
           type: 'income',
@@ -375,16 +465,14 @@ export async function POST(req: NextRequest) {
           currency: userCurrency
         }]);
 
-        // Change User Step to Active
         await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
 
-        // Send Success Message + User Friendly Guidelines
-        const guidelineMsg = `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${userCurrency} ${extracted.amount.toLocaleString()}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`;
+        const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: extracted.amount.toLocaleString() });
 
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
           to: `whatsapp:${from}`,
-          body: guidelineMsg,
+          body: guideMsgs.guidelines,
         });
         return new NextResponse("OK", { status: 200 });
       }
@@ -392,7 +480,7 @@ export async function POST(req: NextRequest) {
 
     // 6️⃣ CONFIRM / EDIT HANDLERS
     if (normalizedBody === "confirm") {
-      const respMessage = await handleConfirmTransaction(from, userProfile);
+      const respMessage = await handleConfirmTransaction(from, userProfile, userLang, nickname, userCurrency, websiteUrl);
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
@@ -403,11 +491,10 @@ export async function POST(req: NextRequest) {
 
     if (normalizedBody === "edit") {
       await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
-      const cancelMsg = `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
-        body: cancelMsg,
+        body: baseMsgs.editCancel,
       });
       return new NextResponse("OK", { status: 200 });
     }
@@ -428,11 +515,10 @@ export async function POST(req: NextRequest) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
-    // 8️⃣ SEND PREVIEW OR AUTO-SAVE (BROO MAX EXTRA FEATURE)
+    // 8️⃣ SEND PREVIEW OR AUTO-SAVE
     if (extractedTx && extractedTx.amount) {
-      // 🌟 BROO MAX FEATURE: Auto-Confirm Instant OCR Saving for Receipts
       if (userPlan === "max" && isImage) {
-        const autoSaveMsg = await saveTransactionDirect(from, userProfile, extractedTx);
+        const autoSaveMsg = await saveTransactionDirect(from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
           to: `whatsapp:${from}`,
@@ -441,25 +527,28 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
-      // Default Workflow for Lite, Core, and Non-receipt Max inputs (Ask for confirmation)
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = extractedTx.amount.toLocaleString();
-      const typeTag = extractedTx.type === 'income' ? '🟢 Income (ආදායම)' : '🔴 Expense (වියදම)';
+      const typeTag = extractedTx.type === 'income' ? '🟢 Income' : '🔴 Expense';
       
-      const previewMsg = `📝 විස්තරය: *${extractedTx.item}*\n🏷️ වර්ගය: *${typeTag}*\n🗂️ කාණ්ඩය: *${extractedTx.category}*\n💰 ගාණ: *${extractedTx.currency} ${formattedNumber}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`;
+      const previewMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, {
+        item: extractedTx.item,
+        typeTag,
+        category: extractedTx.category,
+        amount: formattedNumber
+      });
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
-        body: previewMsg,
+        body: previewMsgs.preview,
       });
     } else {
-      const fallbackMsg = `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,
-        body: fallbackMsg,
+        body: baseMsgs.fallback,
       });
     }
 
