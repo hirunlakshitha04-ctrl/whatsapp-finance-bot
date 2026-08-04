@@ -174,14 +174,16 @@ function RegisterForm() {
       return;
     }
 
-    // Phone number sanitization (+ prefix)
+    // Phone number sanitization (+ prefix and country code normalization)
     let cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
-    if (!cleanedPhone.startsWith("+")) {
+    if (cleanedPhone.startsWith("0")) {
+      cleanedPhone = "+94" + cleanedPhone.slice(1);
+    } else if (!cleanedPhone.startsWith("+")) {
       cleanedPhone = `+${cleanedPhone}`;
     }
 
     try {
-      // ⚡ Supabase Auth Sign Up
+      // 1. Supabase Auth Sign Up
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -199,20 +201,35 @@ function RegisterForm() {
         }
       });
 
-      if (authError) throw authError;
+      // User already exists in Auth නම් එය නොසලකා හරින්න
+      if (authError && !authError.message.toLowerCase().includes("already registered")) {
+        throw authError;
+      }
+
+      // 2. Direct Insert/Upsert into Supabase `public.users` Table
+      const { error: dbError } = await supabase
+        .from("users")
+        .upsert(
+          {
+            phone_number: cleanedPhone,
+            name: formData.name,
+            country: formData.country,
+            currency: formData.currency,
+            plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
+          },
+          { onConflict: "phone_number" }
+        );
+
+      if (dbError) {
+        console.error("Database Insert Error:", dbError);
+        throw dbError;
+      }
 
       // Successful registration redirect
       handleRedirect(cleanedPhone);
 
     } catch (err: any) {
       console.error("Registration Error:", err);
-
-      // 💡 User දැනටමත් Register වී ඇත්නම් Error නොපෙන්වා auto-redirect කිරීම:
-      if (err.message && err.message.toLowerCase().includes("already registered")) {
-        handleRedirect(cleanedPhone);
-        return;
-      }
-
       setErrorMsg(err.message || "Failed to register. Please try again.");
     } finally {
       setLoading(false);
