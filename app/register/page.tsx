@@ -23,7 +23,7 @@ import {
   Loader2
 } from "lucide-react";
 
-// Singleton Supabase Client
+// Supabase Client Setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -108,7 +108,7 @@ function RegisterForm() {
     password: "",
     phone_number: "",
     address: "",
-    country: "United States",
+    country: "Sri Lanka",
     language: "en",
     currency: "USD",
     nickname: "",
@@ -134,13 +134,30 @@ function RegisterForm() {
     }
   };
 
+  const handleRedirect = (cleanedPhone: string) => {
+    if (planParam === "free") {
+      const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
+      const defaultText = encodeURIComponent("Hi Broo, I just registered on the Free plan!");
+      window.location.href = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
+    } else {
+      const lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15";
+      
+      const queryParams = new URLSearchParams();
+      if (cleanedPhone) queryParams.append("checkout[custom][phone]", cleanedPhone);
+      if (formData.email) queryParams.append("checkout[email]", formData.email);
+      if (formData.name) queryParams.append("checkout[name]", formData.name);
+
+      window.location.href = `${lemonBaseUrl}?${queryParams.toString()}`;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
 
     if (!formData.privacy_accepted) {
-      setErrorMsg("Please accept the Privacy Policy to proceed.");
+      setErrorMsg("Please accept the Privacy Policy & Terms to proceed.");
       setLoading(false);
       return;
     }
@@ -151,17 +168,20 @@ function RegisterForm() {
       return;
     }
 
-    let cleanedPhone = formData.phone_number.replace(/[^0-9+]/g, "");
+    if (!formData.phone_number.trim()) {
+      setErrorMsg("Please enter a valid WhatsApp phone number.");
+      setLoading(false);
+      return;
+    }
+
+    // Phone number sanitization (+ prefix)
+    let cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
     if (!cleanedPhone.startsWith("+")) {
       cleanedPhone = `+${cleanedPhone}`;
     }
 
     try {
-      // 🎯 Calculate 7-Day Free Trial Expiry Date
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-      // 1. Supabase Auth Sign Up
+      // ⚡ Supabase Auth Sign Up
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -169,49 +189,30 @@ function RegisterForm() {
           data: {
             full_name: formData.name,
             phone_number: cleanedPhone,
-          }
-        }
-      });
-
-      if (authError) throw authError;
-
-      // 2. Database Users Table Record (Updated with 7-Day Free Trial)
-      const { error: dbError } = await supabase.from("users").upsert(
-        [
-          {
-            id: authData.user?.id, // Link with Supabase Auth ID if available
-            email: formData.email,
-            phone_number: cleanedPhone,
-            name: formData.name,
             address: formData.address,
             country: formData.country,
             language: formData.language,
             currency: formData.currency,
             nickname: formData.nickname || formData.name,
             plan_type: planParam,
-            is_paid: false,
+          }
+        }
+      });
 
-            // 🎯 STEP 02 ADDITIONS: Trial Status & Expiry Date
-            trial_ends_at: trialEndsAt.toISOString(),
-            subscription_status: "trial",
-          },
-        ],
-        { onConflict: "phone_number" }
-      );
+      if (authError) throw authError;
 
-      if (dbError) throw dbError;
+      // Successful registration redirect
+      handleRedirect(cleanedPhone);
 
-      // 3. Redirect Logic
-      if (planParam === "free") {
-        const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
-        const defaultText = encodeURIComponent("Hi Broo, I just registered!");
-        const whatsappUrl = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
-        window.location.href = whatsappUrl;
-      } else {
-        window.location.href = `/checkout?plan=${planParam}&phone=${encodeURIComponent(cleanedPhone)}`;
-      }
     } catch (err: any) {
       console.error("Registration Error:", err);
+
+      // 💡 User දැනටමත් Register වී ඇත්නම් Error නොපෙන්වා auto-redirect කිරීම:
+      if (err.message && err.message.toLowerCase().includes("already registered")) {
+        handleRedirect(cleanedPhone);
+        return;
+      }
+
       setErrorMsg(err.message || "Failed to register. Please try again.");
     } finally {
       setLoading(false);
@@ -228,14 +229,11 @@ function RegisterForm() {
   }
 
   return (
-    <div 
-      className="relative z-10 w-full max-w-4xl p-6 md:p-10 rounded-3xl bg-slate-900/70 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_0_rgba(0,0,0,0.8)] text-white"
-      suppressHydrationWarning
-    >
+    <div className="relative z-10 w-full max-w-4xl p-6 md:p-10 rounded-3xl bg-slate-900/80 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_0_rgba(0,0,0,0.8)] text-white">
       
       {/* Header Bar */}
       <div className="flex justify-between items-center pb-6 border-b border-white/10 mb-8">
-        <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
+        <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
             <Bot className="w-5 h-5 text-white" />
           </div>
@@ -243,6 +241,7 @@ function RegisterForm() {
             Broo<span className="text-purple-400">.ai</span>
           </span>
         </Link>
+        
         <div className="text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           {planParam} Plan
@@ -318,8 +317,7 @@ function RegisterForm() {
                   required
                   value={formData.phone_number}
                   onChange={handleChange}
-                  placeholder="+14155238886"
-                  suppressHydrationWarning
+                  placeholder="+94771234567"
                   className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 />
               </div>
@@ -368,7 +366,6 @@ function RegisterForm() {
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  suppressHydrationWarning
                   className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_COUNTRIES.map((c) => (
@@ -404,7 +401,6 @@ function RegisterForm() {
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
-                  suppressHydrationWarning
                   className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_LANGUAGES.map((lang) => (
@@ -423,7 +419,6 @@ function RegisterForm() {
                   name="currency"
                   value={formData.currency}
                   onChange={handleChange}
-                  suppressHydrationWarning
                   className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 >
                   {WORLD_CURRENCIES.map((curr) => (
@@ -460,19 +455,22 @@ function RegisterForm() {
                 onChange={handleChange}
                 className="w-4 h-4 accent-purple-500 rounded bg-slate-950 border-white/20 cursor-pointer"
               />
-              <label htmlFor="privacy" className="text-xs text-slate-400 cursor-pointer">
+              <label htmlFor="privacy" className="text-xs text-slate-400 cursor-pointer select-none">
                 I agree to the <span className="text-purple-300 underline">Privacy Policy</span> & Terms.
               </label>
             </div>
 
-            {/* Dynamic Submit Button */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-90 transition transform active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full mt-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-90 transition transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
-                <span>CREATING ACCOUNT...</span>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <span>CREATING ACCOUNT...</span>
+                </>
               ) : planParam === "free" ? (
                 <>
                   <span>START ON WHATSAPP 🚀</span>
@@ -505,7 +503,12 @@ export default function RegisterPage() {
       <div className="absolute top-1/2 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
       <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
 
-      <Suspense fallback={<div className="text-white text-sm">Loading Broo.ai Form...</div>}>
+      <Suspense fallback={
+        <div className="flex items-center gap-2 text-white text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+          <span>Loading Broo.ai Form...</span>
+        </div>
+      }>
         <RegisterForm />
       </Suspense>
     </main>

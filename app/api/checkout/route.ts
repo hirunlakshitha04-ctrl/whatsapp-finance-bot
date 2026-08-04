@@ -1,111 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
-
-// 🔒 Admin Privileges ඇති Service Role Client එක (RLS Bypass කිරීම සඳහා)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { lemonSqueezySetup, createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
 
 export async function POST(req: NextRequest) {
   try {
-    const rawBody = await req.text();
-    const signature = req.headers.get("x-signature") || "";
-    const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
+    const body = await req.json().catch(() => ({}));
+    const { variantId, phone, email } = body;
 
-    // 1. Signature Verification (Security Check)
-    if (webhookSecret) {
-      const hmac = crypto.createHmac("sha256", webhookSecret);
-      const digest = Buffer.from(hmac.update(rawBody).digest("hex"), "utf8");
-      const signatureBuffer = Buffer.from(signature, "utf8");
+    const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
+    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
 
-      if (
-        digest.length !== signatureBuffer.length ||
-        !crypto.timingSafeEqual(digest, signatureBuffer)
-      ) {
-        console.error("❌ Invalid LemonSqueezy Signature");
-        return new NextResponse("Invalid signature", { status: 400 });
-      }
+    // Default Variant ID from Environment Variable
+    const rawVariantId = variantId || process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID;
+
+    if (!apiKey || !storeId || !rawVariantId) {
+      console.error("❌ Configuration Missing:", {
+        hasApiKey: !!apiKey,
+        storeId,
+        rawVariantId,
+      });
+      return NextResponse.json(
+        { error: "Missing Lemon Squeezy environment configuration" },
+        { status: 400 }
+      );
     }
 
-    const event = JSON.parse(rawBody);
-    const eventName = event.meta?.event_name;
-    const customData = event.meta?.custom_data;
+    // Initialize Lemon Squeezy SDK
+    lemonSqueezySetup({
+      apiKey,
+      onError: (error) => console.error("Lemon Squeezy Setup Error:", error),
+    });
 
-    // LemonSqueezy Checkout එකෙන් Passthrough මගින් එවූ Phone Number එක ලබා ගැනීම
-    const phoneNumber = customData?.phone;
+    const formattedStoreId = String(storeId).trim();
+    const formattedVariantId = Number(rawVariantId);
 
-    console.log(`📩 LemonSqueezy Event Received: ${eventName}`);
-
-    // Phone number format එක නිරවුල් කිරීම (+947xxxxxxx)
-    let cleanedPhone = phoneNumber?.replace(/[^0-9+]/g, "");
-    if (cleanedPhone && !cleanedPhone.startsWith("+")) {
-      cleanedPhone = `+${cleanedPhone}`;
+    if (isNaN(formattedVariantId)) {
+      console.error("❌ Invalid Variant ID format:", rawVariantId);
+      return NextResponse.json(
+        { error: "Invalid Variant ID format" },
+        { status: 400 }
+      );
     }
 
-    // 2. Order Or Subscription Success Events Processing
-    if (
-      eventName === "order_created" ||
-      eventName === "subscription_created" ||
-      eventName === "subscription_updated"
-    ) {
-      const attributes = event.data?.attributes;
-      const status = attributes?.status;
-      // LemonSqueezy එකෙන් ලැබෙන Next Renewal Date එක (ISO string)
-      const renewsAt = attributes?.renews_at;
+    // Prepare Custom Metadata
+    const customData: Record<string, string> = {};
+    if (phone) customData.phone = String(phone);
 
-      // Payment එක Paid / Active නම් DB එක Update කිරීම
-      if (status === "paid" || status === "active" || status === "on_trial") {
-        if (cleanedPhone) {
-          const { error } = await supabaseAdmin
-            .from("users")
-            .update({
-              is_paid: true,
-              subscription_status: "active",
-              subscription_ends_at: renewsAt || null,
-              lemonsqueezy_customer_id: String(attributes?.customer_id || ""),
-              lemonsqueezy_subscription_id: String(event.data?.id || ""),
-            })
-            .eq("phone_number", cleanedPhone);
+    // Create Checkout Session
+    const checkout = await createCheckout(formattedStoreId, formattedVariantId, {
+      checkoutData: {
+        email: email ? String(email) : undefined,
+        custom: customData,
+      },
+      productOptions: {
+        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard`,
+      },
+    });
 
-          if (error) {
-            console.error("❌ DB Update Error (LemonSqueezy):", error);
-          } else {
-            console.log(`✅ User Updated to Paid: ${cleanedPhone}`);
-          }
-        } else {
-          console.warn("⚠️ Event received but no phone number found in custom_data");
-        }
-      }
+    // Check SDK Response Error
+    if (checkout.error) {
+      console.error("❌ Lemon Squeezy API Returned Error:", checkout.error);
+      return NextResponse.json(
+        { error: checkout.error.message || "Failed to create checkout session" },
+        { status: 422 }
+      );
     }
 
-    // 3. Subscription Expired or Cancelled Events Processing
-    if (
-      eventName === "subscription_expired" ||
-      eventName === "subscription_cancelled" ||
-      eventName === "subscription_unpaid"
-    ) {
-      if (cleanedPhone) {
-        const { error } = await supabaseAdmin
-          .from("users")
-          .update({
-            is_paid: false,
-            subscription_status: "expired",
-          })
-          .eq("phone_number", cleanedPhone);
+    const checkoutUrl = checkout.data?.data?.attributes?.url;
 
-        if (error) {
-          console.error("❌ DB Update Error on Expiry:", error);
-        } else {
-          console.log(`🛑 User Subscription Expired: ${cleanedPhone}`);
-        }
-      }
+    if (!checkoutUrl) {
+      return NextResponse.json(
+        { error: "Checkout URL was not generated" },
+        { status: 500 }
+      );
     }
 
-    return new NextResponse("OK", { status: 200 });
+    return NextResponse.json({ url: checkoutUrl }, { status: 200 });
   } catch (error: any) {
-    console.error("❌ LemonSqueezy Webhook Error:", error);
-    return new NextResponse("Webhook error", { status: 500 });
+    console.error("❌ Checkout Route Server Exception:", error);
+    return NextResponse.json(
+      { error: error?.message || "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

@@ -146,6 +146,28 @@ Return pure JSON:
   }
 }
 
+// Helper: Save Direct Transaction (For Broo Max Auto-Confirm Feature)
+async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: ExtractedData): Promise<string> {
+  const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
+  const { error } = await supabase.from('transactions').insert([{
+    phone_number: phoneNumber,
+    type: tx.type,
+    item: tx.item,
+    category: tx.category,
+    amount: tx.amount,
+    person: tx.person,
+    currency: tx.currency || userProfile.currency
+  }]);
+
+  if (error) {
+    console.error("❌ Auto Save Error:", error);
+    return "🚨 Direct save වෙද්දී අවුලක් වුණා මචං.";
+  }
+
+  const formattedAmount = `${tx.currency} ${tx.amount.toLocaleString()}`;
+  return `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි ${nickname}! ${tx.item} එකට ගිය *${formattedAmount}* සාර්ථකව සේව් කරගත්තා! 🚀`;
+}
+
 // 4. 💾 DB Handler: Safe Multi-language Confirmation Response
 async function handleConfirmTransaction(phoneNumber: string, userProfile: any): Promise<string> {
   try {
@@ -263,20 +285,53 @@ export async function POST(req: NextRequest) {
     const userLang = userProfile.preferred_language || userProfile.language || "Singlish";
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
+    
+    // User Plan Identification: 'lite' | 'core' | 'max'
+    const userPlan = (userProfile.plan || "lite").toLowerCase();
 
-    // 2️⃣ FREE TRIAL EXPIRY CHECK
-    const now = new Date();
-    const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
-    const isPaid = userProfile.is_paid || false;
+    // 2️⃣ PLAN CHECKS & FEATURE LIMITATIONS
+    const isImage = mediaUrl && mediaContentType.startsWith("image/");
+    const isAudio = mediaUrl && mediaContentType.startsWith("audio/");
 
-    if (!isPaid && trialEndsAt && now > trialEndsAt) {
-      const expiredMsg = `⏳ Machan ${nickname}! ඔයාගේ 7-Day Free Trial එක ඉවරයි බං.\n\nදිගටම track කරන්න මෙතනින් Subscribe වෙන්න: 👉 ${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
-      await twilioClient.messages.create({
-        from: TWILIO_WHATSAPP_NUMBER,
-        to: `whatsapp:${from}`,
-        body: expiredMsg,
-      });
-      return new NextResponse("OK", { status: 200 });
+    // 🛑 BROO LITE LIMITS
+    if (userPlan === "lite") {
+      if (isImage) {
+        const msg = `🔒 *AI Receipt Scanning is a Pro Feature!*\n\nMachan ${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. AI Receipt Scans ලබා ගැනීමට Broo Core හෝ Max වලට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`;
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: msg });
+        return new NextResponse("OK", { status: 200 });
+      }
+      if (isAudio) {
+        const msg = `🔒 *Voice Notes is a Pro Feature!*\n\nMachan ${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`;
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: msg });
+        return new NextResponse("OK", { status: 200 });
+      }
+    }
+
+    // 🛑 BROO CORE LIMITS (30 Receipt Scans / Month Limit Check)
+    if (userPlan === "core" && isImage) {
+      const currentMonth = new Date().toISOString().slice(0, 7); // Format: "2026-08"
+
+      const { data: usage } = await supabase
+        .from('monthly_usage')
+        .select('scan_count')
+        .eq('phone_number', from)
+        .eq('month_year', currentMonth)
+        .maybeSingle();
+
+      const currentScanCount = usage?.scan_count || 0;
+
+      if (currentScanCount >= 30) {
+        const limitMsg = `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nMachan ${nickname}, මේ මාසෙ ඔයාගේ Core Plan Receipt Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`;
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: limitMsg });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Increment Month Scan Count
+      await supabase.from('monthly_usage').upsert({
+        phone_number: from,
+        month_year: currentMonth,
+        scan_count: currentScanCount + 1,
+      }, { onConflict: 'phone_number, month_year' });
     }
 
     // 3️⃣ SESSION VERIFICATION & FETCHING
@@ -324,7 +379,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
 
         // Send Success Message + User Friendly Guidelines
-        const guidelineMsg = `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${userCurrency} ${extracted.amount.toLocaleString()}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n> (Voice note 🎙️ / Receipt Photo 📸 එවන්නත් පුළුවන්)\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`;
+        const guidelineMsg = `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${userCurrency} ${extracted.amount.toLocaleString()}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:* \n> "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n> "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n> "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`;
 
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
@@ -361,9 +416,9 @@ export async function POST(req: NextRequest) {
     let extractedTx: ExtractedData | null = null;
 
     if (mediaUrl) {
-      if (mediaContentType.startsWith("image/")) {
+      if (isImage) {
         extractedTx = await extractFromImage(mediaUrl, mediaContentType, TWILIO_SID, TWILIO_TOKEN, userCurrency, userLang, nickname);
-      } else if (mediaContentType.startsWith("audio/")) {
+      } else if (isAudio) {
         const transcribedText = await transcribeVoice(mediaUrl, TWILIO_SID, TWILIO_TOKEN);
         if (transcribedText) {
           extractedTx = await extractTransaction(transcribedText, userCurrency, userLang, nickname);
@@ -373,8 +428,20 @@ export async function POST(req: NextRequest) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
-    // 8️⃣ SEND PREVIEW TO USER
+    // 8️⃣ SEND PREVIEW OR AUTO-SAVE (BROO MAX EXTRA FEATURE)
     if (extractedTx && extractedTx.amount) {
+      // 🌟 BROO MAX FEATURE: Auto-Confirm Instant OCR Saving for Receipts
+      if (userPlan === "max" && isImage) {
+        const autoSaveMsg = await saveTransactionDirect(from, userProfile, extractedTx);
+        await twilioClient.messages.create({
+          from: TWILIO_WHATSAPP_NUMBER,
+          to: `whatsapp:${from}`,
+          body: autoSaveMsg,
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Default Workflow for Lite, Core, and Non-receipt Max inputs (Ask for confirmation)
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = extractedTx.amount.toLocaleString();
@@ -388,7 +455,7 @@ export async function POST(req: NextRequest) {
         body: previewMsg,
       });
     } else {
-      const fallbackMsg = `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක්, voice note එකක් හෝ receipt photo එකක් දාන්න! 🚀`;
+      const fallbackMsg = `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`;
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
         to: `whatsapp:${from}`,

@@ -1,206 +1,207 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
+import Link from "next/link";
+import { 
+  Check, 
+  X, 
+  Zap, 
+  Sparkles, 
+  Crown, 
+  ArrowRight, 
+  ShieldCheck, 
+  Bot 
+} from "lucide-react";
 
-interface Plan {
-  id: string;
-  name: string;
-  price: string;
-  billing: string;
-  description: string;
-  features: string[];
-  popular?: boolean;
-  buttonText: string;
-}
-
-const PLANS: Plan[] = [
+const PRICING_PLANS = [
   {
     id: "free",
-    name: "Free Tracker",
-    price: "$0",
-    billing: "Forever Free",
-    description: "Perfect for individuals looking to start tracking daily expenses simply.",
-    features: [
-      "Track up to 50 expenses/mo",
-      "WhatsApp AI Text Parsing",
-      "Basic Monthly Reports",
-      "Single Currency Support",
-      "Standard Community Support",
-    ],
+    name: "BROO LITE",
+    price: "$0.00",
+    period: "/ month",
+    badge: "Free Forever • No Daily Limits",
+    description: "Ideal for basic daily expense tracking on WhatsApp.",
+    highlight: false,
     buttonText: "Get Started Free",
+    buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
+    features: [
+      { text: "Unlimited WhatsApp Text Logging", included: true },
+      { text: "Real-time Web Dashboard Access", included: true },
+      { text: "Smart Phone Number Sync", included: true },
+      { text: "AI Receipt OCR Photo Scanning", included: false },
+      { text: "One-Click Excel (.xlsx) Export", included: false },
+      { text: "Smart Budget Warning Alerts", included: false },
+    ],
   },
   {
-    id: "pro",
-    name: "Pro Unlimited",
-    price: "$4.99",
-    billing: "per month",
-    popular: true,
-    description: "Ideal for power users who want unlimited tracking, vision OCR, and custom currencies.",
+    id: "core",
+    name: "BROO CORE",
+    price: "$2.55",
+    period: "/ month",
+    badge: "MOST POPULAR",
+    description: "Ideal for active spenders & professionals.",
+    highlight: true,
+    buttonText: "Upgrade to Broo Core",
+    buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
     features: [
-      "Unlimited Expense & Income Logging",
-      "Image/Receipt Photo OCR Parsing 📸",
-      "All Global Currencies & Languages",
-      "Budget Limits & Alert Warnings",
-      "Export Data to Excel / CSV",
-      "Priority WhatsApp AI Support",
+      { text: "Everything in Broo Lite", included: true },
+      { text: "30 AI Receipt Scans / month", included: true },
+      { text: "One-Click Excel Export (.xlsx)", included: true },
+      { text: "Priority WhatsApp Speed", included: true },
+      { text: "Smart Budget WhatsApp Warning Alerts", included: false },
+      { text: "Custom Tags & Business Categories", included: false },
     ],
-    buttonText: "Start Pro Plan 🚀",
   },
   {
-    id: "business",
-    name: "Business & Teams",
-    price: "$14.99",
-    billing: "per month",
-    description: "For small business owners and freelancers tracking multiple revenue streams.",
+    id: "max",
+    name: "BROO MAX",
+    price: "$5.99",
+    period: "/ month",
+    badge: "POWER USERS",
+    description: "For freelancers, business owners & power users.",
+    highlight: false,
+    buttonText: "Get Broo Max",
+    buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
     features: [
-      "Everything in Pro",
-      "Multi-user Team Tracking",
-      "Client Loan & Debt Management",
-      "Advanced AI Monthly Analytics",
-      "Customized Monthly PDF Receipts",
-      "24/7 Dedicated Support",
+      { text: "Everything in Broo Core", included: true },
+      { text: "Unlimited AI Receipt Scans", included: true },
+      { text: "Auto-Confirm Instant OCR Saving", included: true },
+      { text: "Smart Budget Warning Alerts", included: true },
+      { text: "Custom Tags & Business Categories", included: true },
+      { text: "Dedicated Priority Support", included: true },
     ],
-    buttonText: "Go Business 💼",
   },
 ];
 
-export default function PlansPage() {
-  const router = useRouter();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
-
-  const handleSelectPlan = (planId: string) => {
-    // Navigate to register page passing chosen plan as query parameter
-    router.push(`/register?plan=${planId}`);
-  };
-
+export default function PricingPage() {
   return (
-    <main className="min-h-screen relative flex flex-col items-center justify-center p-6 bg-black text-white font-sans overflow-hidden">
-      {/* Background Glowing Ambient Orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-600/20 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-orange-600/20 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-yellow-600/20 rounded-full blur-[130px] pointer-events-none" />
+    // 💡 min-h-screen සහ w-full දාලා මුළු Screen එකම dark background එකෙන් Cover කර ඇත
+    <main className="min-h-screen w-full bg-[#07090e] text-white flex flex-col justify-between relative overflow-hidden font-sans py-12 px-4 md:px-8">
+      
+      {/* Background Glows */}
+      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-purple-600/15 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute top-1/3 -left-32 w-80 h-80 bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-10 -right-32 w-80 h-80 bg-pink-500/10 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Header Section */}
-      <div className="relative z-10 text-center max-w-2xl mx-auto mb-12">
-        <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold tracking-widest uppercase mb-4">
-          Simple & Transparent Pricing
-        </div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-          Choose the Perfect Plan for Your{" "}
-          <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-            Financial Freedom.
-          </span>
-        </h1>
-        <p className="text-gray-400 text-sm md:text-base mt-4">
-          No hidden fees. Change or cancel your plan anytime right from WhatsApp.
-        </p>
-
-        {/* Monthly / Yearly Toggle */}
-        <div className="mt-8 inline-flex items-center p-1.5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
-          <button
-            onClick={() => setBillingCycle("monthly")}
-            className={`px-5 py-2 text-xs font-bold rounded-xl transition-all ${
-              billingCycle === "monthly"
-                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            Monthly Billing
-          </button>
-          <button
-            onClick={() => setBillingCycle("yearly")}
-            className={`px-5 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
-              billingCycle === "yearly"
-                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            Yearly Billing
-            <span className="bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[10px] px-2 py-0.5 rounded-full uppercase">
-              Save 20%
+      <div className="max-w-6xl mx-auto w-full z-10">
+        
+        {/* Navigation Bar */}
+        <div className="flex justify-between items-center mb-12">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Broo<span className="text-purple-400">.ai</span>
             </span>
-          </button>
+          </Link>
+
+          <Link 
+            href="/register?plan=free"
+            className="text-xs font-semibold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition"
+          >
+            Dashboard Login
+          </Link>
         </div>
-      </div>
 
-      {/* Plans Cards Grid */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full items-stretch">
-        {PLANS.map((plan) => {
-          // Adjust price display if yearly is selected
-          const calculatedPrice =
-            billingCycle === "yearly" && plan.price !== "$0"
-              ? `$${(parseFloat(plan.price.replace("$", "")) * 0.8 * 12).toFixed(2)}`
-              : plan.price;
+        {/* Section Header */}
+        <div className="text-center space-y-3 mb-12">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold tracking-wider uppercase">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            Flexible Plans
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
+            Pick the perfect plan for your budgeting and tracking needs.
+          </p>
+        </div>
 
-          const calculatedBilling =
-            billingCycle === "yearly" && plan.price !== "$0"
-              ? "per year (20% OFF)"
-              : plan.billing;
-
-          return (
+        {/* Pricing Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {PRICING_PLANS.map((plan) => (
             <div
               key={plan.id}
-              className={`relative flex flex-col justify-between p-8 rounded-3xl bg-white/5 backdrop-blur-2xl border transition-all duration-300 hover:-translate-y-2 ${
-                plan.popular
-                  ? "border-amber-500/60 shadow-[0_0_40px_rgba(245,158,11,0.25)] bg-gradient-to-b from-amber-500/10 via-white/5 to-transparent"
-                  : "border-white/10 hover:border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)]"
+              className={`relative rounded-3xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-xl ${
+                plan.highlight
+                  ? "bg-slate-900/90 border-2 border-emerald-400/80 shadow-[0_0_40px_0_rgba(52,211,153,0.15)] scale-[1.02]"
+                  : "bg-slate-900/50 border border-white/10 hover:border-white/20"
               }`}
             >
-              {/* Popular Tag */}
-              {plan.popular && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full shadow-lg">
-                  MOST POPULAR 🔥
+              {/* Highlight Badge */}
+              {plan.highlight && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                  <Sparkles className="w-3 h-3" />
+                  {plan.badge}
                 </div>
               )}
 
               <div>
-                {/* Plan Header */}
-                <h2 className="text-xl font-bold text-white mb-2">{plan.name}</h2>
-                <p className="text-gray-400 text-xs leading-relaxed min-h-[36px]">
-                  {plan.description}
-                </p>
-
-                {/* Price Display */}
-                <div className="my-6">
-                  <span className="text-4xl md:text-5xl font-black text-white">
-                    {calculatedPrice}
+                {/* Header */}
+                <div className="mb-6">
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                    {plan.name}
                   </span>
-                  <span className="text-xs text-gray-400 ml-2 font-medium">
-                    / {calculatedBilling}
-                  </span>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-4xl md:text-5xl font-black tracking-tight text-white">
+                      {plan.price}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {plan.period}
+                    </span>
+                  </div>
+                  {!plan.highlight && (
+                    <p className="text-[11px] text-purple-300 font-medium mt-1">
+                      {plan.badge}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    {plan.description}
+                  </p>
                 </div>
 
-                <hr className="border-white/10 mb-6" />
+                <div className="w-full h-[1px] bg-white/10 my-6" />
 
                 {/* Features List */}
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center text-xs text-gray-300 gap-3">
-                      <span className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-[10px] shrink-0">
-                        ✓
+                <ul className="space-y-3.5 mb-8">
+                  {plan.features.map((feat, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-xs">
+                      {feat.included ? (
+                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <X className="w-4 h-4 text-slate-600 shrink-0" />
+                      )}
+                      <span className={feat.included ? "text-slate-200" : "text-slate-500 line-through"}>
+                        {feat.text}
                       </span>
-                      {feature}
                     </li>
                   ))}
                 </ul>
               </div>
 
               {/* Action Button */}
-              <button
-                onClick={() => handleSelectPlan(plan.id)}
-                className={`w-full font-black py-3.5 px-6 rounded-xl transition transform active:scale-95 shadow-lg ${
-                  plan.popular
-                    ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black shadow-amber-500/20"
-                    : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                }`}
+              <Link
+                href={`/register?plan=${plan.id}`}
+                className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
               >
-                {plan.buttonText}
-              </button>
+                <span>{plan.buttonText}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Security / Trust Footer */}
+        <div className="mt-16 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span>Encrypted payment processing via LemonSqueezy. Cancel anytime.</span>
+        </div>
+
       </div>
+
+      {/* Bottom Padding space to guarantee background fit */}
+      <div className="pt-8" />
     </main>
   );
 }
