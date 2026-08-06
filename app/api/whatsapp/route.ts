@@ -4,10 +4,23 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+// Safe Client Initialization with Fallback Values for Build Time Validation
+const supabaseUrl = process.env.SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || "dummy-openai-key" 
+});
+
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY || "dummy-gemini-key"
+);
+
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || "AC00000000000000000000000000000000";
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || "dummy-auth-token";
+const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
+
 const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
 interface ParsedTransaction {
@@ -30,17 +43,17 @@ export async function POST(req: NextRequest) {
     let { data: user } = await supabase.from("users").select("*").eq("phone_number", from).single();
     
     if (!user) {
-      // User නැතිනම් default ලෙස 'English' (code: 'en') හා 'USD' යොදයි
+      // Default fallback preferences if new user
       const { data: newUser } = await supabase.from("users").insert([{ 
         phone_number: from, 
-        preferred_language: "English", // or ISO code like 'en'
+        preferred_language: "English", 
         base_currency: "USD"
       }]).select().single();
       user = newUser;
     }
 
-    let userLanguage = user.preferred_language || "English";
-    let userCurrency = user.base_currency || "USD";
+    let userLanguage = user?.preferred_language || "English";
+    let userCurrency = user?.base_currency || "USD";
 
     // Dynamic Language Change via WhatsApp command (e.g. "lang:es" or "lang:French" or "lang:si")
     if (body.toLowerCase().startsWith("lang:") || body.toLowerCase().startsWith("language:")) {
@@ -169,9 +182,9 @@ async function generateGPTResponse(instructionContext: string, userLanguage: str
     messages: [
       {
         role: "system",
-        content: `You are a universal WhatsApp financial assistant supporting all global languages (e.g. English, Sinhala, Singlish, Tamil, Hindi, Spanish, French, Arabic, Chinese, Portuguese, Russian, German, Japanese, Korean, etc.).
+        content: `You are a universal WhatsApp financial assistant supporting all global languages.
                   STRICT RULE: Always generate your response strictly in the language "${userLanguage}". 
-                  Keep the tone polite, clear, concise, and beautifully formatted for WhatsApp.`
+                  Keep the tone polite, clear, concise, and formatted for WhatsApp.`
       },
       { role: "user", content: instructionContext }
     ]
