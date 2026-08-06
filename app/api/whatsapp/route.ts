@@ -111,6 +111,7 @@ async function getLocalizedMessages(
 
 Rules:
 - Translate ONLY human-readable sentences into ${targetLang}.
+- CRITICAL: KEEP THE WORDS "Confirm" AND "Edit" IN ENGLISH IN THE PREVIEW INSTRUCTION (e.g., "Reply Confirm to save / Reply Edit to change"). DO NOT TRANSLATE "Confirm" AND "Edit" COMMAND WORDS!
 - NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}.
 - Keep all formatting intact: *, _, |, ---, \\n, and emojis.
 - Translate "typeIncome" and "typeExpense" (keep emoji prefix).
@@ -505,7 +506,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // 5️⃣ STEP: AWAITING STARTING BALANCE (FIXED: Guidelines translation)
+    // 5️⃣ STEP: AWAITING STARTING BALANCE
     if (sessionState?.step === 'AWAITING_STARTING_BALANCE') {
       const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
 
@@ -521,7 +522,6 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
 
-        // Safe conversion of amount to string with explicit language parameter
         const formattedAmountStr = Number(extracted.amount).toLocaleString();
         const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: formattedAmountStr });
 
@@ -534,8 +534,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6️⃣ CONFIRM / EDIT HANDLERS
-    if (normalizedBody === "confirm") {
+    // 6️⃣ CONFIRM / EDIT HANDLERS (Flexible multi-language confirmation)
+    if (normalizedBody === "confirm" || normalizedBody === "potwierdź" || normalizedBody === "yes" || normalizedBody === "confirmar") {
       const respMessage = await handleConfirmTransaction(from, userProfile, userLang, nickname, userCurrency, websiteUrl);
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -545,7 +545,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    if (normalizedBody === "edit") {
+    if (normalizedBody === "edit" || normalizedBody === "edytuj" || normalizedBody === "editar") {
       await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
