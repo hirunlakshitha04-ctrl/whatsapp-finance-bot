@@ -24,10 +24,12 @@ const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
 const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
 interface ParsedTransaction {
+  is_expense: boolean;
   amount: number;
   category: string;
   currency: string;
   language: string;
+  reply_message?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -39,23 +41,47 @@ export async function POST(req: NextRequest) {
     const mediaUrl = formData.get("MediaUrl0") as string;
     const mediaType = formData.get("ContentType0") as string;
 
-    // 1. Fetch User Profile & Persistent Language/Currency from Database
+    // 1. Fetch User Profile & Preferences from Database
     let { data: user } = await supabase.from("users").select("*").eq("phone_number", from).single();
     
+    let isNewUser = false;
     if (!user) {
-      // Default fallback preferences if new user
+      // Default preferences for a brand new user
       const { data: newUser } = await supabase.from("users").insert([{ 
         phone_number: from, 
         preferred_language: "English", 
-        base_currency: "USD"
+        base_currency: "USD",
+        is_onboarded: false
       }]).select().single();
       user = newUser;
+      isNewUser = true;
     }
 
     let userLanguage = user?.preferred_language || "English";
     let userCurrency = user?.base_currency || "USD";
 
-    // Dynamic Language Change via WhatsApp command (e.g. "lang:es" or "lang:French" or "lang:si")
+    // 2. FIRST-TIME ONBOARDING & GREETING HANDLER
+    // Register Form එකෙන් එන Auto-Greeting එක හෝ පළමු පණිවිඩය එක පාරක් පමණක් Onboarding එක ලෙස හඳුනා ගනී
+    if (isNewUser || !user?.is_onboarded) {
+      // User onboarding status එක True ලෙස Update කිරීම
+      await supabase.from("users").update({ is_onboarded: true }).eq("phone_number", from);
+
+      const onboardingGuidePrompt = `
+        The user just arrived via registration or sent a greeting message ("${body}").
+        1. Welcome them warmly to Broo.ai in their preferred language (${userLanguage}).
+        2. Briefly explain how to use the bot in 3 simple points:
+           - Type expenses directly (e.g., "Lunch 15 USD" or "Coffee 2500 LKR")
+           - Send voice notes describing expenses.
+           - Upload receipt photos for auto-extraction.
+        3. Keep it encouraging, professional, and properly formatted for WhatsApp.
+      `;
+
+      const welcomeMsg = await generateGPTResponse(onboardingGuidePrompt, userLanguage);
+      await sendWhatsAppMessage(from, welcomeMsg);
+      return NextResponse.json({ success: true });
+    }
+
+    // 3. DYNAMIC LANGUAGE CHANGE COMMAND (e.g. "lang:es" or "lang:French" or "lang:si")
     if (body.toLowerCase().startsWith("lang:") || body.toLowerCase().startsWith("language:")) {
       const selectedLang = body.split(":")[1].trim();
       await supabase.from("users").update({ preferred_language: selectedLang }).eq("phone_number", from);
@@ -68,7 +94,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // 2. Interactive Button Actions (Confirm / Edit)
+    // 4. INTERACTIVE BUTTON ACTIONS (Confirm / Edit)
     if (body === "Confirm_Transaction") {
       return await handleConfirmation(from, userLanguage, userCurrency);
     }
@@ -81,7 +107,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // 3. DASHBOARD LINK COMMAND ("link", "dashboard", "login")
+    // 5. DASHBOARD LINK COMMAND ("link", "dashboard", "login")
     if (["link", "dashboard", "login"].includes(body.toLowerCase())) {
       const magicToken = Buffer.from(`${from}-${Date.now()}`).toString("base64");
       const dashboardUrl = `https://app.broo.ai/auth/verify?token=${magicToken}`;
@@ -93,26 +119,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // 4. VOICE NOTE INPUT (OpenAI Whisper Speech-to-Text + GPT-4o-mini Global Parser)
+    // 6. VOICE NOTE INPUT (OpenAI Whisper Speech-to-Text + GPT-4o-mini Global Parser)
     if (numMedia > 0 && mediaType.startsWith("audio/")) {
       const audioBuffer = await fetch(mediaUrl).then((res) => res.arrayBuffer());
       const file = new File([audioBuffer], "voice.ogg", { type: mediaType });
 
-      // Step A: Speech to Text via Whisper
       const transcription = await openai.audio.transcriptions.create({
         file: file,
         model: "whisper-1",
       });
 
-      // Step B: Extract Transaction with GPT-4o-mini
       const parsed = await parseTextWithGPT(transcription.text, userLanguage, userCurrency);
       
-      await savePendingTransaction(from, parsed);
-      await sendInteractiveButtons(from, parsed, userLanguage);
+      if (parsed.is_expense) {
+        await savePendingTransaction(from, parsed);
+        await sendInteractiveButtons(from, parsed, userLanguage);
+      } else {
+        const reply = parsed.reply_message || await generateGPTResponse("Respond to the voice note politely.", userLanguage);
+        await sendWhatsAppMessage(from, reply);
+      }
       return NextResponse.json({ success: true });
     }
 
-    // 5. RECEIPT OCR INPUT (Gemini 1.5 Flash)
+    // 7. RECEIPT OCR INPUT (Gemini 1.5 Flash)
     if (numMedia > 0 && mediaType.startsWith("image/")) {
       const imageBuffer = await fetch(mediaUrl).then((res) => res.arrayBuffer());
       const base64Image = Buffer.from(imageBuffer).toString("base64");
@@ -132,6 +161,7 @@ export async function POST(req: NextRequest) {
       const rawParsed = JSON.parse(cleanedJson);
 
       const parsed: ParsedTransaction = {
+        is_expense: true,
         amount: rawParsed.amount,
         category: rawParsed.category,
         currency: rawParsed.currency || userCurrency,
@@ -143,10 +173,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // 6. TEXT-BASED EXPENSES (Direct Instant Save)
+    // 8. TEXT-BASED INPUT (Handles Expenses vs Casual Conversations)
     if (body.length > 0) {
       const parsed = await parseTextWithGPT(body, userLanguage, userCurrency);
 
+      // පරිශීලකයා යැව්වේ Expense එකක් නොවේ නම් (Casual Greeting / Question)
+      if (!parsed.is_expense) {
+        const replyMsg = parsed.reply_message || 
+          await generateGPTResponse(`Respond nicely to user's message "${body}" in ${userLanguage} and remind them they can record expenses anytime.`, userLanguage);
+        
+        await sendWhatsAppMessage(from, replyMsg);
+        return NextResponse.json({ success: true });
+      }
+
+      // පරිශීලකයා යැව්වේ Expense එකක් නම් පමණක් Database එකට Save වේ
       const txCurrency = parsed.currency || userCurrency;
 
       await supabase.from("expenses").insert([{
@@ -182,9 +222,9 @@ async function generateGPTResponse(instructionContext: string, userLanguage: str
     messages: [
       {
         role: "system",
-        content: `You are a universal WhatsApp financial assistant supporting all global languages.
-                  STRICT RULE: Always generate your response strictly in the language "${userLanguage}". 
-                  Keep the tone polite, clear, concise, and formatted for WhatsApp.`
+        content: `You are Broo.ai, a universal WhatsApp financial assistant.
+                  STRICT RULE: Always generate your response strictly in the user's preferred language: "${userLanguage}". 
+                  Keep the tone polite, clear, concise, and formatted nicely for WhatsApp.`
       },
       { role: "user", content: instructionContext }
     ]
@@ -192,7 +232,7 @@ async function generateGPTResponse(instructionContext: string, userLanguage: str
   return response.choices[0].message.content || instructionContext;
 }
 
-// 2. Parse User Input Text/Voice via GPT-4o-mini
+// 2. Smart AI Parser: Distinguishes Expense vs Casual Text
 async function parseTextWithGPT(input: string, userLanguage: string, defaultCurrency: string): Promise<ParsedTransaction> {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -200,15 +240,29 @@ async function parseTextWithGPT(input: string, userLanguage: string, defaultCurr
     messages: [
       {
         role: "system",
-        content: `You are a global AI financial parser.
+        content: `You are a global AI financial parser for Broo.ai.
                   The user's preferred language is "${userLanguage}".
-                  Extract:
-                  - "amount": numerical value
-                  - "category": expense category translated into "${userLanguage}"
-                  - "currency": ISO currency code (default to "${defaultCurrency}" if not explicitly mentioned)
-                  
+
+                  TASK:
+                  Analyze if the user's input is recording an expense/income OR if it is casual chat / greetings / general statements (e.g. "Hi", "I registered", "How does this work").
+
+                  - IF IT IS AN EXPENSE/TRANSACTION:
+                    Set "is_expense": true
+                    Extract "amount": number, "category": translated into "${userLanguage}", "currency": ISO code (default "${defaultCurrency}").
+
+                  - IF IT IS NOT AN EXPENSE:
+                    Set "is_expense": false
+                    Set "amount": 0, "category": "N/A", "currency": "${defaultCurrency}"
+                    Provide a helpful response in "reply_message" strictly in language "${userLanguage}".
+
                   Respond strictly in JSON format ONLY:
-                  {"amount": number, "category": string, "currency": string, "language": "${userLanguage}"}`
+                  {
+                    "is_expense": boolean,
+                    "amount": number,
+                    "category": string,
+                    "currency": string,
+                    "reply_message": string
+                  }`
       },
       { role: "user", content: input }
     ]
