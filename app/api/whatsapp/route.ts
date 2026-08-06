@@ -1,331 +1,583 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 import { OpenAI } from "openai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase"; 
 import twilio from "twilio";
+import FormFormat from "form-data";
 
-// Safe Client Initialization with Fallback Values for Build Time Validation
-const supabaseUrl = process.env.SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || "dummy-openai-key" 
-});
-
-const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY || "dummy-gemini-key"
-);
-
-const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || "AC00000000000000000000000000000000";
-const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || "dummy-auth-token";
-const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
-
-const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
-
-interface ParsedTransaction {
-  is_expense: boolean;
-  amount: number;
+// Types Definition
+interface ExtractedData {
+  action: "log_transaction" | "set_budget" | "set_starting_balance";
+  type: "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null;
+  item: string;
   category: string;
+  amount: number;
+  person: string | null;
   currency: string;
-  language: string;
-  reply_message?: string;
+  confirmation_message?: string;
 }
 
-export async function POST(req: NextRequest) {
+interface LocalizedMessages {
+  welcome: string;
+  guidelines: string;
+  proFeatureImage: string;
+  proFeatureVoice: string;
+  limitReached: string;
+  noPending: string;
+  budgetSaved: string;
+  savedMsg: string;
+  autoSavedMsg: string;
+  dbError: string;
+  directError: string;
+  editCancel: string;
+  fallback: string;
+  preview: string;
+  typeIncome: string;
+  typeExpense: string;
+}
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+
+// 🌍 ULTIMATE FORMATTED MULTI-LANGUAGE SYSTEM MESSAGES
+async function getLocalizedMessages(
+  lang: string, 
+  nickname: string, 
+  currency: string, 
+  websiteUrl: string, 
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string } = {}
+): Promise<LocalizedMessages> {
+  const targetLang = (lang || "English").trim();
+
+  // 1. SINGLISH FORMATTED TEMPLATE
+  if (targetLang.toLowerCase() === "singlish") {
+    return {
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
+      
+      guidelines: `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${currency} ${contextData.amount || "0"}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
+      
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n${nickname}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`,
+      noPending: `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
+      budgetSaved: `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක *${currency} ${contextData.amount || "0"}* විදිහට සේව් කරගත්තා! 🚀`,
+      savedMsg: `එළකිරි ${nickname}! *${contextData.item || ""}* එකට ${contextData.isIncome ? 'ලැබුණු' : 'ගිය'} *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! ${contextData.isIncome ? '🎉' : '🚀'}`,
+      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි ${nickname}! *${contextData.item || ""}* එකට ගිය *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! 🚀`,
+      dbError: `🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?`,
+      directError: `🚨 Direct save වෙද්දී අවුලක් වුණා මචං.`,
+      editCancel: `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
+      fallback: `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
+      
+      preview: `📝 විස්තරය: *${contextData.item || ""}*\n🏷️ වර්ගය: *${contextData.typeTag || ""}*\n🗂️ කාණ්ඩය: *${contextData.category || ""}*\n💰 ගාණ: *${currency} ${contextData.amount || "0"}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`,
+
+      typeIncome: `🟢 ආදායම`,
+      typeExpense: `🔴 වියදම`
+    };
+  }
+
+  // 2. DYNAMIC TRANSLATION ENGINE FOR ALL OTHER DROPDOWN LANGUAGES
   try {
-    const formData = await req.formData();
-    const from = formData.get("From") as string;
-    const body = ((formData.get("Body") as string) || "").trim();
-    const numMedia = parseInt((formData.get("NumMedia") as string) || "0");
-    const mediaUrl = formData.get("MediaUrl0") as string;
-    const mediaType = formData.get("ContentType0") as string;
+    const prompt = `You are generating formatted WhatsApp UI system messages for "Broo.ai" (a personal finance bot).
+Target User Language: "${targetLang}".
+User Nickname: "${nickname}".
+Currency Code: "${currency}".
+Website URL: "${websiteUrl}/#pricing".
 
-    // 1. Fetch User Profile & Preferences from Database
-    let { data: user } = await supabase.from("users").select("*").eq("phone_number", from).single();
-    
-    let isNewUser = false;
-    if (!user) {
-      // Default preferences for a brand new user
-      const { data: newUser } = await supabase.from("users").insert([{ 
-        phone_number: from, 
-        preferred_language: "English", 
-        base_currency: "USD",
-        is_onboarded: false
-      }]).select().single();
-      user = newUser;
-      isNewUser = true;
-    }
+Dynamic values to embed:
+- amount: "${contextData.amount || ''}"
+- item: "${contextData.item || ''}"
+- typeTag: "${contextData.typeTag || ''}"
+- category: "${contextData.category || ''}"
 
-    let userLanguage = user?.preferred_language || "English";
-    let userCurrency = user?.base_currency || "USD";
+Return pure JSON with localized texts in "${targetLang}". Keep all WhatsApp formatting marks like *, _, |, --- intact! Also translate "typeIncome" and "typeExpense" (short labels meaning "Income" and "Expense") into "${targetLang}", keeping the emoji prefix.
 
-    // 2. FIRST-TIME ONBOARDING & GREETING HANDLER
-    // Register Form එකෙන් එන Auto-Greeting එක හෝ පළමු පණිවිඩය එක පාරක් පමණක් Onboarding එක ලෙස හඳුනා ගනී
-    if (isNewUser || !user?.is_onboarded) {
-      // User onboarding status එක True ලෙස Update කිරීම
-      await supabase.from("users").update({ is_onboarded: true }).eq("phone_number", from);
+{
+  "welcome": "👋 Welcome ${nickname}!\\n\\nI am your Personal Finance Assistant *Broo.ai*! 🚀\\n\\nTo start, what is your current **Starting Balance / Capital** in your account?\\n\\n💡 Example: *\\\"50000\\\"* or *\\\"25000\\\"*",
+  
+  "guidelines": "🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || '0'}*! 🎉\\n\\n--- 💡 *Broo.ai Quick Guide* ---\\n\\n💸 *Log Expense:*\\n| \\\"Spent 500 for lunch\\\" / \\\"Bus fare 80\\\"\\n\\n💰 *Add Income:*\\n| \\\"Got salary 150000\\\" / \\\"Got bonus 10000\\\"\\n\\n🎯 *Set Monthly Budget:*\\n| \\\"Set budget 50000\\\"\\n\\n🚀 *Send your first Expense or Income now!*",
+  
+  "proFeatureImage": "🔒 *AI Receipt Scanning is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
+  "proFeatureVoice": "🔒 *Voice Notes is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
+  "limitReached": "⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\\n\\n${nickname}, upgrade to BROO MAX:\\n👉 ${websiteUrl}/#pricing",
+  "noPending": "⚠️ Hi ${nickname}, there is no pending transaction to confirm!",
+  "budgetSaved": "🎯 Awesome ${nickname}! Your monthly budget is set to *${currency} ${contextData.amount || '0'}*! 🚀",
+  "savedMsg": "Awesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
+  "autoSavedMsg": "⚡ *Auto Saved!*\\n\\nAwesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
+  "dbError": "🚨 An error occurred while saving to database.",
+  "directError": "🚨 An error occurred during direct save.",
+  "editCancel": "No problem ${nickname}! Send the corrected details.",
+  "fallback": "Sorry ${nickname}, I couldn't understand that. Try sending \\\"Spent 500 for lunch\\\"! 🚀",
+  
+  "preview": "📝 Description: *${contextData.item || ''}*\\n🏷️ Type: *${contextData.typeTag || ''}*\\n🗂️ Category: *${contextData.category || ''}*\\n💰 Amount: *${currency} ${contextData.amount || '0'}*\\n\\n-> Reply *Confirm* to save.\\n-> Reply *Edit* to change.",
 
-      const onboardingGuidePrompt = `
-        The user just arrived via registration or sent a greeting message ("${body}").
-        1. Welcome them warmly to Broo.ai in their preferred language (${userLanguage}).
-        2. Briefly explain how to use the bot in 3 simple points:
-           - Type expenses directly (e.g., "Lunch 15 USD" or "Coffee 2500 LKR")
-           - Send voice notes describing expenses.
-           - Upload receipt photos for auto-extraction.
-        3. Keep it encouraging, professional, and properly formatted for WhatsApp.
-      `;
+  "typeIncome": "🟢 Income",
+  "typeExpense": "🔴 Expense"
+}`;
 
-      const welcomeMsg = await generateGPTResponse(onboardingGuidePrompt, userLanguage);
-      await sendWhatsAppMessage(from, welcomeMsg);
-      return NextResponse.json({ success: true });
-    }
+    const res = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: prompt }],
+      response_format: { type: "json_object" }
+    });
 
-    // 3. DYNAMIC LANGUAGE CHANGE COMMAND (e.g. "lang:es" or "lang:French" or "lang:si")
-    if (body.toLowerCase().startsWith("lang:") || body.toLowerCase().startsWith("language:")) {
-      const selectedLang = body.split(":")[1].trim();
-      await supabase.from("users").update({ preferred_language: selectedLang }).eq("phone_number", from);
-      
-      const successMsg = await generateGPTResponse(
-        `Inform the user that their preferred language has been updated to "${selectedLang}".`,
-        selectedLang
-      );
-      await sendWhatsAppMessage(from, successMsg);
-      return NextResponse.json({ success: true });
-    }
-
-    // 4. INTERACTIVE BUTTON ACTIONS (Confirm / Edit)
-    if (body === "Confirm_Transaction") {
-      return await handleConfirmation(from, userLanguage, userCurrency);
-    }
-    if (body === "Edit_Transaction") {
-      const editPrompt = await generateGPTResponse(
-        "Politely ask the user to type the correct amount and category for the transaction.",
-        userLanguage
-      );
-      await sendWhatsAppMessage(from, editPrompt);
-      return NextResponse.json({ success: true });
-    }
-
-    // 5. DASHBOARD LINK COMMAND ("link", "dashboard", "login")
-    if (["link", "dashboard", "login"].includes(body.toLowerCase())) {
-      const magicToken = Buffer.from(`${from}-${Date.now()}`).toString("base64");
-      const dashboardUrl = `https://app.broo.ai/auth/verify?token=${magicToken}`;
-      const msgText = await generateGPTResponse(
-        `Provide web dashboard link: ${dashboardUrl}. Mention that the link is valid for 15 minutes.`,
-        userLanguage
-      );
-      await sendWhatsAppMessage(from, msgText);
-      return NextResponse.json({ success: true });
-    }
-
-    // 6. VOICE NOTE INPUT (OpenAI Whisper Speech-to-Text + GPT-4o-mini Global Parser)
-    if (numMedia > 0 && mediaType.startsWith("audio/")) {
-      const audioBuffer = await fetch(mediaUrl).then((res) => res.arrayBuffer());
-      const file = new File([audioBuffer], "voice.ogg", { type: mediaType });
-
-      const transcription = await openai.audio.transcriptions.create({
-        file: file,
-        model: "whisper-1",
-      });
-
-      const parsed = await parseTextWithGPT(transcription.text, userLanguage, userCurrency);
-      
-      if (parsed.is_expense) {
-        await savePendingTransaction(from, parsed);
-        await sendInteractiveButtons(from, parsed, userLanguage);
-      } else {
-        const reply = parsed.reply_message || await generateGPTResponse("Respond to the voice note politely.", userLanguage);
-        await sendWhatsAppMessage(from, reply);
-      }
-      return NextResponse.json({ success: true });
-    }
-
-    // 7. RECEIPT OCR INPUT (Gemini 1.5 Flash)
-    if (numMedia > 0 && mediaType.startsWith("image/")) {
-      const imageBuffer = await fetch(mediaUrl).then((res) => res.arrayBuffer());
-      const base64Image = Buffer.from(imageBuffer).toString("base64");
-
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Analyze this receipt image from anywhere in the world. 
-                      Extract the total amount, expense category, and ISO 4217 currency code.
-                      Respond ONLY in valid JSON format:
-                      {"amount": number, "category": string, "currency": string}`;
-
-      const result = await model.generateContent([
-        prompt,
-        { inlineData: { data: base64Image, mimeType: mediaType } },
-      ]);
-
-      const cleanedJson = result.response.text().replace(/```json|```/g, "").trim();
-      const rawParsed = JSON.parse(cleanedJson);
-
-      const parsed: ParsedTransaction = {
-        is_expense: true,
-        amount: rawParsed.amount,
-        category: rawParsed.category,
-        currency: rawParsed.currency || userCurrency,
-        language: userLanguage
-      };
-
-      await savePendingTransaction(from, parsed);
-      await sendInteractiveButtons(from, parsed, userLanguage);
-      return NextResponse.json({ success: true });
-    }
-
-    // 8. TEXT-BASED INPUT (Handles Expenses vs Casual Conversations)
-    if (body.length > 0) {
-      const parsed = await parseTextWithGPT(body, userLanguage, userCurrency);
-
-      // පරිශීලකයා යැව්වේ Expense එකක් නොවේ නම් (Casual Greeting / Question)
-      if (!parsed.is_expense) {
-        const replyMsg = parsed.reply_message || 
-          await generateGPTResponse(`Respond nicely to user's message "${body}" in ${userLanguage} and remind them they can record expenses anytime.`, userLanguage);
-        
-        await sendWhatsAppMessage(from, replyMsg);
-        return NextResponse.json({ success: true });
-      }
-
-      // පරිශීලකයා යැව්වේ Expense එකක් නම් පමණක් Database එකට Save වේ
-      const txCurrency = parsed.currency || userCurrency;
-
-      await supabase.from("expenses").insert([{
-        phone_number: from,
-        amount: parsed.amount,
-        category: parsed.category,
-        currency: txCurrency,
-        description: body,
-      }]);
-
-      const confirmationMsg = await generateGPTResponse(
-        `Expense saved successfully: Amount ${txCurrency} ${parsed.amount.toFixed(2)} under category "${parsed.category}".`,
-        userLanguage
-      );
-
-      await sendWhatsAppMessage(from, confirmationMsg);
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("❌ Global Webhook Error:", error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return JSON.parse(res.choices[0].message.content || "{}") as LocalizedMessages;
+  } catch (err) {
+    console.error("❌ Translation Engine Error:", err);
+    return {
+      welcome: `👋 Welcome ${nickname}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀`,
+      guidelines: `🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || "0"}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Salary labuna 150000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*`,
+      noPending: `⚠️ Hi ${nickname}, there is no pending transaction to confirm!`,
+      budgetSaved: `🎯 Saved! Your budget is *${currency} ${contextData.amount || "0"}*!`,
+      savedMsg: `Awesome ${nickname}! Saved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
+      autoSavedMsg: `⚡ *Auto Saved!*\n\nSaved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
+      dbError: `🚨 An error occurred while saving to database.`,
+      directError: `🚨 An error occurred during direct save.`,
+      editCancel: `No problem ${nickname}! Send the corrected details.`,
+      fallback: `Sorry ${nickname}, I couldn't understand that.`,
+      preview: `📝 Description: *${contextData.item || ""}*\n🏷️ Type: *${contextData.typeTag || ""}*\n🗂️ Category: *${contextData.category || ""}*\n💰 Amount: *${currency} ${contextData.amount || "0"}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`,
+      typeIncome: `🟢 Income`,
+      typeExpense: `🔴 Expense`
+    };
   }
 }
 
-// --- HELPER FUNCTIONS ---
+// 1. 🎤 Voice to Text Transcriber
+async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken: string): Promise<string | null> {
+  try {
+    const response = await axios.get(mediaUrl, {
+      responseType: "arraybuffer",
+      auth: { username: twilioSid, password: twilioToken },
+      timeout: 15000,
+    });
 
-// 1. Generate Localized Response in Target Language via GPT-4o-mini
-async function generateGPTResponse(instructionContext: string, userLanguage: string): Promise<string> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `You are Broo.ai, a universal WhatsApp financial assistant.
-                  STRICT RULE: Always generate your response strictly in the user's preferred language: "${userLanguage}". 
-                  Keep the tone polite, clear, concise, and formatted nicely for WhatsApp.`
+    const buffer = Buffer.from(response.data);
+    const formData = new FormFormat();
+    formData.append("file", buffer, { filename: "voice.ogg", contentType: "audio/ogg" });
+    formData.append("model", "whisper-1");
+
+    const transcription = await axios.post("https://api.openai.com/v1/audio/transcriptions", formData, {
+      headers: {
+        ...formData.getHeaders(),
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
-      { role: "user", content: instructionContext }
-    ]
-  });
-  return response.choices[0].message.content || instructionContext;
+    });
+
+    return transcription.data.text || null;
+  } catch (err) {
+    console.error("❌ Voice Transcription Error:", err);
+    return null;
+  }
 }
 
-// 2. Smart AI Parser: Distinguishes Expense vs Casual Text
-async function parseTextWithGPT(input: string, userLanguage: string, defaultCurrency: string): Promise<ParsedTransaction> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You are a global AI financial parser for Broo.ai.
-                  The user's preferred language is "${userLanguage}".
+// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language)
+async function extractTransaction(
+  text: string, 
+  nativeCurrency: string, 
+  language: string, 
+  nickname: string
+): Promise<ExtractedData | null> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are Broo.ai, a smart financial assistant.
+User Settings -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
-                  TASK:
-                  Analyze if the user's input is recording an expense/income OR if it is casual chat / greetings / general statements (e.g. "Hi", "I registered", "How does this work").
+INSTRUCTIONS:
+- Translate the extracted "item" description string strictly into the user's selected language (${language}).
+- Translate the "category" name strictly into the user's selected language (${language}).
+- Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
 
-                  - IF IT IS AN EXPENSE/TRANSACTION:
-                    Set "is_expense": true
-                    Extract "amount": number, "category": translated into "${userLanguage}", "currency": ISO code (default "${defaultCurrency}").
+Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Starting Balance, Loan, Budget, Other].
 
-                  - IF IT IS NOT AN EXPENSE:
-                    Set "is_expense": false
-                    Set "amount": 0, "category": "N/A", "currency": "${defaultCurrency}"
-                    Provide a helpful response in "reply_message" strictly in language "${userLanguage}".
-
-                  Respond strictly in JSON format ONLY:
-                  {
-                    "is_expense": boolean,
-                    "amount": number,
-                    "category": string,
-                    "currency": string,
-                    "reply_message": string
-                  }`
-      },
-      { role: "user", content: input }
-    ]
-  });
-  return JSON.parse(response.choices[0].message.content || "{}");
+Return pure JSON:
+{
+  "action": "log_transaction" | "set_budget" | "set_starting_balance",
+  "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
+  "item": "description string in ${language}",
+  "category": "category string in ${language}",
+  "amount": number,
+  "person": "string" | null,
+  "currency": "${nativeCurrency}"
+}`
+        },
+        { role: "user", content: text }
+      ],
+      response_format: { type: "json_object" }
+    });
+    return JSON.parse(response.choices[0].message.content || "{}") as ExtractedData;
+  } catch (err) {
+    console.error("❌ Text Extraction error:", err);
+    return null;
+  }
 }
 
-async function savePendingTransaction(phone: string, data: ParsedTransaction) {
-  await supabase.from("pending_transactions").insert([{
-    phone_number: phone,
-    amount: data.amount,
-    category: data.category,
-    currency: data.currency,
-    description: "Receipt/Voice Upload",
-    status: "pending"
+// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language)
+async function extractFromImage(
+  mediaUrl: string, 
+  contentType: string, 
+  twilioSid: string, 
+  twilioToken: string, 
+  nativeCurrency: string,
+  language: string,
+  nickname: string
+): Promise<ExtractedData | null> {
+  try {
+    const response = await axios.get(mediaUrl, {
+      responseType: "arraybuffer",
+      auth: { username: twilioSid, password: twilioToken },
+      timeout: 15000,
+    });
+    const base64Image = Buffer.from(response.data).toString("base64");
+    const openAiResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Extract total amount and merchant from receipt image. Base Currency: ${nativeCurrency}.
+Write the "item" merchant name and "category" in the user's selected language: ${language}.
+
+Return pure JSON:
+{
+  "action": "log_transaction",
+  "type": "expense",
+  "item": "Merchant/Store Name translated in ${language}",
+  "category": "Category Name translated in ${language}",
+  "amount": number,
+  "person": null,
+  "currency": "${nativeCurrency}"
+}`
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Parse receipt details accurately." },
+            { type: "image_url", image_url: { url: `data:${contentType};base64,${base64Image}` } }
+          ]
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    return JSON.parse(openAiResponse.choices[0].message.content || "{}") as ExtractedData;
+  } catch (err) {
+    console.error("❌ Vision Extraction error:", err);
+    return null;
+  }
+}
+
+// Helper: Save Direct Transaction
+async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: ExtractedData, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
+  const { error } = await supabase.from('transactions').insert([{
+    phone_number: phoneNumber,
+    type: tx.type,
+    item: tx.item,
+    category: tx.category,
+    amount: tx.amount,
+    person: tx.person,
+    currency: tx.currency || userProfile.currency
   }]);
+
+  const formattedAmount = tx.amount.toLocaleString();
+  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount });
+
+  if (error) {
+    console.error("❌ Auto Save Error:", error);
+    return msgs.directError;
+  }
+
+  return msgs.autoSavedMsg;
 }
 
-async function sendInteractiveButtons(to: string, data: ParsedTransaction, userLanguage: string) {
-  const bodyText = await generateGPTResponse(
-    `Found transaction: ${data.currency} ${data.amount} for category "${data.category}". Please ask the user to confirm or edit.`,
-    userLanguage
-  );
+// 4. 💾 DB Handler: Multi-language Confirmation Response
+async function handleConfirmTransaction(phoneNumber: string, userProfile: any, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
+  try {
+    const { data: session } = await supabase
+      .from('user_sessions')
+      .select('pending_transaction')
+      .eq('phone_number', phoneNumber)
+      .single();
 
-  await twilioClient.messages.create({
-    from: TWILIO_WHATSAPP_NUMBER,
-    to: to,
-    body: bodyText,
-  });
-}
+    const emptyMsgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
 
-async function handleConfirmation(phone: string, userLanguage: string, fallbackCurrency: string) {
-  const { data: pending } = await supabase.from("pending_transactions")
-    .select("*").eq("phone_number", phone).eq("status", "pending")
-    .order("created_at", { ascending: false }).limit(1).single();
+    if (!session?.pending_transaction) {
+      return emptyMsgs.noPending;
+    }
 
-  if (pending) {
-    const txCurrency = pending.currency || fallbackCurrency;
+    const tx = session.pending_transaction as ExtractedData;
+    const formattedAmount = tx.amount.toLocaleString();
+    const isIncome = tx.type === 'income';
 
-    await supabase.from("expenses").insert([{
-      phone_number: phone,
-      amount: pending.amount,
-      category: pending.category,
-      currency: txCurrency,
-      description: pending.description
+    const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { 
+      item: tx.item, 
+      amount: formattedAmount, 
+      isIncome 
+    });
+
+    // Handle Budget Set
+    if (tx.action === "set_budget") {
+      await supabase
+        .from('users')
+        .update({ monthly_budget: tx.amount })
+        .eq('phone_number', phoneNumber);
+
+      await supabase
+        .from('user_sessions')
+        .update({ pending_transaction: null, step: 'ACTIVE' })
+        .eq('phone_number', phoneNumber);
+
+      return msgs.budgetSaved;
+    }
+
+    // Save Transaction to Supabase
+    const { error: insErr } = await supabase.from('transactions').insert([{
+      phone_number: phoneNumber,
+      type: tx.type,
+      item: tx.item,
+      category: tx.category,
+      amount: tx.amount,
+      person: tx.person,
+      currency: tx.currency || userProfile.currency
     }]);
 
-    await supabase.from("pending_transactions").update({ status: "confirmed" }).eq("id", pending.id);
+    if (insErr) throw insErr;
 
-    const successMessage = await generateGPTResponse(
-      `Transaction confirmed and saved: ${txCurrency} ${pending.amount} for "${pending.category}".`,
-      userLanguage
-    );
+    // Reset Session State
+    await supabase
+      .from('user_sessions')
+      .update({ pending_transaction: null, step: 'ACTIVE' })
+      .eq('phone_number', phoneNumber);
 
-    await sendWhatsAppMessage(phone, successMessage);
+    return msgs.savedMsg;
+
+  } catch (err) {
+    console.error("❌ DB Insert Error:", err);
+    const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
+    return msgs.dbError;
   }
-  return NextResponse.json({ success: true });
 }
 
-async function sendWhatsAppMessage(to: string, body: string) {
-  await twilioClient.messages.create({
-    from: TWILIO_WHATSAPP_NUMBER,
-    to: to,
-    body: body
-  });
+// MAIN WEBHOOK ROUTER
+export async function POST(req: NextRequest) {
+  try {
+    const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID!;
+    const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
+    
+    const formData = await req.formData();
+    const rawFrom = formData.get("From") as string; 
+    const mediaUrl = formData.get("MediaUrl0") as string | null;
+    const mediaContentType = (formData.get("MediaContentType0") as string) || "";
+    const body = ((formData.get("Body") as string) || "").trim();
+
+    const from = rawFrom.replace("whatsapp:", "");
+    const normalizedBody = body.toLowerCase();
+
+    // 1️⃣ Fetch User Profile
+    const { data: userProfile } = await supabase.from('users').select('*').eq('phone_number', from).maybeSingle();
+
+    // UNREGISTERED USER
+    if (!userProfile) {
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+      const registerMsg = `👋 Welcome to Broo.ai!\n\nPlease complete your registration first:\n👉 ${websiteUrl}/register`;
+      
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: registerMsg,
+      });
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+    
+    // READ USER'S SELECTED LANGUAGE + CURRENCY FROM DATABASE (Matches Register Form dropdown values)
+    const userLang = userProfile.language || userProfile.preferred_language || "English";
+    const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
+    const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
+
+    // User Plan Identification: 'lite' | 'core' | 'max'
+    const userPlan = (userProfile.plan || "lite").toLowerCase();
+
+    // 2️⃣ PLAN CHECKS & FEATURE LIMITATIONS
+    const isImage = mediaUrl && mediaContentType.startsWith("image/");
+    const isAudio = mediaUrl && mediaContentType.startsWith("audio/");
+
+    // Fetch basic localized notices (also carries typeIncome / typeExpense labels for this user's language)
+    const baseMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl);
+
+    // 🛑 BROO LITE LIMITS
+    if (userPlan === "lite") {
+      if (isImage) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureImage });
+        return new NextResponse("OK", { status: 200 });
+      }
+      if (isAudio) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureVoice });
+        return new NextResponse("OK", { status: 200 });
+      }
+    }
+
+    // 🛑 BROO CORE LIMITS
+    if (userPlan === "core" && isImage) {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
+      const { data: usage } = await supabase
+        .from('monthly_usage')
+        .select('scan_count')
+        .eq('phone_number', from)
+        .eq('month_year', currentMonth)
+        .maybeSingle();
+
+      const currentScanCount = usage?.scan_count || 0;
+
+      if (currentScanCount >= 30) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.limitReached });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      await supabase.from('monthly_usage').upsert({
+        phone_number: from,
+        month_year: currentMonth,
+        scan_count: currentScanCount + 1,
+      }, { onConflict: 'phone_number, month_year' });
+    }
+
+    // 3️⃣ SESSION VERIFICATION & FETCHING
+    let { data: sessionState } = await supabase.from('user_sessions').select('*').eq('phone_number', from).maybeSingle();
+
+    if (!sessionState) {
+      const { data: newSession } = await supabase
+        .from('user_sessions')
+        .insert({ phone_number: from, step: 'AWAITING_STARTING_BALANCE' })
+        .select()
+        .single();
+      sessionState = newSession;
+    }
+
+    // 4️⃣ FIRST-TIME REGISTRATION REDIRECT MESSAGE
+    if (normalizedBody.includes("registered") || normalizedBody.includes("hi broo")) {
+      await supabase.from('user_sessions').update({ step: 'AWAITING_STARTING_BALANCE' }).eq('phone_number', from);
+      
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: baseMsgs.welcome,
+      });
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // 5️⃣ STEP: AWAITING STARTING BALANCE
+    if (sessionState?.step === 'AWAITING_STARTING_BALANCE') {
+      const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
+
+      if (extracted && extracted.amount) {
+        await supabase.from('transactions').insert([{
+          phone_number: from,
+          type: 'income',
+          item: 'Starting Capital',
+          category: 'Starting Balance',
+          amount: extracted.amount,
+          currency: userCurrency
+        }]);
+
+        await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
+
+        const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: extracted.amount.toLocaleString() });
+
+        await twilioClient.messages.create({
+          from: TWILIO_WHATSAPP_NUMBER,
+          to: `whatsapp:${from}`,
+          body: guideMsgs.guidelines,
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+    }
+
+    // 6️⃣ CONFIRM / EDIT HANDLERS
+    if (normalizedBody === "confirm") {
+      const respMessage = await handleConfirmTransaction(from, userProfile, userLang, nickname, userCurrency, websiteUrl);
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: respMessage,
+      });
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    if (normalizedBody === "edit") {
+      await supabase.from('user_sessions').update({ pending_transaction: null }).eq('phone_number', from);
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: baseMsgs.editCancel,
+      });
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // 7️⃣ EXTRACTION ENGINE (IMAGE / VOICE / TEXT)
+    let extractedTx: ExtractedData | null = null;
+
+    if (mediaUrl) {
+      if (isImage) {
+        extractedTx = await extractFromImage(mediaUrl, mediaContentType, TWILIO_SID, TWILIO_TOKEN, userCurrency, userLang, nickname);
+      } else if (isAudio) {
+        const transcribedText = await transcribeVoice(mediaUrl, TWILIO_SID, TWILIO_TOKEN);
+        if (transcribedText) {
+          extractedTx = await extractTransaction(transcribedText, userCurrency, userLang, nickname);
+        }
+      }
+    } else if (body) {
+      extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
+    }
+
+    // 8️⃣ SEND PREVIEW OR AUTO-SAVE
+    if (extractedTx && extractedTx.amount) {
+      if (userPlan === "max" && isImage) {
+        const autoSaveMsg = await saveTransactionDirect(from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
+        await twilioClient.messages.create({
+          from: TWILIO_WHATSAPP_NUMBER,
+          to: `whatsapp:${from}`,
+          body: autoSaveMsg,
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
+      
+      const formattedNumber = extractedTx.amount.toLocaleString();
+
+      // 🔤 Localized Income/Expense tag — now pulled from baseMsgs (translated to userLang),
+      // instead of a hardcoded English "🟢 Income" / "🔴 Expense" string.
+      const typeTag = extractedTx.type === 'income' ? baseMsgs.typeIncome : baseMsgs.typeExpense;
+      
+      const previewMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, {
+        item: extractedTx.item,
+        typeTag,
+        category: extractedTx.category,
+        amount: formattedNumber
+      });
+      
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: previewMsgs.preview,
+      });
+    } else {
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: baseMsgs.fallback,
+      });
+    }
+
+    return new NextResponse("OK", { status: 200 });
+  } catch (error) {
+    console.error("❌ Fatal Webhook Error:", error);
+    return new NextResponse("OK", { status: 200 });
+  }
 }
