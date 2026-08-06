@@ -40,6 +40,9 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
 
+// In-memory Translation Cache
+const translationCache = new Map<string, LocalizedMessages>();
+
 // 🌍 ULTIMATE FORMATTED MULTI-LANGUAGE SYSTEM MESSAGES
 async function getLocalizedMessages(
   lang: string, 
@@ -49,100 +52,131 @@ async function getLocalizedMessages(
   contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string } = {}
 ): Promise<LocalizedMessages> {
   const targetLang = (lang || "English").trim();
+  const key = targetLang.toLowerCase();
+
+  // Base English Template with Placeholders
+  const ENGLISH_TEMPLATE: LocalizedMessages = {
+    welcome: `👋 Welcome {NICKNAME}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀\n\nTo start, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
+    guidelines: `🎯 Awesome {NICKNAME}! Your **Starting Balance** is set to *{CURRENCY} {AMOUNT}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"\n\n🚀 *Send your first Expense or Income now!*`,
+    proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
+    proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
+    limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, upgrade to BROO MAX:\n👉 {WEBSITE}/#pricing`,
+    noPending: `⚠️ Hi {NICKNAME}, there is no pending transaction to confirm!`,
+    budgetSaved: `🎯 Awesome {NICKNAME}! Your monthly budget is set to *{CURRENCY} {AMOUNT}*! 🚀`,
+    savedMsg: `Awesome {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}*! 🚀`,
+    autoSavedMsg: `⚡ *Auto Saved!*\n\nAwesome {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}*! 🚀`,
+    dbError: `🚨 An error occurred while saving to database.`,
+    directError: `🚨 An error occurred during direct save.`,
+    editCancel: `No problem {NICKNAME}! Send the corrected details.`,
+    fallback: `Sorry {NICKNAME}, I couldn't understand that. Try sending "Spent 500 for lunch"! 🚀`,
+    preview: `📝 Description: *{ITEM}*\n🏷️ Type: *{TYPETAG}*\n🗂️ Category: *{CATEGORY}*\n💰 Amount: *{CURRENCY} {AMOUNT}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`,
+    typeIncome: `🟢 Income`,
+    typeExpense: `🔴 Expense`,
+  };
 
   // 1. SINGLISH FORMATTED TEMPLATE
-  if (targetLang.toLowerCase() === "singlish") {
-    return {
-      welcome: `👋 සාදරයෙන් පිළිගන්නවා ${nickname}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
-      
-      guidelines: `🎯 නියමයි ${nickname}! ඔයාගේ Starting Balance එක *${currency} ${contextData.amount || "0"}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
-      
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n${nickname}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n${nickname}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 ${websiteUrl}/#pricing`,
-      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n${nickname}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 ${websiteUrl}/#pricing`,
-      noPending: `⚠️ Hi ${nickname}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
-      budgetSaved: `🎯 එළකිරි ${nickname}! ඔයාගේ මේ මාසෙ Budget එක *${currency} ${contextData.amount || "0"}* විදිහට සේව් කරගත්තා! 🚀`,
-      savedMsg: `එළකිරි ${nickname}! *${contextData.item || ""}* එකට ${contextData.isIncome ? 'ලැබුණු' : 'ගිය'} *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! ${contextData.isIncome ? '🎉' : '🚀'}`,
-      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි ${nickname}! *${contextData.item || ""}* එකට ගිය *${currency} ${contextData.amount || "0"}* සේව් කරගත්තා! 🚀`,
+  if (key === "singlish") {
+    const SINGLISH_TEMPLATE: LocalizedMessages = {
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා {NICKNAME}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
+      guidelines: `🎯 නියමයි {NICKNAME}! ඔයාගේ Starting Balance එක *{CURRENCY} {AMOUNT}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
+      noPending: `⚠️ Hi {NICKNAME}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
+      budgetSaved: `🎯 එළකිරි {NICKNAME}! ඔයාගේ මේ මාසෙ Budget එක *{CURRENCY} {AMOUNT}* විදිහට සේව් කරගත්තා! 🚀`,
+      savedMsg: `එළකිරි {NICKNAME}! *{ITEM}* එකට සේව් කරගත්තා *{CURRENCY} {AMOUNT}*! 🚀`,
+      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි {NICKNAME}! *{ITEM}* එකට ගිය *{CURRENCY} {AMOUNT}* සේව් කරගත්තා! 🚀`,
       dbError: `🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?`,
       directError: `🚨 Direct save වෙද්දී අවුලක් වුණා මචං.`,
-      editCancel: `අවුලක් නෑ ${nickname}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
-      fallback: `Sorry ${nickname}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
-      
-      preview: `📝 විස්තරය: *${contextData.item || ""}*\n🏷️ වර්ගය: *${contextData.typeTag || ""}*\n🗂️ කාණ්ඩය: *${contextData.category || ""}*\n💰 ගාණ: *${currency} ${contextData.amount || "0"}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`,
-
+      editCancel: `අවුලක් නෑ {NICKNAME}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
+      fallback: `Sorry {NICKNAME}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
+      preview: `📝 විස්තරය: *{ITEM}*\n🏷️ වර්ගය: *{TYPETAG}*\n🗂️ කාණ්ඩය: *{CATEGORY}*\n💰 ගාණ: *{CURRENCY} {AMOUNT}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`,
       typeIncome: `🟢 ආදායම`,
       typeExpense: `🔴 වියදම`
     };
+    return fillTemplate(SINGLISH_TEMPLATE, nickname, currency, websiteUrl, contextData);
   }
 
-  // 2. DYNAMIC TRANSLATION ENGINE FOR ALL OTHER DROPDOWN LANGUAGES
-  try {
-    const prompt = `You are generating formatted WhatsApp UI system messages for "Broo.ai" (a personal finance bot).
-Target User Language: "${targetLang}".
-User Nickname: "${nickname}".
-Currency Code: "${currency}".
-Website URL: "${websiteUrl}/#pricing".
-
-Dynamic values to embed:
-- amount: "${contextData.amount || ''}"
-- item: "${contextData.item || ''}"
-- typeTag: "${contextData.typeTag || ''}"
-- category: "${contextData.category || ''}"
-
-Return pure JSON with localized texts in "${targetLang}". Keep all WhatsApp formatting marks like *, _, |, --- intact! Also translate "typeIncome" and "typeExpense" (short labels meaning "Income" and "Expense") into "${targetLang}", keeping the emoji prefix.
-
-{
-  "welcome": "👋 Welcome ${nickname}!\\n\\nI am your Personal Finance Assistant *Broo.ai*! 🚀\\n\\nTo start, what is your current **Starting Balance / Capital** in your account?\\n\\n💡 Example: *\\\"50000\\\"* or *\\\"25000\\\"*",
-  
-  "guidelines": "🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || '0'}*! 🎉\\n\\n--- 💡 *Broo.ai Quick Guide* ---\\n\\n💸 *Log Expense:*\\n| \\\"Spent 500 for lunch\\\" / \\\"Bus fare 80\\\"\\n\\n💰 *Add Income:*\\n| \\\"Got salary 150000\\\" / \\\"Got bonus 10000\\\"\\n\\n🎯 *Set Monthly Budget:*\\n| \\\"Set budget 50000\\\"\\n\\n🚀 *Send your first Expense or Income now!*",
-  
-  "proFeatureImage": "🔒 *AI Receipt Scanning is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
-  "proFeatureVoice": "🔒 *Voice Notes is a Pro Feature!*\\n\\n${nickname}, upgrade to Broo Core or Max:\\n👉 ${websiteUrl}/#pricing",
-  "limitReached": "⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\\n\\n${nickname}, upgrade to BROO MAX:\\n👉 ${websiteUrl}/#pricing",
-  "noPending": "⚠️ Hi ${nickname}, there is no pending transaction to confirm!",
-  "budgetSaved": "🎯 Awesome ${nickname}! Your monthly budget is set to *${currency} ${contextData.amount || '0'}*! 🚀",
-  "savedMsg": "Awesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
-  "autoSavedMsg": "⚡ *Auto Saved!*\\n\\nAwesome ${nickname}! Saved *${currency} ${contextData.amount || '0'}* for *${contextData.item || ''}*! 🚀",
-  "dbError": "🚨 An error occurred while saving to database.",
-  "directError": "🚨 An error occurred during direct save.",
-  "editCancel": "No problem ${nickname}! Send the corrected details.",
-  "fallback": "Sorry ${nickname}, I couldn't understand that. Try sending \\\"Spent 500 for lunch\\\"! 🚀",
-  
-  "preview": "📝 Description: *${contextData.item || ''}*\\n🏷️ Type: *${contextData.typeTag || ''}*\\n🗂️ Category: *${contextData.category || ''}*\\n💰 Amount: *${currency} ${contextData.amount || '0'}*\\n\\n-> Reply *Confirm* to save.\\n-> Reply *Edit* to change.",
-
-  "typeIncome": "🟢 Income",
-  "typeExpense": "🔴 Expense"
-}`;
-
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "system", content: prompt }],
-      response_format: { type: "json_object" }
-    });
-
-    return JSON.parse(res.choices[0].message.content || "{}") as LocalizedMessages;
-  } catch (err) {
-    console.error("❌ Translation Engine Error:", err);
-    return {
-      welcome: `👋 Welcome ${nickname}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀`,
-      guidelines: `🎯 Awesome ${nickname}! Your **Starting Balance** is set to *${currency} ${contextData.amount || "0"}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Salary labuna 150000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"`,
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n👉 ${websiteUrl}/#pricing`,
-      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*`,
-      noPending: `⚠️ Hi ${nickname}, there is no pending transaction to confirm!`,
-      budgetSaved: `🎯 Saved! Your budget is *${currency} ${contextData.amount || "0"}*!`,
-      savedMsg: `Awesome ${nickname}! Saved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
-      autoSavedMsg: `⚡ *Auto Saved!*\n\nSaved *${currency} ${contextData.amount || "0"}* for *${contextData.item || ""}*!`,
-      dbError: `🚨 An error occurred while saving to database.`,
-      directError: `🚨 An error occurred during direct save.`,
-      editCancel: `No problem ${nickname}! Send the corrected details.`,
-      fallback: `Sorry ${nickname}, I couldn't understand that.`,
-      preview: `📝 Description: *${contextData.item || ""}*\n🏷️ Type: *${contextData.typeTag || ""}*\n🗂️ Category: *${contextData.category || ""}*\n💰 Amount: *${currency} ${contextData.amount || "0"}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`,
-      typeIncome: `🟢 Income`,
-      typeExpense: `🔴 Expense`
-    };
+  if (key === "english") {
+    return fillTemplate(ENGLISH_TEMPLATE, nickname, currency, websiteUrl, contextData);
   }
+
+  // Check Cache
+  let rawTemplate: LocalizedMessages;
+  if (translationCache.has(key)) {
+    rawTemplate = translationCache.get(key)!;
+  } else {
+    try {
+      const prompt = `You are translating WhatsApp UI message templates for "Broo.ai" (a personal finance bot) into "${targetLang}".
+
+Rules:
+- Translate ONLY human-readable sentences into ${targetLang}.
+- NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}.
+- Keep all formatting intact: *, _, |, ---, \\n, and emojis.
+- Translate "typeIncome" and "typeExpense" (keep emoji prefix).
+- Return pure JSON matching the template keys.
+
+Source JSON:
+${JSON.stringify(ENGLISH_TEMPLATE, null, 2)}`;
+
+      const res = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      });
+
+      const parsed = JSON.parse(res.choices[0].message.content || "{}");
+      rawTemplate = { ...ENGLISH_TEMPLATE, ...parsed };
+      translationCache.set(key, rawTemplate);
+    } catch (err) {
+      console.error(`❌ Translation Engine Error for ${targetLang}:`, err);
+      rawTemplate = ENGLISH_TEMPLATE;
+    }
+  }
+
+  return fillTemplate(rawTemplate, nickname, currency, websiteUrl, contextData);
+}
+
+// Helper: Replace Tokens in Template
+function fillTemplate(
+  template: LocalizedMessages,
+  nickname: string,
+  currency: string,
+  websiteUrl: string,
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string }
+): LocalizedMessages {
+  const replacements: [string, string][] = [
+    ["{NICKNAME}", nickname],
+    ["{CURRENCY}", currency],
+    ["{AMOUNT}", contextData.amount || "0"],
+    ["{ITEM}", contextData.item || ""],
+    ["{WEBSITE}", websiteUrl],
+    ["{TYPETAG}", contextData.typeTag || ""],
+    ["{CATEGORY}", contextData.category || ""],
+  ];
+
+  const fill = (str: string) =>
+    replacements.reduce((acc, [token, value]) => acc.split(token).join(value), str);
+
+  return {
+    welcome: fill(template.welcome),
+    guidelines: fill(template.guidelines),
+    proFeatureImage: fill(template.proFeatureImage),
+    proFeatureVoice: fill(template.proFeatureVoice),
+    limitReached: fill(template.limitReached),
+    noPending: fill(template.noPending),
+    budgetSaved: fill(template.budgetSaved),
+    savedMsg: fill(template.savedMsg),
+    autoSavedMsg: fill(template.autoSavedMsg),
+    dbError: fill(template.dbError),
+    directError: fill(template.directError),
+    editCancel: fill(template.editCancel),
+    fallback: fill(template.fallback),
+    preview: fill(template.preview),
+    typeIncome: template.typeIncome,
+    typeExpense: template.typeExpense,
+  };
 }
 
 // 1. 🎤 Voice to Text Transcriber
@@ -283,7 +317,7 @@ async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: 
     currency: tx.currency || userProfile.currency
   }]);
 
-  const formattedAmount = tx.amount.toLocaleString();
+  const formattedAmount = Number(tx.amount).toLocaleString();
   const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount });
 
   if (error) {
@@ -310,7 +344,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
     }
 
     const tx = session.pending_transaction as ExtractedData;
-    const formattedAmount = tx.amount.toLocaleString();
+    const formattedAmount = Number(tx.amount).toLocaleString();
     const isIncome = tx.type === 'income';
 
     const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { 
@@ -395,7 +429,7 @@ export async function POST(req: NextRequest) {
 
     const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
     
-    // READ USER'S SELECTED LANGUAGE + CURRENCY FROM DATABASE (Matches Register Form dropdown values)
+    // READ USER'S SELECTED LANGUAGE + CURRENCY FROM DATABASE
     const userLang = userProfile.language || userProfile.preferred_language || "English";
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
@@ -407,7 +441,7 @@ export async function POST(req: NextRequest) {
     const isImage = mediaUrl && mediaContentType.startsWith("image/");
     const isAudio = mediaUrl && mediaContentType.startsWith("audio/");
 
-    // Fetch basic localized notices (also carries typeIncome / typeExpense labels for this user's language)
+    // Fetch basic localized notices
     const baseMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl);
 
     // 🛑 BROO LITE LIMITS
@@ -471,7 +505,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // 5️⃣ STEP: AWAITING STARTING BALANCE
+    // 5️⃣ STEP: AWAITING STARTING BALANCE (FIXED: Guidelines translation)
     if (sessionState?.step === 'AWAITING_STARTING_BALANCE') {
       const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
 
@@ -487,7 +521,9 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('user_sessions').update({ step: 'ACTIVE' }).eq('phone_number', from);
 
-        const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: extracted.amount.toLocaleString() });
+        // Safe conversion of amount to string with explicit language parameter
+        const formattedAmountStr = Number(extracted.amount).toLocaleString();
+        const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: formattedAmountStr });
 
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
@@ -549,10 +585,7 @@ export async function POST(req: NextRequest) {
 
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
-      const formattedNumber = extractedTx.amount.toLocaleString();
-
-      // 🔤 Localized Income/Expense tag — now pulled from baseMsgs (translated to userLang),
-      // instead of a hardcoded English "🟢 Income" / "🔴 Expense" string.
+      const formattedNumber = Number(extractedTx.amount).toLocaleString();
       const typeTag = extractedTx.type === 'income' ? baseMsgs.typeIncome : baseMsgs.typeExpense;
       
       const previewMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, {
