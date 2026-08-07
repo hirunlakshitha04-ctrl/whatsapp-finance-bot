@@ -8,7 +8,7 @@ import {
   Wallet, TrendingUp, TrendingDown, Search, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
   Sparkles, LogOut, User, KeyRound, Settings, LayoutDashboard,
-  Download, MessageSquare, MessageCircle, Bell, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, Check, X, Lock, ShieldCheck
+  Download, MessageSquare, MessageCircle, Bell, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, Check, X, Lock, ShieldCheck, Zap
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
@@ -46,9 +46,10 @@ export default function BrooDashboard() {
   const [userEmail, setUserEmail] = useState<string>("");
   const router = useRouter();
 
-  // 💳 SUBSCRIPTION & TRIAL STATES
-  const [subscriptionPlan, setSubscriptionPlan] = useState<string>("nudge"); // "nudge" | "pulse" | "infinite"
-  const [daysLeft, setDaysLeft] = useState<number>(7);
+  // 💳 SUBSCRIPTION PLANS ("lite" | "core" | "max")
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
+  const [dailyTxCount, setDailyTxCount] = useState<number>(0);
+  const [dailyOcrCount, setDailyOcrCount] = useState<number>(0);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
@@ -107,16 +108,11 @@ export default function BrooDashboard() {
       setProfileName(displayName);
       setUserPhone(phoneToUse);
 
-      // 💳 FETCH SUBSCRIPTION PLAN & TRIAL DAYS
-      const plan = (userData.subscription_plan || "nudge").toLowerCase();
+      // 💳 FETCH SUBSCRIPTION PLAN & DAILY USAGE
+      const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
-
-      if (userData.trial_ends_at) {
-        const trialEnd = new Date(userData.trial_ends_at).getTime();
-        const now = new Date().getTime();
-        const diffDays = Math.ceil((trialEnd - now) / (1000 * 3600 * 24));
-        setDaysLeft(diffDays > 0 ? diffDays : 0);
-      }
+      setDailyTxCount(userData.daily_tx_count || 0);
+      setDailyOcrCount(userData.daily_ocr_count || 0);
     }
 
     const { data: txData } = await supabase
@@ -420,7 +416,7 @@ export default function BrooDashboard() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold flex items-center gap-1 uppercase">
-                  <Sparkles size={10} /> {subscriptionPlan} Plan
+                  <Sparkles size={10} /> Broo {subscriptionPlan.toUpperCase()} Plan
                 </span>
                 <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-700/60">
                   User: <strong className="text-white">{nickname}</strong>
@@ -440,36 +436,56 @@ export default function BrooDashboard() {
           </div>
         </div>
 
-        {/* ⏳ SUBSCRIPTION BADGE & TRIAL BANNER */}
-        {subscriptionPlan === "nudge" && (
+        {/* 💳 SUBSCRIPTION PLAN DYNAMIC BANNER */}
+        {subscriptionPlan === "lite" && (
           <div className="bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 backdrop-blur-xl">
             <div className="flex items-center gap-3">
-              <span className="text-xl">⏳</span>
+              <span className="text-xl">⚡</span>
               <div>
                 <h4 className="text-xs font-bold text-amber-300">
-                  Nudge Free Plan Active (3 Logs/Day Limit)
+                  Broo Lite Active ({dailyTxCount}/3 Daily Transactions | {dailyOcrCount}/1 Daily Scan)
                 </h4>
                 <p className="text-[11px] text-slate-400">
-                  Your trial ends in <strong>{daysLeft} days</strong>. Upgrade to unlock Receipt scanning & Unlimited Logs!
+                  Upgrade to Broo Core or Max for more daily logs & voice notes tracking!
                 </p>
               </div>
             </div>
             <button 
-              onClick={() => router.push("/pricing")} 
+              onClick={() => router.push("/#pricing")} 
               className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold px-4 py-2 rounded-xl transition whitespace-nowrap shadow-md shadow-amber-500/20"
             >
-              Upgrade to Pulse ⚡
+              Upgrade to Core / Max 🚀
             </button>
           </div>
         )}
 
-        {subscriptionPlan === "pulse" && (
-          <div className="bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent border border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between backdrop-blur-xl">
+        {subscriptionPlan === "core" && (
+          <div className="bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent border border-emerald-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-emerald-400" size={20} />
               <div>
-                <h4 className="text-xs font-bold text-emerald-300">Pulse Subscription Active</h4>
-                <p className="text-[11px] text-slate-400">Enjoy Unlimited Logs & Receipt OCR scanning features.</p>
+                <h4 className="text-xs font-bold text-emerald-300">
+                  Broo Core Active ({dailyTxCount}/10 Daily Transactions | 30 Scans/Month)
+                </h4>
+                <p className="text-[11px] text-slate-400">Upgrade to Broo Max for Unlimited Transactions, Voice Notes & Receipt Scans!</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => router.push("/#pricing")} 
+              className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-extrabold px-4 py-2 rounded-xl transition whitespace-nowrap shadow-md shadow-emerald-500/20"
+            >
+              Get Broo Max 👑
+            </button>
+          </div>
+        )}
+
+        {subscriptionPlan === "max" && (
+          <div className="bg-gradient-to-r from-purple-500/20 via-indigo-500/10 to-transparent border border-purple-500/30 p-4 rounded-2xl flex items-center justify-between backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <Zap className="text-purple-400" size={20} />
+              <div>
+                <h4 className="text-xs font-bold text-purple-300">Broo Max Unlimited Active 👑</h4>
+                <p className="text-[11px] text-slate-400">You have unlimited Transactions, Voice Notes, and Receipt Scans + Auto Save!</p>
               </div>
             </div>
           </div>
@@ -989,18 +1005,18 @@ export default function BrooDashboard() {
                   </button>
                 </div>
 
-                {/* Auto Confirm OCR (Pulse & Infinite Feature) */}
+                {/* Auto Confirm OCR (Broo Max Feature) */}
                 <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-                  subscriptionPlan === "nudge" ? "bg-slate-950/20 border-slate-900 opacity-60" : "bg-slate-950/60 border-slate-800/80"
+                  subscriptionPlan !== "max" ? "bg-slate-950/20 border-slate-900 opacity-60" : "bg-slate-950/60 border-slate-800/80"
                 }`}>
                   <div>
                     <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      Auto Confirm OCR {subscriptionPlan === "nudge" && <Lock size={12} className="text-amber-400" />}
+                      Auto Confirm OCR {subscriptionPlan !== "max" && <Lock size={12} className="text-amber-400" />}
                     </h4>
                     <p className="text-[10px] text-slate-500">Auto-save receipt extractions</p>
                   </div>
-                  {subscriptionPlan === "nudge" ? (
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md font-bold">Pro</span>
+                  {subscriptionPlan !== "max" ? (
+                    <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md font-bold">Max</span>
                   ) : (
                     <button onClick={() => setAutoOcrConfirm(!autoOcrConfirm)} className="text-emerald-400">
                       {autoOcrConfirm ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}

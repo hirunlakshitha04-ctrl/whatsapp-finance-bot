@@ -4,6 +4,7 @@ import { OpenAI } from "openai";
 import { supabase } from "@/lib/supabase"; 
 import twilio from "twilio";
 import FormFormat from "form-data";
+import { checkAndResetDailyLimits } from "@/lib/resetLimits";
 
 // Types Definition
 interface ExtractedData {
@@ -34,6 +35,10 @@ interface LocalizedMessages {
   preview: string;
   typeIncome: string;
   typeExpense: string;
+  // NEW LIMIT MESSAGES
+  dailyTxLimitReached: string;
+  dailyOcrLimitReached: string;
+  dailyVoiceLimitReached: string;
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -58,7 +63,7 @@ async function getLocalizedMessages(
   const ENGLISH_TEMPLATE: LocalizedMessages = {
     welcome: `👋 Welcome {NICKNAME}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀\n\nTo start, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
     guidelines: `🎯 Awesome {NICKNAME}! Your **Starting Balance** is set to *{CURRENCY} {AMOUNT}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"\n\n🚀 *Send your first Expense or Income now!*`,
-    proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
+    proFeatureImage: `🔒 *AI Receipt Scanning Limit Reached / Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max for more scans:\n👉 {WEBSITE}/#pricing`,
     proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
     limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, upgrade to BROO MAX:\n👉 {WEBSITE}/#pricing`,
     noPending: `⚠️ Hi {NICKNAME}, there is no pending transaction to confirm!`,
@@ -72,6 +77,10 @@ async function getLocalizedMessages(
     preview: `📝 Description: *{ITEM}*\n🏷️ Type: *{TYPETAG}*\n🗂️ Category: *{CATEGORY}*\n💰 Amount: *{CURRENCY} {AMOUNT}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`,
     typeIncome: `🟢 Income`,
     typeExpense: `🔴 Expense`,
+    // NEW LIMIT MESSAGES (ENGLISH)
+    dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\n{NICKNAME}, your plan daily transaction limit is reached.\n\n🚀 Upgrade to Broo Core or Max for unlimited tracking:\n👉 {WEBSITE}/#pricing`,
+    dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, upgrade to BROO CORE (30 scans/mo) or BROO MAX (Unlimited):\n👉 {WEBSITE}/#pricing`,
+    dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, upgrade to BROO MAX for unlimited voice tracking:\n👉 {WEBSITE}/#pricing`,
   };
 
   // 1. SINGLISH FORMATTED TEMPLATE
@@ -79,8 +88,8 @@ async function getLocalizedMessages(
     const SINGLISH_TEMPLATE: LocalizedMessages = {
       welcome: `👋 සාදරයෙන් පිළිගන්නවා {NICKNAME}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
       guidelines: `🎯 නියමයි {NICKNAME}! ඔයාගේ Starting Balance එක *{CURRENCY} {AMOUNT}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, **BROO LITE** plan එකෙන් Receipt photos scan කරන්න බෑ. Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, Voice Notes පහසුකම භාවිතා කිරීමට Pro Plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, **BROO LITE** plan එකෙන් දවසට Scan 1යි. Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, Voice Notes පහසුකම Broo Lite එකේ නෑ. Pro Plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
       noPending: `⚠️ Hi {NICKNAME}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
       budgetSaved: `🎯 එළකිරි {NICKNAME}! ඔයාගේ මේ මාසෙ Budget එක *{CURRENCY} {AMOUNT}* විදිහට සේව් කරගත්තා! 🚀`,
@@ -92,7 +101,11 @@ async function getLocalizedMessages(
       fallback: `Sorry {NICKNAME}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
       preview: `📝 විස්තරය: *{ITEM}*\n🏷️ වර්ගය: *{TYPETAG}*\n🗂️ කාණ්ඩය: *{CATEGORY}*\n💰 ගාණ: *{CURRENCY} {AMOUNT}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`,
       typeIncome: `🟢 ආදායම`,
-      typeExpense: `🔴 වියදම`
+      typeExpense: `🔴 වියදම`,
+      // NEW LIMIT MESSAGES (SINGLISH)
+      dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\n{NICKNAME}, ඔයාගේ Plan එකේ අද දවසේ Limit එක ඉවරයි.\n\n🚀 Unlimited tracking සඳහා Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, Broo Lite එකේ දවසට Scans 1යි. Unlimited සඳහා **BROO CORE / MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
+      dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, Broo Core හි දවසට Voice 5 සීමාව අවසන්. Unlimited සඳහා **BROO MAX** ලබාගන්න!\n👉 {WEBSITE}/#pricing`,
     };
     return fillTemplate(SINGLISH_TEMPLATE, nickname, currency, websiteUrl, contextData);
   }
@@ -177,6 +190,9 @@ function fillTemplate(
     preview: fill(template.preview),
     typeIncome: template.typeIncome,
     typeExpense: template.typeExpense,
+    dailyTxLimitReached: fill(template.dailyTxLimitReached),
+    dailyOcrLimitReached: fill(template.dailyOcrLimitReached),
+    dailyVoiceLimitReached: fill(template.dailyVoiceLimitReached),
   };
 }
 
@@ -326,6 +342,11 @@ async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: 
     return msgs.directError;
   }
 
+  // Increment Transaction Count
+  await supabase.from('users').update({
+    daily_tx_count: (userProfile.daily_tx_count || 0) + 1
+  }).eq('phone_number', phoneNumber);
+
   return msgs.autoSavedMsg;
 }
 
@@ -382,6 +403,11 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
 
     if (insErr) throw insErr;
 
+    // Increment User Daily Transaction Count
+    await supabase.from('users').update({
+      daily_tx_count: (userProfile.daily_tx_count || 0) + 1
+    }).eq('phone_number', phoneNumber);
+
     // Reset Session State
     await supabase
       .from('user_sessions')
@@ -413,7 +439,7 @@ export async function POST(req: NextRequest) {
     const normalizedBody = body.toLowerCase();
 
     // 1️⃣ Fetch User Profile
-    const { data: userProfile } = await supabase.from('users').select('*').eq('phone_number', from).maybeSingle();
+    let { data: userProfile } = await supabase.from('users').select('*').eq('phone_number', from).maybeSingle();
 
     // UNREGISTERED USER
     if (!userProfile) {
@@ -438,6 +464,25 @@ export async function POST(req: NextRequest) {
     // User Plan Identification: 'lite' | 'core' | 'max'
     const userPlan = (userProfile.plan || "lite").toLowerCase();
 
+    // ---------------- DAILY RESET LOGIC ----------------
+    await checkAndResetDailyLimits(userProfile);
+    // ---------------------------------------------------
+
+    // ---------------- EXCEL / BUDGET COMMAND CHECK ----------------
+    if (body.toUpperCase() === "EXCEL" || body.toUpperCase() === "BUDGET") {
+      if (userPlan === "lite") {
+        await twilioClient.messages.create({
+          from: TWILIO_WHATSAPP_NUMBER,
+          to: `whatsapp:${from}`,
+          body: `📊 *Excel Exports & Budget Handling are Locked!*\n\nExcel spreadsheets instant download කිරීම සහ Monthly Budget Limits set කිරීම Broo LITE හි ලබාගත නොහැක.\n\n🔓 *Unlock Core Features for $2.55/mo:*\n• One-click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Unlock Features: https://broo.ai/register?plan=core`,
+        });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Logic for Core & Max users to send Excel File...
+    }
+    // -------------------------------------------------------------
+
     // 2️⃣ PLAN CHECKS & FEATURE LIMITATIONS
     const isImage = mediaUrl && mediaContentType.startsWith("image/");
     const isAudio = mediaUrl && mediaContentType.startsWith("audio/");
@@ -445,41 +490,74 @@ export async function POST(req: NextRequest) {
     // Fetch basic localized notices
     const baseMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl);
 
-    // 🛑 BROO LITE LIMITS
-    if (userPlan === "lite") {
-      if (isImage) {
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureImage });
+    // 🛑 1. DAILY TRANSACTION LIMIT CHECK (FOR LITE AND CORE)
+    const currentDailyTx = userProfile.daily_tx_count || 0;
+    if (!normalizedBody.includes("registered") && normalizedBody !== "confirm" && normalizedBody !== "edit") {
+      if (userPlan === "lite" && currentDailyTx >= 3) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.dailyTxLimitReached });
         return new NextResponse("OK", { status: 200 });
       }
-      if (isAudio) {
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureVoice });
+      if (userPlan === "core" && currentDailyTx >= 10) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.dailyTxLimitReached });
         return new NextResponse("OK", { status: 200 });
       }
     }
 
-    // 🛑 BROO CORE LIMITS
-    if (userPlan === "core" && isImage) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
+    // 🛑 2. OCR / IMAGE SCAN LIMIT CHECKS
+    if (isImage) {
+      const dailyOcr = userProfile.daily_ocr_count || 0;
 
-      const { data: usage } = await supabase
-        .from('monthly_usage')
-        .select('scan_count')
-        .eq('phone_number', from)
-        .eq('month_year', currentMonth)
-        .maybeSingle();
-
-      const currentScanCount = usage?.scan_count || 0;
-
-      if (currentScanCount >= 30) {
-        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.limitReached });
+      if (userPlan === "lite" && dailyOcr >= 1) {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.dailyOcrLimitReached });
         return new NextResponse("OK", { status: 200 });
       }
 
-      await supabase.from('monthly_usage').upsert({
-        phone_number: from,
-        month_year: currentMonth,
-        scan_count: currentScanCount + 1,
-      }, { onConflict: 'phone_number, month_year' });
+      if (userPlan === "core") {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const { data: usage } = await supabase
+          .from('monthly_usage')
+          .select('scan_count')
+          .eq('phone_number', from)
+          .eq('month_year', currentMonth)
+          .maybeSingle();
+
+        const currentScanCount = usage?.scan_count || 0;
+
+        if (currentScanCount >= 30) {
+          await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.limitReached });
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        await supabase.from('monthly_usage').upsert({
+          phone_number: from,
+          month_year: currentMonth,
+          scan_count: currentScanCount + 1,
+        }, { onConflict: 'phone_number, month_year' });
+      }
+
+      // Increment Daily OCR count for user
+      await supabase.from('users').update({
+        daily_ocr_count: dailyOcr + 1
+      }).eq('phone_number', from);
+    }
+
+    // 🛑 3. VOICE NOTE LIMIT CHECKS
+    if (isAudio) {
+      if (userPlan === "lite") {
+        await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.proFeatureVoice });
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      if (userPlan === "core") {
+        const dailyVoice = userProfile.daily_voice_count || 0;
+        if (dailyVoice >= 5) {
+          await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.dailyVoiceLimitReached });
+          return new NextResponse("OK", { status: 200 });
+        }
+        await supabase.from('users').update({
+          daily_voice_count: dailyVoice + 1
+        }).eq('phone_number', from);
+      }
     }
 
     // 3️⃣ SESSION VERIFICATION & FETCHING

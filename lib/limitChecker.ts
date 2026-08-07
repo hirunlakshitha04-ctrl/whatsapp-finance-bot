@@ -1,0 +1,106 @@
+import { supabase } from "@/lib/supabase";
+
+export async function checkUserLimits(
+  phoneNumber: string,
+  type: "expense_income" | "ocr" | "voice"
+): Promise<{ allowed: boolean; message?: string }> {
+
+  // 1. Fetch User Data
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("phone_number", phoneNumber)
+    .single();
+
+  if (error || !user) {
+    return { allowed: false, message: "User account not found. Please register first." };
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  let dailyTx = user.daily_tx_count || 0;
+  let dailyOcr = user.daily_ocr_count || 0;
+  let monthlyOcr = user.monthly_ocr_count || 0;
+  let dailyVoice = user.daily_voice_count || 0;
+
+  // 2. Reset Daily Counts on a New Day
+  if (user.last_activity_date !== today) {
+    dailyTx = 0;
+    dailyOcr = 0;
+    dailyVoice = 0;
+    await supabase.from("users").update({
+      daily_tx_count: 0,
+      daily_ocr_count: 0,
+      daily_voice_count: 0,
+      last_activity_date: today,
+    }).eq("phone_number", phoneNumber);
+  }
+
+  const plan = user.plan || "lite";
+
+  // --- 1. EXPENSE & INCOME TRACKING LIMIT ---
+  if (type === "expense_income") {
+    if (plan === "lite" && dailyTx >= 3) {
+      return {
+        allowed: false,
+        message: `⚠️ *Daily Limit Reached!* (3/3 Expenses)\n\nBroo Lite එකේ දවසකට ඇතුලත් කළ හැක්කේ Transactions 3ක් පමණි.\n\n🚀 Unlimited tracking සඳහා **Broo Core ($2.55/mo)** හෝ **Broo Max ($5.99/mo)** ලබාගන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+    if (plan === "core" && dailyTx >= 10) {
+      return {
+        allowed: false,
+        message: `⚠️ *Daily Limit Reached!* (10/10 Expenses)\n\nBroo Core එකේ දවසකට Max Transactions 10යි.\n\n🚀 Unlimited tracking සඳහා **Broo Max ($5.99/mo)** එකට Upgrade වන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+  }
+
+  // --- 2. AI RECEIPT OCR PHOTO SCANNING LIMIT ---
+  if (type === "ocr") {
+    if (plan === "lite" && dailyOcr >= 1) {
+      return {
+        allowed: false,
+        message: `⚠️ *Daily OCR Scan Limit Reached!* (1/1 Scan)\n\nBroo Lite එකේ දවසකට Receipt Scans 1යි.\n\n📸 මාසෙට Scans 30ක් සඳහා **Broo Core ($2.55)** හෝ Unlimited Scans සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+    if (plan === "core" && monthlyOcr >= 30) {
+      return {
+        allowed: false,
+        message: `⚠️ *Monthly OCR Limit Reached!* (30/30 Scans)\n\nBroo Core හි මෙම මාසයේ Scans 30 සීමාව අවසන්.\n\n🚀 Unlimited Scans සඳහා **Broo Max ($5.99)** එකට Upgrade වන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+  }
+
+  // --- 3. VOICE TRACKING LIMIT ---
+  if (type === "voice") {
+    if (plan === "lite") {
+      return {
+        allowed: false,
+        message: `🎙️ *Voice Tracking is Locked!*\n\nBroo Lite එකේ Voice Notes මඟින් Expenses ඇතුලත් කළ නොහැක.\n\n🚀 Voice Notes 5ක්/දිනකට සඳහා **Broo Core ($2.55)** හෝ Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+    if (plan === "core" && dailyVoice >= 5) {
+      return {
+        allowed: false,
+        message: `⚠️ *Daily Voice Limit Reached!* (5/5 Voice Notes)\n\nBroo Core හි දිනකට Voice Notes 5 සීමාව අවසන්.\n\n🚀 Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://broo.ai/upgrade`
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
+// 3. Increment Usage Function
+export async function incrementUsage(phoneNumber: string, type: "expense_income" | "ocr" | "voice") {
+  const { data: user } = await supabase.from("users").select("*").eq("phone_number", phoneNumber).single();
+  if (!user) return;
+
+  if (type === "expense_income") {
+    await supabase.from("users").update({ daily_tx_count: (user.daily_tx_count || 0) + 1 }).eq("phone_number", phoneNumber);
+  } else if (type === "ocr") {
+    await supabase.from("users").update({ 
+      daily_ocr_count: (user.daily_ocr_count || 0) + 1,
+      monthly_ocr_count: (user.monthly_ocr_count || 0) + 1 
+    }).eq("phone_number", phoneNumber);
+  } else if (type === "voice") {
+    await supabase.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("phone_number", phoneNumber);
+  }
+}

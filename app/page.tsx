@@ -20,25 +20,25 @@ import {
   Activity
 } from "lucide-react";
 
-// Pricing Plans Data
+// Pricing Plans Data (Updated to match exact image specs)
 const PRICING_PLANS = [
   {
     id: "free",
     name: "BROO LITE",
     price: "$0.00",
     period: "/ month",
-    badge: "Free Forever • No Daily Limits",
+    badge: "Free Forever",
     description: "Ideal for basic daily expense tracking on WhatsApp.",
     highlight: false,
-    buttonText: "Get Started Free",
+    buttonText: "GET STARTED FREE",
     buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
     features: [
-      { text: "Unlimited WhatsApp Text Logging", included: true },
+      { text: "3 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
-      { text: "Smart Phone Number Sync", included: true },
-      { text: "AI Receipt OCR Photo Scanning", included: false },
+      { text: "1 Daily AI Receipt OCR Scan", included: true },
+      { text: "Voice Note Tracking", included: false },
       { text: "One-Click Excel (.xlsx) Export", included: false },
-      { text: "Smart Budget Warning Alerts", included: false },
+      { text: "Smart Budget Handling & Alerts", included: false },
     ],
   },
   {
@@ -47,17 +47,17 @@ const PRICING_PLANS = [
     price: "$2.55",
     period: "/ month",
     badge: "MOST POPULAR",
-    description: "Ideal for active spenders & professionals.",
+    description: "Ideal for active spenders & daily users.",
     highlight: true,
-    buttonText: "Upgrade to Broo Core",
+    buttonText: "UPGRADE TO BROO CORE",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
     features: [
-      { text: "Everything in Broo Lite", included: true },
-      { text: "30 AI Receipt Scans / month", included: true },
-      { text: "One-Click Excel Export (.xlsx)", included: true },
-      { text: "Priority WhatsApp Speed", included: true },
-      { text: "Smart Budget WhatsApp Warning Alerts", included: false },
-      { text: "Custom Tags & Business Categories", included: false },
+      { text: "10 Daily Expense & Income Logs", included: true },
+      { text: "Real-time Web Dashboard Access", included: true },
+      { text: "30 Monthly AI Receipt OCR Scans", included: true },
+      { text: "5 Daily Voice Note Trackings", included: true },
+      { text: "One-Click Excel (.xlsx) Export", included: true },
+      { text: "Smart Budget Handling & Alerts", included: true },
     ],
   },
   {
@@ -68,15 +68,15 @@ const PRICING_PLANS = [
     badge: "POWER USERS",
     description: "For freelancers, business owners & power users.",
     highlight: false,
-    buttonText: "Get Broo Max",
+    buttonText: "GET BROO MAX",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
     features: [
-      { text: "Everything in Broo Core", included: true },
-      { text: "Unlimited AI Receipt Scans", included: true },
-      { text: "Auto-Confirm Instant OCR Saving", included: true },
-      { text: "Smart Budget Warning Alerts", included: true },
-      { text: "Custom Tags & Business Categories", included: true },
-      { text: "Dedicated Priority Support", included: true },
+      { text: "Unlimited Daily Expense & Income Logs", included: true },
+      { text: "Real-time Web Dashboard Access", included: true },
+      { text: "Unlimited Monthly AI Receipt OCR Scans", included: true },
+      { text: "Unlimited Voice Note Trackings", included: true },
+      { text: "One-Click Excel (.xlsx) Export", included: true },
+      { text: "Smart Budget Handling & Alerts", included: true },
     ],
   },
 ];
@@ -156,7 +156,7 @@ export default function BrooLandingPage() {
 
           <div className="flex items-center gap-4">
             <Link href="/login" className="hidden sm:block text-sm font-semibold text-slate-300 hover:text-white transition">
-              Log in
+              Dashboard Login
             </Link>
             <Link
               href="/register?plan=free"
@@ -439,7 +439,7 @@ export default function BrooLandingPage() {
           {[
             {
               q: "Is Broo Lite really free forever?",
-              a: "Yes! Broo Lite is 100% free forever with unlimited WhatsApp text logging and web dashboard access. You only pay if you need AI Receipt Scanning or Excel exports."
+              a: "Yes! Broo Lite is 100% free forever. You get 3 daily transactions and 1 daily AI receipt scan at zero cost."
             },
             {
               q: "How does AI Receipt Scanning work?",

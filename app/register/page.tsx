@@ -20,7 +20,8 @@ import {
   Lock,
   Mail,
   KeyRound,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
 
 // Supabase Client Setup
@@ -59,12 +60,24 @@ const WORLD_COUNTRIES = [
   "Yemen", "Zambia", "Zimbabwe"
 ];
 
-// NOTE: "code" is what gets stored in formData.language and sent to Supabase auth metadata.
-// The LANGUAGE_NAME_MAP below converts this code into a clean human-readable name
-// (e.g. "si" -> "Sinhala") before it's saved into the `users.language` column, since
-// that's the exact string the WhatsApp bot's AI translation engine expects.
-// Expanded to cover languages globally (not just the original core set) so users
-// from any country can pick their own language.
+// Major Timezones
+const WORLD_TIMEZONES = [
+  { value: "Asia/Colombo", label: "(UTC+05:30) Sri Lanka, India" },
+  { value: "UTC", label: "(UTC+00:00) UTC / GMT" },
+  { value: "America/New_York", label: "(UTC-05:00) Eastern Time (US & Canada)" },
+  { value: "America/Chicago", label: "(UTC-06:00) Central Time (US & Canada)" },
+  { value: "America/Denver", label: "(UTC-07:00) Mountain Time (US & Canada)" },
+  { value: "America/Los_Angeles", label: "(UTC-08:00) Pacific Time (US & Canada)" },
+  { value: "Europe/London", label: "(UTC+00:00) London, Dublin, Edinburgh" },
+  { value: "Europe/Paris", label: "(UTC+01:00) Paris, Berlin, Rome, Madrid" },
+  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai, Abu Dhabi, Muscat" },
+  { value: "Asia/Riyadh", label: "(UTC+03:00) Riyadh, Qatar, Kuwait" },
+  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore, Kuala Lumpur" },
+  { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo, Osaka, Seoul" },
+  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney, Melbourne, Canberra" },
+  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland, Wellington" }
+];
+
 const WORLD_LANGUAGES = [
   { code: "en", name: "English" },
   { code: "si", name: "සිංහල (Sinhala)" },
@@ -102,14 +115,14 @@ const WORLD_LANGUAGES = [
   { code: "hu", name: "Magyar (Hungarian)" },
   { code: "he", name: "עברית (Hebrew)" },
   { code: "sw", name: "Kiswahili (Swahili)" },
-  { code: "am", name: "አማርኛ (Amharic)" },
+  { code: "am", name: "አማර්ኛ (Amharic)" },
   { code: "ha", name: "Hausa" },
   { code: "yo", name: "Yorùbá (Yoruba)" },
   { code: "ig", name: "Igbo" },
   { code: "zu", name: "isiZulu (Zulu)" },
   { code: "xh", name: "isiXhosa (Xhosa)" },
   { code: "af", name: "Afrikaans" },
-  { code: "ne", name: "नेपाली (Nepali)" },
+  { code: "ne", name: "ਨੇपाली (Nepali)" },
   { code: "pa", name: "ਪੰਜਾਬੀ (Punjabi)" },
   { code: "gu", name: "ગુજરાતી (Gujarati)" },
   { code: "mr", name: "मराठी (Marathi)" },
@@ -143,12 +156,9 @@ const WORLD_LANGUAGES = [
   { code: "so", name: "Soomaali (Somali)" },
   { code: "ps", name: "پښتو (Pashto)" },
   { code: "ku", name: "Kurdî (Kurdish)" },
-  { code: "sd", name: "سنڌي (Sindhi)" },
+  { code: "sd", name: "سنڌي (Sindhi)" }
 ];
 
-// Maps the dropdown's short code to the exact language-name string that the
-// WhatsApp webhook (getLocalizedMessages / extractTransaction) expects.
-// "Singlish" must stay exactly "Singlish" — the webhook special-cases that string.
 const LANGUAGE_NAME_MAP: Record<string, string> = {
   en: "English",
   si: "Sinhala",
@@ -227,7 +237,7 @@ const LANGUAGE_NAME_MAP: Record<string, string> = {
   so: "Somali",
   ps: "Pashto",
   ku: "Kurdish",
-  sd: "Sindhi",
+  sd: "Sindhi"
 };
 
 const WORLD_CURRENCIES = [
@@ -398,6 +408,7 @@ function RegisterForm() {
     country: "Sri Lanka",
     language: "en",
     currency: "USD",
+    timezone: "Asia/Colombo",
     nickname: "",
     privacy_accepted: false,
   });
@@ -407,6 +418,15 @@ function RegisterForm() {
 
   useEffect(() => {
     setIsMounted(true);
+    // Auto detect user timezone
+    try {
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (userTz) {
+        setFormData((prev) => ({ ...prev, timezone: userTz }));
+      }
+    } catch (e) {
+      console.warn("Timezone detection error:", e);
+    }
   }, []);
 
   const handleChange = (
@@ -469,8 +489,6 @@ function RegisterForm() {
       cleanedPhone = `+${cleanedPhone}`;
     }
 
-    // Convert the short dropdown code (e.g. "si") into the full language name
-    // (e.g. "Sinhala") that the WhatsApp webhook expects in `users.language`.
     const resolvedLanguage = LANGUAGE_NAME_MAP[formData.language] || "English";
 
     try {
@@ -486,23 +504,18 @@ function RegisterForm() {
             country: formData.country,
             language: resolvedLanguage,
             currency: formData.currency,
+            timezone: formData.timezone,
             nickname: formData.nickname || formData.name,
             plan_type: planParam,
           }
         }
       });
 
-      // User already exists in Auth නම් එය නොසලකා හරින්න
       if (authError && !authError.message.toLowerCase().includes("already registered")) {
         throw authError;
       }
 
       // 2. Direct Insert/Upsert into Supabase `public.users` Table
-      // IMPORTANT: `language` and `nickname` must be included here — this is the row
-      // the WhatsApp webhook actually reads from (`userProfile.language`,
-      // `userProfile.how_to_call_you` / `userProfile.nickname`). The auth metadata
-      // above does NOT get read by the webhook, so any field the bot needs must
-      // also be saved into this table.
       const { error: dbError } = await supabase
         .from("users")
         .upsert(
@@ -513,6 +526,7 @@ function RegisterForm() {
             country: formData.country,
             currency: formData.currency,
             language: resolvedLanguage,
+            timezone: formData.timezone,
             plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
           },
           { onConflict: "phone_number" }
@@ -537,7 +551,7 @@ function RegisterForm() {
   if (!isMounted) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-purple-400"/>
         <span className="text-xs font-mono uppercase tracking-wider">Loading Broo.ai Form...</span>
       </div>
     );
@@ -548,9 +562,9 @@ function RegisterForm() {
       
       {/* Header Bar */}
       <div className="flex justify-between items-center pb-6 border-b border-white/10 mb-8">
-        <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition">
+        <Link className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition" href="/">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Bot className="w-5 h-5 text-white" />
+            <Bot className="w-5 h-5 text-white"/>
           </div>
           <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
             Broo<span className="text-purple-400">.ai</span>
@@ -558,7 +572,7 @@ function RegisterForm() {
         </Link>
         
         <div className="text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400"/>
           {planParam} Plan
         </div>
       </div>
@@ -580,15 +594,15 @@ function RegisterForm() {
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>
               <span>Zero manual entry required</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0"/>
               <span>Instant AI receipt scanner & parser</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0"/>
               <span>Multi-currency real-time budgeting</span>
             </div>
           </div>
@@ -598,7 +612,7 @@ function RegisterForm() {
         <div className="lg:col-span-7">
           {errorMsg && (
             <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3.5 rounded-xl text-xs mb-4 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-red-400 shrink-0" />
+              <Lock className="w-4 h-4 text-red-400 shrink-0"/>
               <span>{errorMsg}</span>
             </div>
           )}
@@ -609,7 +623,7 @@ function RegisterForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-cyan-400" /> Full Name *
+                  <User className="w-3.5 h-3.5 text-cyan-400"/> Full Name *
                 </label>
                 <input
                   type="text"
@@ -624,7 +638,7 @@ function RegisterForm() {
 
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Number *
+                  <Phone className="w-3.5 h-3.5 text-emerald-400"/> WhatsApp Number *
                 </label>
                 <input
                   type="text"
@@ -642,7 +656,7 @@ function RegisterForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-sky-400" /> Email Address *
+                  <Mail className="w-3.5 h-3.5 text-sky-400"/> Email Address *
                 </label>
                 <input
                   type="email"
@@ -657,7 +671,7 @@ function RegisterForm() {
 
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-400" /> Password *
+                  <KeyRound className="w-3.5 h-3.5 text-indigo-400"/> Password *
                 </label>
                 <input
                   type="password"
@@ -675,7 +689,7 @@ function RegisterForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-pink-400" /> Country
+                  <Globe className="w-3.5 h-3.5 text-pink-400"/> Country
                 </label>
                 <select
                   name="country"
@@ -693,7 +707,7 @@ function RegisterForm() {
 
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Smile className="w-3.5 h-3.5 text-amber-400" /> How to call you?
+                  <Smile className="w-3.5 h-3.5 text-amber-400"/> How to call you?
                 </label>
                 <input
                   type="text"
@@ -710,7 +724,7 @@ function RegisterForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Languages className="w-3.5 h-3.5 text-cyan-400" /> Preferred Language
+                  <Languages className="w-3.5 h-3.5 text-cyan-400"/> Preferred Language
                 </label>
                 <select
                   name="language"
@@ -728,7 +742,7 @@ function RegisterForm() {
 
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-emerald-400" /> Base Currency
+                  <Coins className="w-3.5 h-3.5 text-emerald-400"/> Base Currency
                 </label>
                 <select
                   name="currency"
@@ -745,10 +759,29 @@ function RegisterForm() {
               </div>
             </div>
 
+            {/* Row 5: Timezone */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-orange-400"/> Timezone
+              </label>
+              <select
+                name="timezone"
+                value={formData.timezone}
+                onChange={handleChange}
+                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+              >
+                {WORLD_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value} className="bg-slate-900 text-white">
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Address */}
             <div>
               <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> Address (Optional)
+                <MapPin className="w-3.5 h-3.5 text-slate-400"/> Address (Optional)
               </label>
               <input
                 type="text"
@@ -783,18 +816,18 @@ function RegisterForm() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950"/>
                   <span>CREATING ACCOUNT...</span>
                 </>
               ) : planParam === "free" ? (
                 <>
                   <span>START ON WHATSAPP 🚀</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4"/>
                 </>
               ) : (
                 <>
                   <span>PROCEED TO PAYMENT 💳</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4"/>
                 </>
               )}
             </button>
@@ -804,7 +837,7 @@ function RegisterForm() {
 
       {/* Footer Note */}
       <div className="mt-8 pt-4 border-t border-white/5 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400"/>
         <span>End-to-End Encrypted Data Security by Broo.ai</span>
       </div>
     </div>
@@ -820,11 +853,11 @@ export default function RegisterPage() {
 
       <Suspense fallback={
         <div className="flex items-center gap-2 text-white text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-purple-400"/>
           <span>Loading Broo.ai Form...</span>
         </div>
       }>
-        <RegisterForm />
+        <RegisterForm/>
       </Suspense>
     </main>
   );
