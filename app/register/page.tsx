@@ -13,7 +13,6 @@ import {
   Smile, 
   Languages, 
   Coins, 
-  MapPin, 
   ShieldCheck, 
   ArrowRight, 
   CheckCircle2,
@@ -115,7 +114,7 @@ const WORLD_LANGUAGES = [
   { code: "hu", name: "Magyar (Hungarian)" },
   { code: "he", name: "עברית (Hebrew)" },
   { code: "sw", name: "Kiswahili (Swahili)" },
-  { code: "am", name: "አማර්ኛ (Amharic)" },
+  { code: "am", name: "አማርኛ (Amharic)" },
   { code: "ha", name: "Hausa" },
   { code: "yo", name: "Yorùbá (Yoruba)" },
   { code: "ig", name: "Igbo" },
@@ -127,7 +126,7 @@ const WORLD_LANGUAGES = [
   { code: "gu", name: "ગુજરાતી (Gujarati)" },
   { code: "mr", name: "मराठी (Marathi)" },
   { code: "te", name: "తెలుగు (Telugu)" },
-  { code: "kn", name: "ಕನ್ನಡ (Kannada)" },
+  { code: "kn", name: "කන්නඩා (Kannada)" },
   { code: "ml", name: "മലയാളം (Malayalam)" },
   { code: "my", name: "မြန်မာ (Burmese)" },
   { code: "km", name: "ខ្មែរ (Khmer)" },
@@ -404,7 +403,6 @@ function RegisterForm() {
     email: "",
     password: "",
     phone_number: "",
-    address: "",
     country: "Sri Lanka",
     language: "en",
     currency: "USD",
@@ -418,7 +416,6 @@ function RegisterForm() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Auto detect user timezone
     try {
       const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (userTz) {
@@ -442,20 +439,32 @@ function RegisterForm() {
   };
 
   const handleRedirect = (cleanedPhone: string) => {
-    if (planParam === "free") {
+    const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const currentPlan = (urlParams?.get("plan") || planParam || "free").toLowerCase().trim();
+
+    if (currentPlan === "free" || currentPlan === "lite") {
       const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
       const defaultText = encodeURIComponent("Hi Broo, I just registered on the Free plan!");
       window.location.href = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
-    } else {
-      const lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15";
-      
-      const queryParams = new URLSearchParams();
-      if (cleanedPhone) queryParams.append("checkout[custom][phone]", cleanedPhone);
-      if (formData.email) queryParams.append("checkout[email]", formData.email);
-      if (formData.name) queryParams.append("checkout[name]", formData.name);
-
-      window.location.href = `${lemonBaseUrl}?${queryParams.toString()}`;
+      return;
     }
+
+    let lemonBaseUrl = "";
+
+    if (currentPlan === "core") {
+      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56";
+    } else if (currentPlan === "max" || currentPlan === "pro" || currentPlan === "orbit") {
+      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15";
+    } else {
+      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56";
+    }
+
+    const queryParams = new URLSearchParams();
+    if (cleanedPhone) queryParams.append("checkout[custom][phone]", cleanedPhone);
+    if (formData.email) queryParams.append("checkout[email]", formData.email);
+    if (formData.name) queryParams.append("checkout[name]", formData.name);
+
+    window.location.href = `${lemonBaseUrl}?${queryParams.toString()}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -481,7 +490,7 @@ function RegisterForm() {
       return;
     }
 
-    // Phone number sanitization (+ prefix and country code normalization)
+    // Phone number sanitization
     let cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
     if (cleanedPhone.startsWith("0")) {
       cleanedPhone = "+94" + cleanedPhone.slice(1);
@@ -490,51 +499,125 @@ function RegisterForm() {
     }
 
     const resolvedLanguage = LANGUAGE_NAME_MAP[formData.language] || "English";
+    const isFreePlan = planParam.toLowerCase() === "free" || planParam.toLowerCase() === "lite";
 
     try {
+      // 0. Pre-flight duplicate check (email vs phone) BEFORE attempting signUp.
+      // Supabase Auth hides the real Postgres trigger error behind a generic
+      // "Database error saving new user" message, so we can't tell email vs
+      // phone apart from the signUp error alone — we check ourselves first.
+      const { data: dupCheck, error: dupCheckError } = await supabase.rpc(
+        "check_duplicate_contact",
+        {
+          p_email: formData.email.trim().toLowerCase(),
+          p_phone: cleanedPhone,
+        }
+      );
+
+      if (!dupCheckError && dupCheck) {
+        if (dupCheck.phone_exists && !dupCheck.email_exists) {
+          setErrorMsg("This WhatsApp number is already registered with another account. Please use a different number, or log in with the original email.");
+          setLoading(false);
+          return;
+        }
+        // If email_exists (with or without phone_exists), fall through —
+        // the existing signUp -> signIn fallback below handles that case.
+      }
+
       // 1. Supabase Auth Sign Up
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         options: {
           data: {
             full_name: formData.name,
             phone_number: cleanedPhone,
-            address: formData.address,
-            country: formData.country,
-            language: resolvedLanguage,
-            currency: formData.currency,
-            timezone: formData.timezone,
-            nickname: formData.nickname || formData.name,
-            plan_type: planParam,
           }
         }
       });
 
-      if (authError && !authError.message.toLowerCase().includes("already registered")) {
-        throw authError;
+      let userId = authData?.user?.id;
+
+      if (authError) {
+        const message = typeof authError === 'object' && authError !== null
+          ? (authError.message || JSON.stringify(authError))
+          : String(authError);
+
+        const lowerMsg = message.toLowerCase();
+
+        // Detect which unique constraint was actually hit, so we can
+        // show an accurate message instead of always blaming the email.
+        const isPhoneDuplicate =
+          lowerMsg.includes("phone") && lowerMsg.includes("duplicate key value");
+        const isEmailDuplicate =
+          lowerMsg.includes("user already registered") ||
+          lowerMsg.includes("already exists") ||
+          (lowerMsg.includes("duplicate key value") && !isPhoneDuplicate) ||
+          lowerMsg.includes("database error saving new user") ||
+          lowerMsg.includes("unexpected_failure");
+
+        if (isPhoneDuplicate) {
+          // This WhatsApp number is already tied to a different account.
+          // Signing in under the *new* email would be wrong (and would
+          // fail anyway), so stop here with a clear, accurate message.
+          setErrorMsg("This WhatsApp number is already registered with another account. Please use a different number, or log in with the original email.");
+          setLoading(false);
+          return;
+        }
+
+        if (isEmailDuplicate) {
+          // If user exists, attempt to log in using provided credentials
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password,
+          });
+
+          if (signInError) {
+            setErrorMsg("This email is registered. Please check your password or try a different email.");
+            setLoading(false);
+            return;
+          }
+
+          userId = signInData.user?.id;
+        } else {
+          // Show explicit error message directly from Supabase
+          setErrorMsg(message);
+          setLoading(false);
+          return;
+        }
       }
 
-      // 2. Direct Insert/Upsert into Supabase `public.users` Table
-      const { error: dbError } = await supabase
-        .from("users")
-        .upsert(
-          {
-            phone_number: cleanedPhone,
-            name: formData.name,
-            nickname: formData.nickname || formData.name,
-            country: formData.country,
-            currency: formData.currency,
-            language: resolvedLanguage,
-            timezone: formData.timezone,
-            plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
-          },
-          { onConflict: "phone_number" }
-        );
+      // 2. Insert or Update (upsert) in public.users Table
+      if (userId) {
+        const { error: dbError } = await supabase
+          .from("users")
+          .upsert([
+            {
+              id: userId,
+              phone_number: cleanedPhone,
+              email: formData.email.trim().toLowerCase(),
+              name: formData.name,
+              nickname: formData.nickname || formData.name,
+              country: formData.country,
+              currency: formData.currency,
+              language: resolvedLanguage,
+              timezone: formData.timezone,
+              plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
+              payment_status: isFreePlan ? "PAID" : "PENDING",
+              is_active: isFreePlan ? true : false,
+            }
+          ], { onConflict: "id" });
 
-      if (dbError) {
-        console.error("Database Insert Error:", dbError);
-        throw dbError;
+        if (dbError) {
+          console.error("Database Insert Error:", dbError);
+          if (dbError.code === "23505") {
+            setErrorMsg("A user with this phone number or email already exists in the table.");
+          } else {
+            setErrorMsg("Failed to save user profile: " + dbError.message);
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       // Successful registration redirect
@@ -542,7 +625,7 @@ function RegisterForm() {
 
     } catch (err: any) {
       console.error("Registration Error:", err);
-      setErrorMsg(err.message || "Failed to register. Please try again.");
+      setErrorMsg(err?.message || "Failed to register. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -778,21 +861,6 @@ function RegisterForm() {
               </select>
             </div>
 
-            {/* Address */}
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400"/> Address (Optional)
-              </label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="City or Street Address"
-                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-              />
-            </div>
-
             {/* Privacy Checkbox */}
             <div className="flex items-center space-x-2 pt-2">
               <input
@@ -819,7 +887,7 @@ function RegisterForm() {
                   <Loader2 className="w-4 h-4 animate-spin text-slate-950"/>
                   <span>CREATING ACCOUNT...</span>
                 </>
-              ) : planParam === "free" ? (
+              ) : planParam.toLowerCase() === "free" ? (
                 <>
                   <span>START ON WHATSAPP 🚀</span>
                   <ArrowRight className="w-4 h-4"/>

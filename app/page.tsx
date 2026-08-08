@@ -154,13 +154,13 @@ export default function BrooLandingPage() {
             <a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden sm:block text-sm font-semibold text-slate-300 hover:text-white transition">
-              Dashboard Login
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            <Link href="/login" className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
+              Login
             </Link>
             <Link
               href="/register?plan=free"
-              className="group relative px-5 py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden"
+              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
             >
               <span>Get Started</span>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
