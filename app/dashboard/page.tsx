@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { 
-  Wallet, TrendingUp, TrendingDown, Search, RefreshCw, 
+  Wallet, TrendingUp, TrendingDown, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
-  Sparkles, LogOut, User, KeyRound, Settings, LayoutDashboard,
-  Download, MessageSquare, MessageCircle, Bell, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, Check, X, Lock, ShieldCheck, Zap
+  Sparkles, LogOut, Settings, LayoutDashboard,
+  Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban,
+  User, Mail, Phone, Camera, Globe
 } from "lucide-react";
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface Transaction {
   id: string;
@@ -35,6 +36,141 @@ const CATEGORY_OPTIONS = [
   "Shopping", "Entertainment", "Medical", "Salary", "Other"
 ];
 
+const AVATAR_OPTIONS = [
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80"
+];
+
+const WORLD_CURRENCIES = [
+  { code: "USD", name: "USD - US Dollar" },
+  { code: "LKR", name: "LKR - Sri Lankan Rupee" },
+  { code: "EUR", name: "EUR - Euro" },
+  { code: "GBP", name: "GBP - British Pound" },
+  { code: "AED", name: "AED - UAE Dirham" },
+  { code: "SAR", name: "SAR - Saudi Riyal" },
+  { code: "INR", name: "INR - Indian Rupee" },
+  { code: "AUD", name: "AUD - Australian Dollar" },
+  { code: "CAD", name: "CAD - Canadian Dollar" },
+  { code: "SGD", name: "SGD - Singapore Dollar" },
+  { code: "JPY", name: "JPY - Japanese Yen" },
+  { code: "CNY", name: "CNY - Chinese Yuan" },
+  { code: "QAR", name: "QAR - Qatari Riyal" },
+  { code: "KWD", name: "KWD - Kuwaiti Dinar" },
+  { code: "BHD", name: "BHD - Bahraini Dinar" },
+  { code: "OMR", name: "OMR - Omani Rial" },
+  { code: "MYR", name: "MYR - Malaysian Ringgit" },
+  { code: "THB", name: "THB - Thai Baht" },
+  { code: "NZD", name: "NZD - New Zealand Dollar" },
+  { code: "CHF", name: "CHF - Swiss Franc" },
+  { code: "RUB", name: "RUB - Russian Ruble" },
+  { code: "KRW", name: "KRW - South Korean Won" },
+  { code: "ZAR", name: "ZAR - South African Rand" },
+  { code: "BRL", name: "BRL - Brazilian Real" },
+  { code: "PKR", name: "PKR - Pakistani Rupee" },
+  { code: "BDT", name: "BDT - Bangladeshi Taka" }
+];
+
+const WORLD_LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "si", name: "සිංහල (Sinhala)" },
+  { code: "singlish", name: "Singlish (Sinhala + English mix)" },
+  { code: "ta", name: "தமிழ் (Tamil)" },
+  { code: "ar", name: "العربية (Arabic)" },
+  { code: "es", name: "Español (Spanish)" },
+  { code: "fr", name: "Français (French)" },
+  { code: "de", name: "Deutsch (German)" },
+  { code: "zh", name: "中文 (Chinese)" },
+  { code: "hi", name: "हिन्दी (Hindi)" },
+  { code: "pt", name: "Português (Portuguese)" },
+  { code: "ru", name: "Русский (Russian)" },
+  { code: "ja", name: "日本語 (Japanese)" },
+  { code: "ko", name: "한국어 (Korean)" },
+  { code: "it", name: "Italiano (Italian)" },
+  { code: "nl", name: "Nederlands (Dutch)" },
+  { code: "tr", name: "Türkçe (Turkish)" },
+  { code: "ur", name: "اردو (Urdu)" },
+  { code: "bn", name: "বাংলা (Bengali)" },
+  { code: "id", name: "Bahasa Indonesia" },
+  { code: "ms", name: "Bahasa Melayu" },
+  { code: "vi", name: "Tiếng Việt (Vietnamese)" },
+  { code: "th", name: "ไทย (Thai)" },
+  { code: "fa", name: "فارسی (Persian/Farsi)" },
+  { code: "pl", name: "Polski (Polish)" },
+  { code: "uk", name: "Українська (Ukrainian)" },
+  { code: "ro", name: "Română (Romanian)" },
+  { code: "el", name: "Ελληνικά (Greek)" },
+  { code: "cs", name: "Čeština (Czech)" },
+  { code: "sv", name: "Svenska (Swedish)" },
+  { code: "no", name: "Norsk (Norwegian)" },
+  { code: "da", name: "Dansk (Danish)" },
+  { code: "fi", name: "Suomi (Finnish)" },
+  { code: "hu", name: "Magyar (Hungarian)" },
+  { code: "he", name: "עברית (Hebrew)" },
+  { code: "sw", name: "Kiswahili (Swahili)" },
+  { code: "am", name: "አማርኛ (Amharic)" },
+  { code: "ha", name: "Hausa" },
+  { code: "yo", name: "Yorùbá (Yoruba)" },
+  { code: "ig", name: "Igbo" },
+  { code: "zu", name: "isiZulu (Zulu)" },
+  { code: "xh", name: "isiXhosa (Xhosa)" },
+  { code: "af", name: "Afrikaans" },
+  { code: "ne", name: "ਨੇपाली (Nepali)" },
+  { code: "pa", name: "ਪੰਜਾਬੀ (Punjabi)" },
+  { code: "gu", name: "ગુજરાતી (Gujarati)" },
+  { code: "mr", name: "मराठी (Marathi)" },
+  { code: "te", name: "తెలుగు (Telugu)" },
+  { code: "kn", name: "කන්නඩා (Kannada)" },
+  { code: "ml", name: "മലയാളം (Malayalam)" },
+  { code: "my", name: "မြန်မာ (Burmese)" },
+  { code: "km", name: "ខ្មែរ (Khmer)" },
+  { code: "lo", name: "ລາວ (Lao)" },
+  { code: "ka", name: "ქართული (Georgian)" },
+  { code: "hy", name: "Հայերեն (Armenian)" },
+  { code: "az", name: "Azərbaycan dili (Azerbaijani)" },
+  { code: "kk", name: "Қазақ тілі (Kazakh)" },
+  { code: "uz", name: "O'zbek tili (Uzbek)" },
+  { code: "mn", name: "Монгол (Mongolian)" },
+  { code: "sr", name: "Српски (Serbian)" },
+  { code: "hr", name: "Hrvatski (Croatian)" },
+  { code: "bg", name: "Български (Bulgarian)" },
+  { code: "sk", name: "Slovenčina (Slovak)" },
+  { code: "sl", name: "Slovenščina (Slovenian)" },
+  { code: "lt", name: "Lietuvių (Lithuanian)" },
+  { code: "lv", name: "Latviešu (Latvian)" },
+  { code: "et", name: "Eesti (Estonian)" },
+  { code: "sq", name: "Shqip (Albanian)" },
+  { code: "mk", name: "Македонски (Macedonian)" },
+  { code: "bs", name: "Bosanski (Bosnian)" },
+  { code: "is", name: "Íslenska (Icelandic)" },
+  { code: "ga", name: "Gaeilge (Irish)" },
+  { code: "cy", name: "Cymraeg (Welsh)" },
+  { code: "tl", name: "Tagalog (Filipino)" },
+  { code: "so", name: "Soomaali (Somali)" },
+  { code: "ps", name: "پښتو (Pashto)" },
+  { code: "ku", name: "Kurdî (Kurdish)" },
+  { code: "sd", name: "سنڌي (Sindhi)" }
+];
+
+const WORLD_TIMEZONES = [
+  { value: "Asia/Colombo", label: "(UTC+05:30) Sri Lanka, India" },
+  { value: "UTC", label: "(UTC+00:00) UTC / GMT" },
+  { value: "America/New_York", label: "(UTC-05:00) Eastern Time (US & Canada)" },
+  { value: "America/Chicago", label: "(UTC-06:00) Central Time (US & Canada)" },
+  { value: "America/Denver", label: "(UTC-07:00) Mountain Time (US & Canada)" },
+  { value: "America/Los_Angeles", label: "(UTC-08:00) Pacific Time (US & Canada)" },
+  { value: "Europe/London", label: "(UTC+00:00) London, Dublin, Edinburgh" },
+  { value: "Europe/Paris", label: "(UTC+01:00) Paris, Berlin, Rome, Madrid" },
+  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai, Abu Dhabi, Muscat" },
+  { value: "Asia/Riyadh", label: "(UTC+03:00) Riyadh, Qatar, Kuwait" },
+  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore, Kuala Lumpur" },
+  { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo, Osaka, Seoul" },
+  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney, Melbourne, Canberra" },
+  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland, Wellington" }
+];
+
 export default function BrooDashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
 
@@ -44,15 +180,36 @@ export default function BrooDashboard() {
   const [nickname, setNickname] = useState<string>("Bro");
   const [userPhone, setUserPhone] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
+  const [avatarUrl, setAvatarUrl] = useState<string>(AVATAR_OPTIONS[0]);
   const router = useRouter();
+
+  // 🌍 FINANCIAL & REGIONAL PREFERENCES STATES
+  const [appLanguage, setAppLanguage] = useState<string>("en");
+  const [dateFormat, setDateFormat] = useState<string>("DD/MM/YYYY");
+  const [weekStart, setWeekStart] = useState<string>("Monday");
+  const [timezone, setTimezone] = useState<string>("Asia/Colombo");
 
   // 💳 SUBSCRIPTION PLANS ("lite" | "core" | "max")
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
-  const [dailyTxCount, setDailyTxCount] = useState<number>(0);
-  const [dailyOcrCount, setDailyOcrCount] = useState<number>(0);
 
+  // 🎯 BUDGET STATE
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(50000);
+  const [isEditingBudget, setIsEditingBudget] = useState<boolean>(false);
+  const [tempBudget, setTempBudget] = useState<string>("50000");
+
+  // 📅 SUMMARY CARDS DATE RANGE FILTER (FROM / TO)
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const todayDate = now.toISOString().slice(0, 10);
+
+  const [summaryFromDate, setSummaryFromDate] = useState<string>(firstDayOfMonth);
+  const [summaryToDate, setSummaryToDate] = useState<string>(todayDate);
+
+  // 🔍 TRANSACTIONS TABLE FILTER STATES
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   // ✏️ EDIT TRANSACTION STATES
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -62,21 +219,14 @@ export default function BrooDashboard() {
   const [editType, setEditType] = useState<"income" | "expense">("expense");
   const [saveLoading, setSaveLoading] = useState(false);
 
-  // 📅 Recent Transactions Custom Date Range States
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-
-  // ⚙️ Settings States
+  // ⚙️ SETTINGS STATES
   const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState("");
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Preference Toggles
-  const [dailyReport, setDailyReport] = useState(true);
-  const [budgetAlerts, setBudgetAlerts] = useState(true);
-  const [autoOcrConfirm, setAutoOcrConfirm] = useState(false);
-
-  // Password Update States
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -102,17 +252,28 @@ export default function BrooDashboard() {
     let phoneToUse = userData?.phone_number?.trim() || "";
 
     if (userData) {
-      setCurrency(userData.base_currency || "Rs.");
-      const displayName = userData.how_to_call_you || userData.name || "Bro";
+      setCurrency(userData.currency || "USD");
+      if (userData.language) setAppLanguage(userData.language);
+      if (userData.timezone) setTimezone(userData.timezone);
+      
+      const displayName = userData.nickname || userData.name || "Bro";
       setNickname(displayName);
       setProfileName(displayName);
       setUserPhone(phoneToUse);
+      setProfilePhone(phoneToUse);
+      if (userData.avatar_url) {
+        setAvatarUrl(userData.avatar_url);
+        setSelectedAvatar(userData.avatar_url);
+      } else {
+        setSelectedAvatar(AVATAR_OPTIONS[0]);
+      }
 
-      // 💳 FETCH SUBSCRIPTION PLAN & DAILY USAGE
       const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
-      setDailyTxCount(userData.daily_tx_count || 0);
-      setDailyOcrCount(userData.daily_ocr_count || 0);
+      if (userData.monthly_budget) {
+        setMonthlyBudget(Number(userData.monthly_budget));
+        setTempBudget(userData.monthly_budget.toString());
+      }
     }
 
     const { data: txData } = await supabase
@@ -138,23 +299,28 @@ export default function BrooDashboard() {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("realtime-dashboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-        fetchData();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchData]);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
-  // ✏️ START EDITING A TRANSACTION
+  const handleSaveBudget = async () => {
+    const val = Number(tempBudget);
+    if (isNaN(val) || val <= 0) return;
+
+    setMonthlyBudget(val);
+    setIsEditingBudget(false);
+
+    try {
+      await supabase
+        .from("users")
+        .update({ monthly_budget: val })
+        .eq("email", userEmail);
+    } catch (err) {
+      console.error("Error saving budget:", err);
+    }
+  };
+
   const handleStartEdit = (tx: Transaction) => {
     setEditingId(tx.id);
     setEditItem(tx.item || "");
@@ -163,12 +329,10 @@ export default function BrooDashboard() {
     setEditType(tx.type || "expense");
   };
 
-  // ✏️ CANCEL EDITING
   const handleCancelEdit = () => {
     setEditingId(null);
   };
 
-  // 💾 SAVE EDITED TRANSACTION TO SUPABASE
   const handleSaveEdit = async (id: string) => {
     if (!editItem.trim() || !editAmount || isNaN(Number(editAmount))) {
       alert("Please enter a valid description and amount.");
@@ -207,6 +371,57 @@ export default function BrooDashboard() {
     }
   };
 
+  const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileMsg({ type: "error", text: "Please select an image smaller than 2MB." });
+      return;
+    }
+
+    setUploadingImg(true);
+    setProfileMsg(null);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            setSelectedAvatar(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const { data: publicUrlData } = supabase.storage
+          .from('profiles')
+          .getPublicUrl(filePath);
+
+        if (publicUrlData?.publicUrl) {
+          setSelectedAvatar(publicUrlData.publicUrl);
+        }
+      }
+    } catch (err: any) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setSelectedAvatar(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingImg(false);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileLoading(true);
@@ -216,15 +431,21 @@ export default function BrooDashboard() {
       const { error } = await supabase
         .from("users")
         .update({ 
-          how_to_call_you: profileName,
-          base_currency: currency
+          nickname: profileName,
+          phone_number: profilePhone,
+          currency: currency,
+          language: appLanguage,
+          timezone: timezone,
+          avatar_url: selectedAvatar
         })
         .eq("email", userEmail);
 
       if (error) throw error;
 
       setNickname(profileName);
-      setProfileMsg({ type: "success", text: "Settings successfully saved!" });
+      setUserPhone(profilePhone);
+      setAvatarUrl(selectedAvatar);
+      setProfileMsg({ type: "success", text: "Profile & regional details updated successfully!" });
     } catch (err: any) {
       setProfileMsg({ type: "error", text: err.message || "Failed to update profile" });
     } finally {
@@ -262,46 +483,65 @@ export default function BrooDashboard() {
     }
   };
 
-  // 🧮 OVERALL STATS CALCULATIONS (Current Month Only)
-  const currentMonthTransactions = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
+  // 🧮 STATS CALCULATIONS FOR SUMMARY CARDS
+  const rangeFilteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       if (!t.created_at) return false;
       const txDate = new Date(t.created_at);
-      return txDate.getFullYear() === currentYear && txDate.getMonth() === currentMonth;
+      txDate.setHours(0, 0, 0, 0);
+
+      let matchesFrom = true;
+      let matchesTo = true;
+
+      if (summaryFromDate) {
+        const from = new Date(summaryFromDate);
+        from.setHours(0, 0, 0, 0);
+        if (txDate < from) matchesFrom = false;
+      }
+
+      if (summaryToDate) {
+        const to = new Date(summaryToDate);
+        to.setHours(23, 59, 59, 999);
+        if (txDate > to) matchesTo = false;
+      }
+
+      return matchesFrom && matchesTo;
     });
-  }, [transactions]);
+  }, [transactions, summaryFromDate, summaryToDate]);
 
   const totalIncome = useMemo(() => 
-    currentMonthTransactions.filter(t => t.type === "income").reduce((acc, t) => acc + Number(t.amount || 0), 0),
-  [currentMonthTransactions]);
+    rangeFilteredTransactions.filter(t => t.type === "income").reduce((acc, t) => acc + Number(t.amount || 0), 0),
+  [rangeFilteredTransactions]);
 
   const totalExpense = useMemo(() => 
-    currentMonthTransactions.filter(t => t.type === "expense").reduce((acc, t) => acc + Number(t.amount || 0), 0),
-  [currentMonthTransactions]);
+    rangeFilteredTransactions.filter(t => t.type === "expense").reduce((acc, t) => acc + Number(t.amount || 0), 0),
+  [rangeFilteredTransactions]);
 
   const accountBalance = totalIncome - totalExpense;
 
-  // 📊 Current Month Category Expense
+  // 📊 Category Expense Breakdown
   const categoryExpenses = useMemo(() => {
     const map: { [key: string]: number } = {};
-
-    currentMonthTransactions
+    rangeFilteredTransactions
       .filter(t => t.type === "expense")
       .forEach(t => {
         const cat = t.category || "Other";
         map[cat] = (map[cat] || 0) + Number(t.amount || 0);
       });
-
     return map;
-  }, [currentMonthTransactions]);
+  }, [rangeFilteredTransactions]);
 
   const pieChartData = useMemo(() => {
     return Object.keys(categoryExpenses).map(cat => ({ name: cat, value: categoryExpenses[cat] }));
   }, [categoryExpenses]);
+
+  // 📊 BUDGET BAR CHART DATA
+  const budgetChartData = useMemo(() => {
+    return [
+      { name: "Monthly Target", amount: monthlyBudget },
+      { name: "Total Spent", amount: totalExpense }
+    ];
+  }, [monthlyBudget, totalExpense]);
 
   // 🔍 TRANSACTIONS TABLE FILTER
   const filteredTransactions = useMemo(() => {
@@ -335,6 +575,11 @@ export default function BrooDashboard() {
 
   // 📊 EXCEL EXPORT
   const handleExportExcel = () => {
+    if (subscriptionPlan === "lite") {
+      alert("Excel export is available for Core & Max users only. Please upgrade!");
+      return;
+    }
+
     if (filteredTransactions.length === 0) return;
 
     const workbook = XLSX.utils.book_new();
@@ -398,117 +643,123 @@ export default function BrooDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 font-sans p-4 sm:p-6 md:p-10 relative overflow-hidden">
+    <div className="min-h-screen bg-[#020617] text-slate-100 font-sans p-4 sm:p-6 md:p-10 relative overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
       
-      {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-emerald-500/15 rounded-full blur-[180px] pointer-events-none" />
-      <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[200px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none" />
+      {/* 🔮 HIGH-END PURPLE & GREEN GLASS GRADIENT LIGHTING */}
+      <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute top-[30%] right-[-10%] w-[650px] h-[650px] bg-emerald-500/15 rounded-full blur-[200px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[180px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         
-        {/* Top Header Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/30 border border-slate-700/50 p-6 md:p-8 rounded-[36px] backdrop-blur-3xl shadow-2xl">
+        {/* Top Header Bar - Glassmorphism */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
           <div className="flex items-center gap-4">
-            <div className="bg-emerald-500/10 border border-emerald-500/30 p-3.5 rounded-2xl text-emerald-400 font-black text-xl flex items-center justify-center shadow-lg shadow-emerald-500/10">
-              ⚡ Broo.ai
+            <div className="relative">
+              <img 
+                src={avatarUrl} 
+                alt="Profile Avatar" 
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/10"
+              />
+              <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg">
+                <Zap size={10} className="fill-slate-950" />
+              </span>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold flex items-center gap-1 uppercase">
-                  <Sparkles size={10} /> Broo {subscriptionPlan.toUpperCase()} Plan
+                <span className={`text-[11px] font-extrabold px-3 py-0.5 rounded-full border flex items-center gap-1.5 uppercase backdrop-blur-md shadow-sm ${
+                  subscriptionPlan === "max" 
+                    ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
+                    : subscriptionPlan === "core"
+                    ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                    : "bg-amber-500/20 border-amber-400/40 text-amber-300"
+                }`}>
+                  <Sparkles size={11} /> {subscriptionPlan.toUpperCase()} PACKAGE
                 </span>
-                <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-700/60">
+                <span className="text-[10px] text-slate-300 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10 backdrop-blur-md">
                   User: <strong className="text-white">{nickname}</strong>
                 </span>
               </div>
-              <h1 className="text-xl font-extrabold text-white">Smart Finance Dashboard</h1>
+              <h1 className="text-xl font-extrabold text-white tracking-wide">Smart Finance Dashboard</h1>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={fetchData} className="bg-slate-800/60 hover:bg-slate-700/60 text-slate-200 px-4 py-2.5 rounded-2xl border border-slate-700/80 flex items-center gap-2 text-xs font-semibold backdrop-blur-xl transition">
+            <button onClick={fetchData} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition shadow-md">
               <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} /> Sync
             </button>
-            <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-xl">
+            <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-md shadow-md">
               <LogOut size={14} /> Sign Out
             </button>
           </div>
         </div>
 
-        {/* 💳 SUBSCRIPTION PLAN DYNAMIC BANNER */}
-        {subscriptionPlan === "lite" && (
-          <div className="bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 backdrop-blur-xl">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">⚡</span>
-              <div>
-                <h4 className="text-xs font-bold text-amber-300">
-                  Broo Lite Active ({dailyTxCount}/3 Daily Transactions | {dailyOcrCount}/1 Daily Scan)
+        {/* 🚀 UPGRADE & SUBSCRIPTION MANAGEMENT BAR (GLASS) */}
+        <div className="bg-slate-900/40 border border-white/10 p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+          <div className="flex items-center gap-3.5">
+            <div className={`p-3 rounded-2xl border backdrop-blur-md ${
+              subscriptionPlan === "max" 
+                ? "bg-purple-500/20 border-purple-400/30 text-purple-300" 
+                : subscriptionPlan === "core" 
+                ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-300" 
+                : "bg-amber-500/20 border-amber-400/30 text-amber-300"
+            }`}>
+              <Zap size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>
                 </h4>
-                <p className="text-[11px] text-slate-400">
-                  Upgrade to Broo Core or Max for more daily logs & voice notes tracking!
-                </p>
               </div>
+              <p className="text-[11px] text-slate-300/80 mt-0.5">
+                {subscriptionPlan === "lite" && "Upgrade to Core or Max to unlock Budget Chart and Excel Export."}
+                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}
+                {subscriptionPlan === "max" && "You are on the highest plan! Enjoy full unlimited feature access."}
+              </p>
             </div>
-            <button 
-              onClick={() => router.push("/#pricing")} 
-              className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold px-4 py-2 rounded-xl transition whitespace-nowrap shadow-md shadow-amber-500/20"
-            >
-              Upgrade to Core / Max 🚀
-            </button>
           </div>
-        )}
 
-        {subscriptionPlan === "core" && (
-          <div className="bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent border border-emerald-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 backdrop-blur-xl">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="text-emerald-400" size={20} />
-              <div>
-                <h4 className="text-xs font-bold text-emerald-300">
-                  Broo Core Active ({dailyTxCount}/10 Daily Transactions | 30 Scans/Month)
-                </h4>
-                <p className="text-[11px] text-slate-400">Upgrade to Broo Max for Unlimited Transactions, Voice Notes & Receipt Scans!</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => router.push("/#pricing")} 
-              className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-extrabold px-4 py-2 rounded-xl transition whitespace-nowrap shadow-md shadow-emerald-500/20"
-            >
-              Get Broo Max 👑
-            </button>
+          {/* DYNAMIC ACTION BUTTON */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            {subscriptionPlan === "lite" ? (
+              <button
+                onClick={() => router.push("/pricing")}
+                className="w-full md:w-auto bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+              >
+                <Zap size={14} className="fill-slate-950" /> Upgrade Plan 🚀
+              </button>
+            ) : (
+              <a
+                href="https://app.lemonsqueezy.com/my-orders"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2"
+              >
+                <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription
+              </a>
+            )}
           </div>
-        )}
-
-        {subscriptionPlan === "max" && (
-          <div className="bg-gradient-to-r from-purple-500/20 via-indigo-500/10 to-transparent border border-purple-500/30 p-4 rounded-2xl flex items-center justify-between backdrop-blur-xl">
-            <div className="flex items-center gap-3">
-              <Zap className="text-purple-400" size={20} />
-              <div>
-                <h4 className="text-xs font-bold text-purple-300">Broo Max Unlimited Active 👑</h4>
-                <p className="text-[11px] text-slate-400">You have unlimited Transactions, Voice Notes, and Receipt Scans + Auto Save!</p>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-xl ${
+            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-2xl ${
               activeTab === "overview"
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400 font-extrabold"
+                : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
             }`}
           >
             <LayoutDashboard size={16} /> Overview
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-xl ${
+            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-2xl ${
               activeTab === "settings"
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400 font-extrabold"
+                : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
             }`}
           >
             <Settings size={16} /> General Settings
@@ -519,48 +770,107 @@ export default function BrooDashboard() {
         {activeTab === "overview" && (
           <div className="space-y-8">
             
-            {/* 3 EQUAL STAT CARDS (Current Month Summary) */}
+            {/* 📅 SUMMARY CARDS DATE RANGE FILTER BAR */}
+            <div className="bg-slate-900/40 border border-white/10 p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30 backdrop-blur-md">
+                  <Filter size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Summary Date Range</h4>
+                  <p className="text-[11px] text-slate-400">Filter the top balance, income, and expense cards</p>
+                </div>
+              </div>
+
+              {/* FROM / TO DATE PICKERS */}
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-2 rounded-2xl backdrop-blur-md">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">From:</span>
+                  <input 
+                    type="date" 
+                    value={summaryFromDate}
+                    onChange={(e) => setSummaryFromDate(e.target.value)}
+                    className="bg-transparent text-xs text-emerald-400 font-bold focus:outline-none cursor-pointer [color-scheme:dark]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-2 rounded-2xl backdrop-blur-md">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">To:</span>
+                  <input 
+                    type="date" 
+                    value={summaryToDate}
+                    onChange={(e) => setSummaryToDate(e.target.value)}
+                    className="bg-transparent text-xs text-emerald-400 font-bold focus:outline-none cursor-pointer [color-scheme:dark]"
+                  />
+                </div>
+
+                {(summaryFromDate !== firstDayOfMonth || summaryToDate !== todayDate) && (
+                  <button 
+                    onClick={() => {
+                      setSummaryFromDate(firstDayOfMonth);
+                      setSummaryToDate(todayDate);
+                    }}
+                    title="Reset to Current Month"
+                    className="p-2 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl transition flex items-center gap-1 text-xs font-semibold backdrop-blur-md"
+                  >
+                    <RotateCcw size={13} /> Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 3 EQUAL SUMMARY GLASS CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
-              <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[30px] backdrop-blur-3xl relative overflow-hidden group hover:border-slate-700 transition">
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                  🏦 THIS MONTH BALANCE
+              {/* BALANCE CARD */}
+              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-emerald-500/30 transition duration-300">
+                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
+                  🏢 THIS MONTH BALANCE
                 </span>
-                <h2 className={`text-2xl sm:text-3xl font-black mt-3 ${accountBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <h2 className={`text-2xl sm:text-3xl font-black mt-3 ${accountBalance >= 0 ? 'text-[#00E699]' : 'text-rose-400'}`}>
                   {currency} {accountBalance.toFixed(2)}
                 </h2>
-                <p className="text-[11px] text-slate-500 mt-2">Net remaining for this month</p>
+                <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                  Net remaining for selected period
+                </p>
               </div>
 
-              <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[30px] backdrop-blur-3xl relative overflow-hidden group hover:border-slate-700 transition">
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              {/* INCOME CARD */}
+              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-cyan-500/30 transition duration-300">
+                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
                   📈 THIS MONTH INCOME
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-cyan-400 mt-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#00D8F6] mt-3">
                   + {currency} {totalIncome.toFixed(2)}
                 </h2>
-                <p className="text-[11px] text-slate-500 mt-2">Earnings logged this month</p>
+                <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                  Earnings logged for selected period
+                </p>
               </div>
 
-              <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[30px] backdrop-blur-3xl relative overflow-hidden group hover:border-slate-700 transition">
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              {/* EXPENSE CARD */}
+              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-rose-500/30 transition duration-300">
+                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
                   📉 THIS MONTH EXPENSE
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-rose-400 mt-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#FF4972] mt-3">
                   - {currency} {totalExpense.toFixed(2)}
                 </h2>
-                <p className="text-[11px] text-slate-500 mt-2">Spending logged this month</p>
+                <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                  Spending logged for selected period
+                </p>
               </div>
 
             </div>
 
-            {/* Donut Chart & WhatsApp Connector */}
+            {/* Donut Chart & Budget Bar Chart Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] lg:col-span-2 backdrop-blur-3xl flex flex-col justify-between">
+              {/* Category Breakdown Pie Chart */}
+              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] lg:col-span-2 backdrop-blur-2xl flex flex-col justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                    <PieIcon size={18} className="text-emerald-400" /> Current Month Breakdown
+                    <PieIcon size={18} className="text-emerald-400" /> Spending Breakdown
                   </h3>
                   {totalExpense > 0 && (
                     <span className="text-xs font-bold text-slate-400">
@@ -588,14 +898,14 @@ export default function BrooDashboard() {
                               <Cell 
                                 key={`cell-${index}`} 
                                 fill={CATEGORY_COLORS[entry.name] || "#64748B"} 
-                                stroke="#030712" 
+                                stroke="#020617" 
                                 strokeWidth={2} 
                               />
                             ))}
                           </Pie>
                           <Tooltip 
                             formatter={(val: any) => `${currency} ${Number(val).toFixed(2)}`} 
-                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(16px)' }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -607,7 +917,7 @@ export default function BrooDashboard() {
                         const catColor = CATEGORY_COLORS[item.name] || "#64748B";
 
                         return (
-                          <div key={item.name} className="flex items-center justify-between text-xs bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/50">
+                          <div key={item.name} className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-white/5 backdrop-blur-md">
                             <div className="flex items-center gap-2.5">
                               <span 
                                 className="w-3 h-3 rounded-full flex-shrink-0" 
@@ -634,49 +944,102 @@ export default function BrooDashboard() {
 
                   </div>
                 ) : (
-                  <div className="text-center py-20 text-slate-500 text-xs">No expenses logged for this month</div>
+                  <div className="text-center py-20 text-slate-500 text-xs">No expenses logged in this range</div>
                 )}
               </div>
 
-              <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] backdrop-blur-3xl flex flex-col justify-between">
+              {/* 📊 BUDGET BAR CHART CARD */}
+              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl flex flex-col justify-between relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                 <div>
-                  <h3 className="font-extrabold text-base text-white flex items-center gap-2 mb-2">
-                    <MessageCircle size={18} className="text-emerald-400" /> Quick WhatsApp Connector
-                  </h3>
-                  <p className="text-slate-400 text-xs mb-6">Scan or tap to open WhatsApp bot directly.</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                      <BarChart3 size={18} className="text-emerald-400" /> Budget Overview
+                    </h3>
 
-                  <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/80 flex flex-col items-center justify-center gap-3">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://wa.me/${userPhone.replace(/\D/g, "")}`} 
-                      alt="WhatsApp QR Code" 
-                      className="w-32 h-32 rounded-xl border border-slate-800 bg-white p-2"
-                    />
-                    <span className="text-[10px] text-slate-500 font-mono">Linked: {userPhone || "Not set"}</span>
+                    {subscriptionPlan !== "lite" && (
+                      isEditingBudget ? (
+                        <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md">
+                          Save
+                        </button>
+                      ) : (
+                        <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
+                          <Edit2 size={12} /> Edit Target
+                        </button>
+                      )
+                    )}
                   </div>
-                </div>
 
-                <a 
-                  href={`https://wa.me/${userPhone.replace(/\D/g, "")}`} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="w-full mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
-                >
-                  <MessageSquare size={16} /> Open Bot Button
-                </a>
+                  {subscriptionPlan !== "lite" && isEditingBudget && (
+                    <div className="mb-4 bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-md">
+                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Set Target Budget Limit:</label>
+                      <input 
+                        type="number"
+                        value={tempBudget}
+                        onChange={(e) => setTempBudget(e.target.value)}
+                        className="w-full bg-slate-950/80 border border-emerald-500/50 text-xs text-white p-2 rounded-lg focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* 🔒 LITE PLAN LOCK BANNER */}
+                  {subscriptionPlan === "lite" ? (
+                    <div className="bg-black/30 border border-white/5 rounded-2xl p-6 text-center space-y-4 my-auto backdrop-blur-md">
+                      <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto backdrop-blur-md">
+                        <Lock size={22} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-extrabold text-white">Budget Bar Chart Locked</h4>
+                        <p className="text-[11px] text-slate-400 mt-1">Upgrade to Core or Max to set monthly target budgets and view comparative spending bar charts.</p>
+                      </div>
+                      <button 
+                        onClick={() => router.push("/pricing")}
+                        className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 text-xs font-black py-2.5 rounded-xl transition shadow-lg shadow-amber-500/10"
+                      >
+                        Upgrade Plan 🚀
+                      </button>
+                    </div>
+                  ) : (
+                    /* 📊 BAR CHART FOR CORE / MAX */
+                    <div className="space-y-4">
+                      <div className="h-48 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={budgetChartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" />
+                            <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
+                            <YAxis stroke="#64748b" fontSize={10} tickLine={false} />
+                            <Tooltip 
+                              formatter={(val: any) => `${currency} ${Number(val).toFixed(2)}`}
+                              contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(16px)' }}
+                            />
+                            <Bar dataKey="amount" radius={[8, 8, 0, 0]} fill="#10B981" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="bg-black/30 p-3 rounded-2xl border border-white/5 backdrop-blur-md flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Budget Usage:</span>
+                        <span className={`font-black ${totalExpense > monthlyBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {((totalExpense / (monthlyBudget || 1)) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
             </div>
 
-            {/* Transactions Table Section with Edit Feature */}
-            <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] space-y-6 backdrop-blur-3xl">
+            {/* Recent Transactions Table Glass Box */}
+            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] space-y-6 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
               
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
                 <div>
                   <h3 className="font-extrabold text-lg text-white">Recent Transactions</h3>
                   <p className="text-slate-400 text-xs mt-0.5">Edit, filter transactions by date range or search terms</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 p-1.5 rounded-2xl">
+                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
                     <div className="flex items-center gap-1.5 px-2">
                       <Calendar size={14} className="text-emerald-400" />
                       <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
@@ -704,7 +1067,7 @@ export default function BrooDashboard() {
                       <button 
                         onClick={() => { setStartDate(""); setEndDate(""); }}
                         title="Reset Date Range"
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-xl transition"
+                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-xl transition"
                       >
                         <RotateCcw size={13} />
                       </button>
@@ -716,22 +1079,32 @@ export default function BrooDashboard() {
                     placeholder="Search note or category..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-slate-950/80 border border-slate-800 text-xs text-slate-200 px-3 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    className="bg-black/40 border border-white/10 text-xs text-slate-200 px-3 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
                   />
 
-                  <button 
-                    onClick={handleExportExcel}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition whitespace-nowrap shadow-md shadow-emerald-500/10"
-                  >
-                    <Download size={14} /> Export Excel 📊
-                  </button>
+                  {subscriptionPlan === "lite" ? (
+                    <button 
+                      disabled
+                      title="Available in Core & Max Plan"
+                      className="bg-white/5 text-slate-500 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 opacity-60 cursor-not-allowed border border-white/5"
+                    >
+                      <Lock size={13} /> Export Excel 📊
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleExportExcel}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition whitespace-nowrap shadow-md shadow-emerald-500/10"
+                    >
+                      <Download size={14} /> Export Excel 📊
+                    </button>
+                  )}
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <tr className="border-b border-white/10 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Merchant / Note</th>
                       <th className="py-3 px-4">Category</th>
@@ -741,58 +1114,55 @@ export default function BrooDashboard() {
                       <th className="py-3 px-4 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50 text-xs">
+                  <tbody className="divide-y divide-white/5 text-xs">
                     {filteredTransactions.length > 0 ? (
                       filteredTransactions.map((tx) => {
                         const isEditing = editingId === tx.id;
 
                         return (
-                          <tr key={tx.id} className="hover:bg-slate-900/40 transition">
+                          <tr key={tx.id} className="hover:bg-white/5 transition">
                             <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap">
                               {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "Today"}
                             </td>
 
-                            {/* ITEM / DESCRIPTION */}
                             <td className="py-3.5 px-4 font-bold text-white whitespace-nowrap">
                               {isEditing ? (
                                 <input 
                                   type="text" 
                                   value={editItem} 
                                   onChange={(e) => setEditItem(e.target.value)} 
-                                  className="bg-slate-950 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
                                 />
                               ) : (
                                 tx.item
                               )}
                             </td>
 
-                            {/* CATEGORY */}
                             <td className="py-3.5 px-4 whitespace-nowrap">
                               {isEditing ? (
                                 <select 
                                   value={editCategory} 
                                   onChange={(e) => setEditCategory(e.target.value)}
-                                  className="bg-slate-950 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
                                 >
                                   {CATEGORY_OPTIONS.map(c => (
                                     <option key={c} value={c}>{c}</option>
                                   ))}
                                 </select>
                               ) : (
-                                <span className="px-2.5 py-1 rounded-lg font-semibold text-[10px] bg-slate-800/80 text-slate-300 border border-slate-700/60">
+                                <span className="px-2.5 py-1 rounded-lg font-semibold text-[10px] bg-white/5 text-slate-300 border border-white/10 backdrop-blur-md">
                                   {tx.category || "Other"}
                                 </span>
                               )}
                             </td>
 
-                            {/* AMOUNT */}
                             <td className="py-3.5 px-4 font-extrabold whitespace-nowrap">
                               {isEditing ? (
                                 <input 
                                   type="number" 
                                   value={editAmount} 
                                   onChange={(e) => setEditAmount(e.target.value)} 
-                                  className="bg-slate-950 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white w-24 focus:outline-none"
+                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white w-24 focus:outline-none"
                                 />
                               ) : (
                                 <span className={tx.type === "income" ? "text-emerald-400" : "text-slate-200"}>
@@ -801,45 +1171,42 @@ export default function BrooDashboard() {
                               )}
                             </td>
 
-                            {/* TYPE */}
                             <td className="py-3.5 px-4 whitespace-nowrap">
                               {isEditing ? (
                                 <select 
                                   value={editType} 
                                   onChange={(e) => setEditType(e.target.value as "income" | "expense")}
-                                  className="bg-slate-950 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
                                 >
                                   <option value="expense">Expense</option>
                                   <option value="income">Income</option>
                                 </select>
                               ) : (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                  tx.type === "income" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase backdrop-blur-md ${
+                                  tx.type === "income" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                                 }`}>
                                   {tx.type}
                                 </span>
                               )}
                             </td>
 
-                            {/* ENTRY TYPE / METHOD */}
                             <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap uppercase text-[10px] font-mono">
                               {tx.entry_type || "text"}
                             </td>
 
-                            {/* ACTION BUTTONS */}
                             <td className="py-3.5 px-4 text-center whitespace-nowrap">
                               {isEditing ? (
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button 
                                     onClick={() => handleSaveEdit(tx.id)} 
                                     disabled={saveLoading}
-                                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-1.5 rounded-lg transition"
+                                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-1.5 rounded-lg transition shadow-md"
                                   >
                                     <Check size={14} />
                                   </button>
                                   <button 
                                     onClick={handleCancelEdit} 
-                                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition"
+                                    className="bg-white/10 hover:bg-white/20 text-slate-300 p-1.5 rounded-lg transition backdrop-blur-md"
                                   >
                                     <X size={14} />
                                   </button>
@@ -847,7 +1214,7 @@ export default function BrooDashboard() {
                               ) : (
                                 <button 
                                   onClick={() => handleStartEdit(tx)} 
-                                  className="p-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg transition"
+                                  className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition border border-white/10 backdrop-blur-md"
                                 >
                                   <Edit2 size={13} />
                                 </button>
@@ -876,66 +1243,238 @@ export default function BrooDashboard() {
         {activeTab === "settings" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
-            {/* Profile Settings */}
-            <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] backdrop-blur-3xl space-y-5">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                <User size={18} className="text-emerald-400" /> Profile & Currency
+            {/* 1. USER PROFILE SETTINGS */}
+            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
+                <User size={18} className="text-emerald-400" /> User Profile Settings
               </h3>
 
               {profileMsg && (
-                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  profileMsg.type === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 backdrop-blur-md ${
+                  profileMsg.type === "success" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                 }`}>
                   {profileMsg.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                   {profileMsg.text}
                 </div>
               )}
 
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <form onSubmit={handleUpdateProfile} className="space-y-5">
+                
+                {/* Custom Profile Picture Upload + Avatar Selection */}
                 <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">How Should Broo Call You?</label>
+                  <label className="text-xs text-slate-300 font-bold mb-2 flex items-center gap-1.5">
+                    <Camera size={13} className="text-emerald-400" /> Profile Picture (Upload or Choose Avatar)
+                  </label>
+
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="relative">
+                      <img 
+                        src={selectedAvatar || avatarUrl} 
+                        alt="Selected Profile" 
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-400 shadow-md"
+                      />
+                      {uploadingImg && (
+                        <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                          <RefreshCw size={16} className="animate-spin text-emerald-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label 
+                        htmlFor="custom-avatar-upload"
+                        className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-white/10 flex items-center gap-2 transition backdrop-blur-md"
+                      >
+                        <Camera size={14} className="text-emerald-400" /> Upload Custom Photo
+                      </label>
+                      <input 
+                        id="custom-avatar-upload"
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleCustomImageUpload}
+                        className="hidden"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG or WEBP (Max 2MB)</p>
+                    </div>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 font-semibold block mb-2">Or choose a preset avatar:</span>
+                  <div className="flex items-center gap-3 overflow-x-auto py-1">
+                    {AVATAR_OPTIONS.map((imgUrl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedAvatar(imgUrl)}
+                        className={`relative rounded-2xl p-1 transition border-2 flex-shrink-0 ${
+                          selectedAvatar === imgUrl 
+                            ? "border-emerald-400 bg-emerald-500/20 scale-105" 
+                            : "border-transparent opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img 
+                          src={imgUrl} 
+                          alt={`Avatar ${idx + 1}`} 
+                          className="w-10 h-10 rounded-xl object-cover"
+                        />
+                        {selectedAvatar === imgUrl && (
+                          <span className="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 rounded-full p-0.5">
+                            <Check size={10} strokeWidth={4} />
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-bold block mb-1.5">Display Name / How to Call You</label>
                   <input 
                     type="text" 
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-800 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    placeholder="Enter your nickname..."
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Preferred Currency</label>
+                  <label className="text-xs text-slate-300 font-bold block mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5"><Mail size={13} className="text-slate-400" /> Email Address</span>
+                    <span className="text-[10px] text-slate-500 font-medium">(Read-only)</span>
+                  </label>
+                  <input 
+                    type="email" 
+                    value={userEmail}
+                    readOnly
+                    disabled
+                    className="w-full bg-slate-950/60 border border-white/5 text-xs text-slate-400 p-3 rounded-xl cursor-not-allowed backdrop-blur-md"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-bold block mb-1.5 flex items-center gap-1.5">
+                    <Phone size={13} className="text-emerald-400" /> Phone Number (For WhatsApp / SMS Notifications)
+                  </label>
+                  <input 
+                    type="text" 
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="+947XXXXXXXX"
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                  />
+                </div>
+
+                {/* Preferred Currency - Fully Integrated WORLD_CURRENCIES Dropdown */}
+                <div>
+                  <label className="text-xs text-slate-300 font-bold block mb-1.5">Preferred Currency</label>
                   <select 
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-800 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
                   >
-                    <option value="Rs.">LKR (Rs.)</option>
-                    <option value="$">USD ($)</option>
-                    <option value="€">EUR (€)</option>
-                    <option value="£">GBP (£)</option>
-                    <option value="₹">INR (₹)</option>
+                    {WORLD_CURRENCIES.map((curr) => (
+                      <option key={curr.code} value={curr.code} className="bg-slate-950 text-slate-100">
+                        {curr.name}
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                {/* 2. Financial & Regional Preferences */}
+                <div className="pt-4 border-t border-white/10 space-y-4">
+                  <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe size={14} /> Financial & Regional Preferences
+                  </h4>
+
+                  {/* Language Selection */}
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                      Language: Dashboard App Language (World Languages)
+                    </label>
+                    <select 
+                      name="language"
+                      value={appLanguage}
+                      onChange={(e) => setAppLanguage(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                    >
+                      {WORLD_LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code} className="bg-slate-950 text-slate-100">
+                          {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date Format */}
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                      Date Format: (DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD)
+                    </label>
+                    <select 
+                      value={dateFormat}
+                      onChange={(e) => setDateFormat(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                    >
+                      <option value="DD/MM/YYYY" className="bg-slate-950 text-slate-100">DD/MM/YYYY</option>
+                      <option value="MM/DD/YYYY" className="bg-slate-950 text-slate-100">MM/DD/YYYY</option>
+                      <option value="YYYY-MM-DD" className="bg-slate-950 text-slate-100">YYYY-MM-DD</option>
+                    </select>
+                  </div>
+
+                  {/* First Day of the Week */}
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                      First Day of the Week: (Monday or Sunday)
+                    </label>
+                    <select 
+                      value={weekStart}
+                      onChange={(e) => setWeekStart(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                    >
+                      <option value="Monday" className="bg-slate-950 text-slate-100">Monday</option>
+                      <option value="Sunday" className="bg-slate-950 text-slate-100">Sunday</option>
+                    </select>
+                  </div>
+
+                  {/* Timezone Select */}
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                      Timezone Select: World Timezones
+                    </label>
+                    <select 
+                      name="timezone"
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                    >
+                      {WORLD_TIMEZONES.map((tz) => (
+                        <option key={tz.value} value={tz.value} className="bg-slate-950 text-slate-100">
+                          {tz.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <button 
                   type="submit" 
                   disabled={profileLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
                 >
                   {profileLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Profile Settings"}
                 </button>
               </form>
             </div>
 
-            {/* Password Update */}
-            <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] backdrop-blur-3xl space-y-5">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                <KeyRound size={18} className="text-emerald-400" /> Security Settings
+            {/* SECURITY SETTINGS */}
+            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit">
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
+                <ShieldCheck size={18} className="text-emerald-400" /> Security Settings
               </h3>
 
               {passwordMsg && (
-                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  passwordMsg.type === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 backdrop-blur-md ${
+                  passwordMsg.type === "success" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                 }`}>
                   {passwordMsg.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                   {passwordMsg.text}
@@ -950,7 +1489,7 @@ export default function BrooDashboard() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-slate-950/80 border border-slate-800 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
                   />
                 </div>
 
@@ -961,70 +1500,18 @@ export default function BrooDashboard() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-slate-950/80 border border-slate-800 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
                   />
                 </div>
 
                 <button 
                   type="submit" 
                   disabled={passwordLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
                 >
                   {passwordLoading ? <RefreshCw size={14} className="animate-spin" /> : "Update Password"}
                 </button>
               </form>
-            </div>
-
-            {/* Feature Access & Preferences Control (Membership-Based Toggles) */}
-            <div className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-[32px] backdrop-blur-3xl space-y-5 md:col-span-2">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                <Bell size={18} className="text-emerald-400" /> Plan Features & Preferences
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                
-                {/* Daily Summary */}
-                <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-200">Daily WhatsApp Report</h4>
-                    <p className="text-[10px] text-slate-500">Get evening spending alerts</p>
-                  </div>
-                  <button onClick={() => setDailyReport(!dailyReport)} className="text-emerald-400">
-                    {dailyReport ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
-                  </button>
-                </div>
-
-                {/* Budget Alerts */}
-                <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-200">Budget Warning Alerts</h4>
-                    <p className="text-[10px] text-slate-500">Notify when balance is low</p>
-                  </div>
-                  <button onClick={() => setBudgetAlerts(!budgetAlerts)} className="text-emerald-400">
-                    {budgetAlerts ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
-                  </button>
-                </div>
-
-                {/* Auto Confirm OCR (Broo Max Feature) */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-                  subscriptionPlan !== "max" ? "bg-slate-950/20 border-slate-900 opacity-60" : "bg-slate-950/60 border-slate-800/80"
-                }`}>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      Auto Confirm OCR {subscriptionPlan !== "max" && <Lock size={12} className="text-amber-400" />}
-                    </h4>
-                    <p className="text-[10px] text-slate-500">Auto-save receipt extractions</p>
-                  </div>
-                  {subscriptionPlan !== "max" ? (
-                    <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md font-bold">Max</span>
-                  ) : (
-                    <button onClick={() => setAutoOcrConfirm(!autoOcrConfirm)} className="text-emerald-400">
-                      {autoOcrConfirm ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
-                    </button>
-                  )}
-                </div>
-
-              </div>
             </div>
 
           </div>
