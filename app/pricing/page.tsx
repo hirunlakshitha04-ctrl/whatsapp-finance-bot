@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 import { 
   Check, 
   X, 
@@ -40,6 +41,8 @@ const PRICING_PLANS = [
     description: "Ideal for active spenders & daily users.",
     highlight: true,
     buttonText: "Upgrade to Broo Core",
+    // 💡 Lemon Squeezy Checkout Test / Live Links can be embedded or handled via state
+    lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
     features: [
       { text: "10 Daily Expense & Income Logs", included: true },
@@ -59,6 +62,7 @@ const PRICING_PLANS = [
     description: "For freelancers, business owners & power users.",
     highlight: false,
     buttonText: "Get Broo Max",
+    lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
     features: [
       { text: "Unlimited Daily Expense & Income Logs", included: true },
@@ -72,6 +76,35 @@ const PRICING_PLANS = [
 ];
 
 export default function PricingPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsLoggedIn(true);
+        setUserEmail(session.user.email || "");
+      }
+    }
+    checkAuth();
+  }, []);
+
+  const handlePlanClick = (e: React.MouseEvent, planId: string, lemonUrl?: string) => {
+    if (planId === "free") {
+      // Free plan goes to register/dashboard depending on login state
+      return;
+    }
+
+    if (isLoggedIn && lemonUrl) {
+      e.preventDefault();
+      // Append user email to Lemon Squeezy checkout URL for automatic account mapping via webhook
+      const checkoutUrl = `${lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`;
+      window.location.href = checkoutUrl;
+    }
+    // If not logged in, the Link component will route them to /register?plan=core/max normally.
+  };
+
   return (
     <main className="min-h-screen w-full bg-[#07090e] text-white flex flex-col justify-between relative overflow-hidden font-sans py-12 px-4 md:px-8">
       
@@ -93,12 +126,21 @@ export default function PricingPage() {
             </span>
           </Link>
 
-          <Link 
-            href="/register?plan=free"
-            className="text-xs font-semibold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition"
-          >
-            Dashboard Login
-          </Link>
+          {isLoggedIn ? (
+            <Link 
+              href="/"
+              className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition backdrop-blur-md"
+            >
+              Back to Dashboard
+            </Link>
+          ) : (
+            <Link 
+              href="/register?plan=free"
+              className="text-xs font-semibold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition"
+            >
+              Dashboard Login
+            </Link>
+          )}
         </div>
 
         {/* Section Header */}
@@ -113,80 +155,93 @@ export default function PricingPage() {
           <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
             Pick the perfect plan for your budgeting and tracking needs.
           </p>
+          {isLoggedIn && (
+            <p className="text-xs text-emerald-400 font-bold pt-2">
+              ✨ Logged in as {userEmail}. Clicking Core/Max will direct you straight to checkout!
+            </p>
+          )}
         </div>
 
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-          {PRICING_PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`relative rounded-3xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-xl ${
-                plan.highlight
-                  ? "bg-slate-900/90 border-2 border-emerald-400/80 shadow-[0_0_40px_0_rgba(52,211,153,0.15)] scale-[1.02]"
-                  : "bg-slate-900/50 border border-white/10 hover:border-white/20"
-              }`}
-            >
-              {/* Highlight Badge */}
-              {plan.highlight && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                  <Sparkles className="w-3 h-3" />
-                  {plan.badge}
-                </div>
-              )}
+          {PRICING_PLANS.map((plan) => {
+            // If logged in and paid plan, destination can be direct Lemon Squeezy URL with email query param
+            const destinationHref = isLoggedIn && plan.id !== "free" && plan.lemonUrl
+              ? `${plan.lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`
+              : `/register?plan=${plan.id}`;
 
-              <div>
-                {/* Header */}
-                <div className="mb-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
-                    {plan.name}
-                  </span>
-                  <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                      {plan.price}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">
-                      {plan.period}
-                    </span>
-                  </div>
-                  {!plan.highlight && (
-                    <p className="text-[11px] text-purple-300 font-medium mt-1">
-                      {plan.badge}
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                    {plan.description}
-                  </p>
-                </div>
-
-                <div className="w-full h-[1px] bg-white/10 my-6" />
-
-                {/* Features List */}
-                <ul className="space-y-3.5 mb-8">
-                  {plan.features.map((feat, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-xs">
-                      {feat.included ? (
-                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : (
-                        <X className="w-4 h-4 text-slate-600 shrink-0" />
-                      )}
-                      <span className={feat.included ? "text-slate-200" : "text-slate-500 line-through"}>
-                        {feat.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Action Button */}
-              <Link
-                href={`/register?plan=${plan.id}`}
-                className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
+            return (
+              <div
+                key={plan.id}
+                className={`relative rounded-3xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-xl ${
+                  plan.highlight
+                    ? "bg-slate-900/90 border-2 border-emerald-400/80 shadow-[0_0_40px_0_rgba(52,211,153,0.15)] scale-[1.02]"
+                    : "bg-slate-900/50 border border-white/10 hover:border-white/20"
+                }`}
               >
-                <span>{plan.buttonText}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          ))}
+                {/* Highlight Badge */}
+                {plan.highlight && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                    <Sparkles className="w-3 h-3" />
+                    {plan.badge}
+                  </div>
+                )}
+
+                <div>
+                  {/* Header */}
+                  <div className="mb-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                      {plan.name}
+                    </span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-4xl md:text-5xl font-black tracking-tight text-white">
+                        {plan.price}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">
+                        {plan.period}
+                      </span>
+                    </div>
+                    {!plan.highlight && (
+                      <p className="text-[11px] text-purple-300 font-medium mt-1">
+                        {plan.badge}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <div className="w-full h-[1px] bg-white/10 my-6" />
+
+                  {/* Features List */}
+                  <ul className="space-y-3.5 mb-8">
+                    {plan.features.map((feat, idx) => (
+                      <li key={idx} className="flex items-center gap-3 text-xs">
+                        {feat.included ? (
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <X className="w-4 h-4 text-slate-600 shrink-0" />
+                        )}
+                        <span className={feat.included ? "text-slate-200" : "text-slate-500 line-through"}>
+                          {feat.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Action Button */}
+                <Link
+                  href={destinationHref}
+                  onClick={(e) => handlePlanClick(e, plan.id, plan.lemonUrl)}
+                  className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
+                >
+                  <span>{plan.buttonText}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            );
+          })}
         </div>
 
         {/* Security / Trust Footer */}

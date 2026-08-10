@@ -502,10 +502,6 @@ function RegisterForm() {
     const isFreePlan = planParam.toLowerCase() === "free" || planParam.toLowerCase() === "lite";
 
     try {
-      // 0. Pre-flight duplicate check (email vs phone) BEFORE attempting signUp.
-      // Supabase Auth hides the real Postgres trigger error behind a generic
-      // "Database error saving new user" message, so we can't tell email vs
-      // phone apart from the signUp error alone — we check ourselves first.
       const { data: dupCheck, error: dupCheckError } = await supabase.rpc(
         "check_duplicate_contact",
         {
@@ -520,11 +516,8 @@ function RegisterForm() {
           setLoading(false);
           return;
         }
-        // If email_exists (with or without phone_exists), fall through —
-        // the existing signUp -> signIn fallback below handles that case.
       }
 
-      // 1. Supabase Auth Sign Up
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
@@ -545,8 +538,6 @@ function RegisterForm() {
 
         const lowerMsg = message.toLowerCase();
 
-        // Detect which unique constraint was actually hit, so we can
-        // show an accurate message instead of always blaming the email.
         const isPhoneDuplicate =
           lowerMsg.includes("phone") && lowerMsg.includes("duplicate key value");
         const isEmailDuplicate =
@@ -557,16 +548,12 @@ function RegisterForm() {
           lowerMsg.includes("unexpected_failure");
 
         if (isPhoneDuplicate) {
-          // This WhatsApp number is already tied to a different account.
-          // Signing in under the *new* email would be wrong (and would
-          // fail anyway), so stop here with a clear, accurate message.
           setErrorMsg("This WhatsApp number is already registered with another account. Please use a different number, or log in with the original email.");
           setLoading(false);
           return;
         }
 
         if (isEmailDuplicate) {
-          // If user exists, attempt to log in using provided credentials
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: formData.email.trim().toLowerCase(),
             password: formData.password,
@@ -580,14 +567,12 @@ function RegisterForm() {
 
           userId = signInData.user?.id;
         } else {
-          // Show explicit error message directly from Supabase
           setErrorMsg(message);
           setLoading(false);
           return;
         }
       }
 
-      // 2. Insert or Update (upsert) in public.users Table
       if (userId) {
         const { error: dbError } = await supabase
           .from("users")
@@ -620,7 +605,6 @@ function RegisterForm() {
         }
       }
 
-      // Successful registration redirect
       handleRedirect(cleanedPhone);
 
     } catch (err: any) {
@@ -899,6 +883,17 @@ function RegisterForm() {
                 </>
               )}
             </button>
+
+            {/* Login Link Added Here */}
+            <div className="text-center pt-3">
+              <p className="text-xs text-slate-400">
+                Already have an account?{" "}
+                <Link href="/login" className="text-purple-400 hover:text-purple-300 font-semibold underline transition">
+                  Login here
+                </Link>
+              </p>
+            </div>
+
           </form>
         </div>
       </div>
