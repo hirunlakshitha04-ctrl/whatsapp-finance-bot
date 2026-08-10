@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Signature Verification (Corrected Crypto Implementation)
+    // Signature Verification
     const hmac = crypto.createHmac("sha256", secret);
     const digest = hmac.update(rawBody).digest("hex");
 
@@ -56,12 +56,13 @@ export async function POST(req: Request) {
       eventName === "subscription_updated" ||
       eventName === "order_created"
     ) {
-      let planName = "CORE";
+      // Plan Name එක LITE, CORE, MAX ලෙස නිවැරදි කිරීම
+      let planName = "LITE"; // Default එක LITE ලෙස සැකීම
 
       if (variantId === process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID) {
-        planName = "MAX";
+        planName = "CORE";
       } else if (variantId === process.env.NEXT_PUBLIC_LEMON_ORBIT_MONTHLY_VARIANT_ID) {
-        planName = "ORBIT";
+        planName = "MAX";
       }
 
       const updateData = {
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
         );
       }
 
-      console.log(`✅ Successfully updated user:`, data);
+      console.log(`✅ Successfully updated user to plan: ${planName}`, data);
     }
 
     // 3. Subscription Cancelled / Expired Events
