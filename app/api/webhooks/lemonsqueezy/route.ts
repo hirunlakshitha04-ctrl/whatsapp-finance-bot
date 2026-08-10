@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-// Relative path භාවිතයෙන් supabaseAdmin import කිරීම
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 export async function POST(req: Request) {
@@ -9,7 +8,7 @@ export async function POST(req: Request) {
     const signature = req.headers.get("x-signature");
     const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
 
-    // 1. Webhook Signature එක පරික්ෂා කිරීම (Security Check)
+    // 1. Webhook Signature එක පරික්ෂා කිරීම
     if (!signature || !secret) {
       return NextResponse.json(
         { error: "Missing signature or secret" },
@@ -17,11 +16,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // Signature Verification (Corrected Crypto Implementation)
     const hmac = crypto.createHmac("sha256", secret);
-    const digest = Buffer.from(hmac.update(rawBody).digest("hex"), "utf8");
-    const signatureBuffer = Buffer.from(signature, "utf8");
+    const digest = hmac.update(rawBody).digest("hex");
 
-    if (!crypto.timingSafeEqual(digest, signatureBuffer)) {
+    const signatureBuffer = Buffer.from(signature, "utf8");
+    const digestBuffer = Buffer.from(digest, "utf8");
+
+    if (
+      signatureBuffer.length !== digestBuffer.length ||
+      !crypto.timingSafeEqual(digestBuffer, signatureBuffer)
+    ) {
       return NextResponse.json(
         { error: "Invalid signature" },
         { status: 401 }
@@ -40,7 +45,7 @@ export async function POST(req: Request) {
 
     // Variant ID එක ලබා ගැනීම
     const variantId = String(
-      attributes?.first_subscription_item?.variant_id || attributes?.variant_id
+      attributes?.first_subscription_item?.variant_id || attributes?.variant_id || ""
     );
 
     console.log(`⚡ Lemon Squeezy Event Received: ${eventName} for ${userEmail || userPhone}`);
@@ -51,7 +56,6 @@ export async function POST(req: Request) {
       eventName === "subscription_updated" ||
       eventName === "order_created"
     ) {
-      // Variant ID එක අනුව Plan Name එක තීරණය කිරීම
       let planName = "CORE";
 
       if (variantId === process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID) {
@@ -60,7 +64,6 @@ export async function POST(req: Request) {
         planName = "ORBIT";
       }
 
-      // Supabase DB Update කිරීම
       const updateData = {
         plan: planName,
         payment_status: "PAID",
@@ -74,19 +77,22 @@ export async function POST(req: Request) {
         query = query.eq("phone_number", userPhone);
       } else if (userEmail) {
         query = query.eq("email", userEmail);
+      } else {
+        console.error("❌ No user email or phone found in webhook payload");
+        return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
       }
 
-      const { error } = await query;
+      const { data, error } = await query.select();
 
       if (error) {
         console.error("Supabase Update Error:", error);
         return NextResponse.json(
-          { error: "Database update failed" },
+          { error: "Database update failed", details: error.message },
           { status: 500 }
         );
       }
 
-      console.log(`✅ Successfully updated user to plan: ${planName}, payment_status: PAID, is_active: true`);
+      console.log(`✅ Successfully updated user:`, data);
     }
 
     // 3. Subscription Cancelled / Expired Events
@@ -114,10 +120,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Webhook Handler Error:", error);
     return NextResponse.json(
-      { error: "Webhook handler failed" },
+      { error: "Webhook handler failed", details: error.message },
       { status: 500 }
     );
   }
