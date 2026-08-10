@@ -192,10 +192,22 @@ export default function BrooDashboard() {
   // 💳 SUBSCRIPTION PLANS ("lite" | "core" | "max")
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
 
-  // 🎯 BUDGET STATE
+  // 🎯 BUDGET STATE & CATEGORY BUDGETS (WhatsApp through category wise)
   const [monthlyBudget, setMonthlyBudget] = useState<number>(50000);
+  const [categoryBudgets, setCategoryBudgets] = useState<{ [key: string]: number }>({
+    Food: 15000,
+    Groceries: 15000,
+    Transport: 10000,
+    Bills: 10000
+  });
   const [isEditingBudget, setIsEditingBudget] = useState<boolean>(false);
   const [tempBudget, setTempBudget] = useState<string>("50000");
+  const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({
+    Food: "15000",
+    Groceries: "15000",
+    Transport: "10000",
+    Bills: "10000"
+  });
 
   // 📅 SUMMARY CARDS DATE RANGE FILTER (FROM / TO)
   const now = new Date();
@@ -274,6 +286,14 @@ export default function BrooDashboard() {
         setMonthlyBudget(Number(userData.monthly_budget));
         setTempBudget(userData.monthly_budget.toString());
       }
+      if (userData.category_budgets) {
+        setCategoryBudgets(userData.category_budgets);
+        const tempMap: { [key: string]: string } = {};
+        Object.keys(userData.category_budgets).forEach(k => {
+          tempMap[k] = userData.category_budgets[k].toString();
+        });
+        setTempCatBudgets(tempMap);
+      }
     }
 
     const { data: txData } = await supabase
@@ -308,13 +328,22 @@ export default function BrooDashboard() {
     const val = Number(tempBudget);
     if (isNaN(val) || val <= 0) return;
 
+    const newCatBudgetsMap: { [key: string]: number } = {};
+    Object.keys(tempCatBudgets).forEach(cat => {
+      newCatBudgetsMap[cat] = Number(tempCatBudgets[cat]) || 0;
+    });
+
     setMonthlyBudget(val);
+    setCategoryBudgets(newCatBudgetsMap);
     setIsEditingBudget(false);
 
     try {
       await supabase
         .from("users")
-        .update({ monthly_budget: val })
+        .update({ 
+          monthly_budget: val,
+          category_budgets: newCatBudgetsMap
+        })
         .eq("email", userEmail);
     } catch (err) {
       console.error("Error saving budget:", err);
@@ -863,7 +892,7 @@ export default function BrooDashboard() {
 
             </div>
 
-            {/* Donut Chart & Budget Bar Chart Section */}
+            {/* Donut Chart & WhatsApp Category Budget Breakdown Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* Category Breakdown Pie Chart */}
@@ -948,12 +977,12 @@ export default function BrooDashboard() {
                 )}
               </div>
 
-              {/* 📊 BUDGET BAR CHART CARD */}
+              {/* 🎯 WHATSAPP CATEGORY BUDGET & REMAINING CARD */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl flex flex-col justify-between relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                      <BarChart3 size={18} className="text-emerald-400" /> Budget Overview
+                      <BarChart3 size={18} className="text-emerald-400" /> WhatsApp Budget & Remaining
                     </h3>
 
                     {subscriptionPlan !== "lite" && (
@@ -963,23 +992,11 @@ export default function BrooDashboard() {
                         </button>
                       ) : (
                         <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
-                          <Edit2 size={12} /> Edit Target
+                          <Edit2 size={12} /> Edit Targets
                         </button>
                       )
                     )}
                   </div>
-
-                  {subscriptionPlan !== "lite" && isEditingBudget && (
-                    <div className="mb-4 bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-md">
-                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Set Target Budget Limit:</label>
-                      <input 
-                        type="number"
-                        value={tempBudget}
-                        onChange={(e) => setTempBudget(e.target.value)}
-                        className="w-full bg-slate-950/80 border border-emerald-500/50 text-xs text-white p-2 rounded-lg focus:outline-none"
-                      />
-                    </div>
-                  )}
 
                   {/* 🔒 LITE PLAN LOCK BANNER */}
                   {subscriptionPlan === "lite" ? (
@@ -988,8 +1005,8 @@ export default function BrooDashboard() {
                         <Lock size={22} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-extrabold text-white">Budget Bar Chart Locked</h4>
-                        <p className="text-[11px] text-slate-400 mt-1">Upgrade to Core or Max to set monthly target budgets and view comparative spending bar charts.</p>
+                        <h4 className="text-xs font-extrabold text-white">Category Budgets Locked</h4>
+                        <p className="text-[11px] text-slate-400 mt-1">Upgrade to Core or Max to track WhatsApp category spending and remaining limits.</p>
                       </div>
                       <button 
                         onClick={() => router.push("/pricing")}
@@ -999,28 +1016,47 @@ export default function BrooDashboard() {
                       </button>
                     </div>
                   ) : (
-                    /* 📊 BAR CHART FOR CORE / MAX */
-                    <div className="space-y-4">
-                      <div className="h-48 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={budgetChartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" />
-                            <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
-                            <YAxis stroke="#64748b" fontSize={10} tickLine={false} />
-                            <Tooltip 
-                              formatter={(val: any) => `${currency} ${Number(val).toFixed(2)}`}
-                              contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(16px)' }}
-                            />
-                            <Bar dataKey="amount" radius={[8, 8, 0, 0]} fill="#10B981" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
+                    /* 📱 CATEGORY-WISE BUDGET & REMAINING LIST */
+                    <div className="space-y-3 mt-2">
+                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances:</p>
+                      
+                      <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                        {Object.keys(categoryBudgets).map((cat) => {
+                          const limit = categoryBudgets[cat] || 0;
+                          const spent = categoryExpenses[cat] || 0;
+                          const remaining = limit - spent;
+                          const isOver = remaining < 0;
 
-                      <div className="bg-black/30 p-3 rounded-2xl border border-white/5 backdrop-blur-md flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Budget Usage:</span>
-                        <span className={`font-black ${totalExpense > monthlyBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {((totalExpense / (monthlyBudget || 1)) * 100).toFixed(1)}%
-                        </span>
+                          return (
+                            <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-bold text-slate-200 flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] || "#10B981" }} />
+                                  {cat}
+                                </span>
+                                {isEditingBudget ? (
+                                  <input 
+                                    type="number"
+                                    value={tempCatBudgets[cat] ?? limit}
+                                    onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
+                                    className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
+                                  />
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 font-medium">
+                                    Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-slate-400">Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
+                                <span className="text-slate-400">
+                                  Remaining: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {remaining.toFixed(2)}</strong>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
