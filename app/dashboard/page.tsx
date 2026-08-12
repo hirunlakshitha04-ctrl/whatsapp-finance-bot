@@ -243,7 +243,7 @@ export default function BrooDashboard() {
       });
       console.log('WhatsApp notification sent successfully!');
     } catch (err) {
-      console.error('Failed to send WhatsApp notification:', err);
+      console.error('Failed to sent WhatsApp notification:', err);
     }
   };
 
@@ -286,17 +286,37 @@ export default function BrooDashboard() {
 
       const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
+    }
+
+    // 🎯 1. Fetch Budgets directly by phone_number or fallback to user email/all
+    let budgetQuery = supabase.from("budgets").select("*");
+    if (phoneToUse) {
+      budgetQuery = budgetQuery.eq("phone_number", phoneToUse);
+    }
+    const { data: budgetData } = await budgetQuery;
+
+    if (budgetData && budgetData.length > 0) {
+      // Map category budgets from the database table
+      const catMap: { [key: string]: number } = {};
+      let totalB = 0;
+      budgetData.forEach((b: any) => {
+        const amt = Number(b.amount_limit || 0);
+        catMap[b.category] = amt;
+        totalB += amt;
+      });
+
+      setMonthlyBudget(totalB);
+      setTempBudget(totalB.toString());
+      setCategoryBudgets(catMap);
       
-      // Update Monthly Budget from Supabase or trigger WhatsApp message if not found
-      if (userData.monthly_budget !== null && userData.monthly_budget !== undefined) {
-        setMonthlyBudget(Number(userData.monthly_budget));
-        setTempBudget(userData.monthly_budget.toString());
-      } else {
-        console.log('No monthly budget found in database.');
-        await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
-      }
-      
-      // Update Category Budgets from Supabase
+      const tempMap: { [key: string]: string } = {};
+      Object.keys(catMap).forEach(k => {
+        tempMap[k] = catMap[k].toString();
+      });
+      setTempCatBudgets(tempMap);
+    } else if (userData?.monthly_budget) {
+      setMonthlyBudget(Number(userData.monthly_budget));
+      setTempBudget(userData.monthly_budget.toString());
       if (userData.category_budgets) {
         setCategoryBudgets(userData.category_budgets);
         const tempMap: { [key: string]: string } = {};
@@ -305,8 +325,12 @@ export default function BrooDashboard() {
         });
         setTempCatBudgets(tempMap);
       }
+    } else {
+      console.log('No monthly budget found in database.');
+      await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
     }
 
+    // Fetch transactions
     const { data: txData } = await supabase
       .from("transactions")
       .select("*")
