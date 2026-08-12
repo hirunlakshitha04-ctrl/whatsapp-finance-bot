@@ -763,12 +763,12 @@ export default function BrooDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>[cite: 4]
+                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>
                 </h4>
               </div>
               <p className="text-[11px] text-slate-300/80 mt-0.5">
                 {subscriptionPlan === "lite" && "Upgrade to Core or Max to unlock Budget Chart and Excel Export."}
-                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}[cite: 4]
+                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}
                 {subscriptionPlan === "max" && "You are on the highest plan! Enjoy full unlimited feature access."}
               </p>
             </div>
@@ -808,7 +808,7 @@ export default function BrooDashboard() {
               rel="noopener noreferrer"
               className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2"
             >
-              <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription[cite: 4]
+              <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription
             </a>
           </div>
         </div>
