@@ -375,7 +375,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
       isIncome 
     });
 
-    // Handle Budget Set
+    // Handle Budget Set (මෙතැනදී Confirm කළ පසු පමණක් ඩේටාබේස් එකට save වේ)[cite: 5]
     if (tx.action === "set_budget") {
       await supabase
         .from('users')
@@ -661,13 +661,14 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
+      // බජට් එකක් වුණත් දැන් pending_transaction ලෙස save වී ප්‍රිව്യൂ පෙන්වනු ලැබේ[cite: 5]
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = Number(extractedTx.amount).toLocaleString();
-      const typeTag = extractedTx.type === 'income' ? baseMsgs.typeIncome : baseMsgs.typeExpense;
+      const typeTag = extractedTx.action === 'set_budget' ? '🎯 Budget' : (extractedTx.type === 'income' ? baseMsgs.typeIncome : baseMsgs.typeExpense);
       
       const previewMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, {
-        item: extractedTx.item,
+        item: extractedTx.action === 'set_budget' ? 'Monthly Budget' : extractedTx.item,
         typeTag,
         category: extractedTx.category,
         amount: formattedNumber
@@ -691,4 +692,4 @@ export async function POST(req: NextRequest) {
     console.error("❌ Fatal Webhook Error:", error);
     return new NextResponse("OK", { status: 200 });
   }
-}   
+}
