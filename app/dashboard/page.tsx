@@ -191,21 +191,11 @@ export default function BrooDashboard() {
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
 
   // 🎯 BUDGET STATES LOADED FROM SUPABASE
-  const [monthlyBudget, setMonthlyBudget] = useState<number>(50000);
-  const [categoryBudgets, setCategoryBudgets] = useState<{ [key: string]: number }>({
-    Food: 15000,
-    Groceries: 15000,
-    Transport: 10000,
-    Bills: 10000
-  });
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
+  const [categoryBudgets, setCategoryBudgets] = useState<{ [key: string]: number }>({});
   const [isEditingBudget, setIsEditingBudget] = useState<boolean>(false);
-  const [tempBudget, setTempBudget] = useState<string>("50000");
-  const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({
-    Food: "15000",
-    Groceries: "15000",
-    Transport: "10000",
-    Bills: "10000"
-  });
+  const [tempBudget, setTempBudget] = useState<string>("0");
+  const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({});
 
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -237,6 +227,25 @@ export default function BrooDashboard() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // WhatsApp Notification helper function
+  const sendWhatsAppNotification = async (message: string) => {
+    try {
+      await fetch('https://your-whatsapp-bot-api.com/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: userPhone || 'ADMIN_PHONE',
+          message: message
+        }),
+      });
+      console.log('WhatsApp notification sent successfully!');
+    } catch (err) {
+      console.error('Failed to send WhatsApp notification:', err);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -278,10 +287,13 @@ export default function BrooDashboard() {
       const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
       
-      // Update Monthly Budget from Supabase
-      if (userData.monthly_budget) {
+      // Update Monthly Budget from Supabase or trigger WhatsApp message if not found
+      if (userData.monthly_budget !== null && userData.monthly_budget !== undefined) {
         setMonthlyBudget(Number(userData.monthly_budget));
         setTempBudget(userData.monthly_budget.toString());
+      } else {
+        console.log('No monthly budget found in database.');
+        await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
       }
       
       // Update Category Budgets from Supabase
@@ -325,7 +337,7 @@ export default function BrooDashboard() {
 
   const handleSaveBudget = async () => {
     const val = Number(tempBudget);
-    if (isNaN(val) || val <= 0) return;
+    if (isNaN(val) || val < 0) return;
 
     const newCatBudgetsMap: { [key: string]: number } = {};
     Object.keys(tempCatBudgets).forEach(cat => {
@@ -990,42 +1002,46 @@ export default function BrooDashboard() {
                       <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances:</p>
                       
                       <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                        {Object.keys(categoryBudgets).map((cat) => {
-                          const limit = categoryBudgets[cat] || 0;
-                          const spent = categoryExpenses[cat] || 0;
-                          const remaining = limit - spent;
-                          const isOver = remaining < 0;
+                        {Object.keys(categoryBudgets).length > 0 ? (
+                          Object.keys(categoryBudgets).map((cat) => {
+                            const limit = categoryBudgets[cat] || 0;
+                            const spent = categoryExpenses[cat] || 0;
+                            const remaining = limit - spent;
+                            const isOver = remaining < 0;
 
-                          return (
-                            <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-slate-200 flex items-center gap-2">
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] || "#10B981" }} />
-                                  {cat}
-                                </span>
-                                {isEditingBudget ? (
-                                  <input 
-                                    type="number"
-                                    value={tempCatBudgets[cat] ?? limit}
-                                    onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
-                                    className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
-                                  />
-                                ) : (
-                                  <span className="text-[11px] text-slate-400 font-medium">
-                                    Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                            return (
+                              <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-bold text-slate-200 flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] || "#10B981" }} />
+                                    {cat}
                                   </span>
-                                )}
-                              </div>
+                                  {isEditingBudget ? (
+                                    <input 
+                                      type="number"
+                                      value={tempCatBudgets[cat] ?? limit}
+                                      onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
+                                      className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
+                                    />
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400 font-medium">
+                                      Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                                    </span>
+                                  )}
+                                </div>
 
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="text-slate-400">Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
-                                <span className="text-slate-400">
-                                  Remaining: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {remaining.toFixed(2)}</strong>
-                                </span>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
+                                  <span className="text-slate-400">
+                                    Remaining: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {remaining.toFixed(2)}</strong>
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-10 text-slate-500 text-xs">No category budgets set</div>
+                        )}
                       </div>
                     </div>
                   )}
