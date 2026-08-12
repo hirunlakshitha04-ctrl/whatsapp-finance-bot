@@ -375,12 +375,17 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
       isIncome 
     });
 
-    // Handle Budget Set (මෙතැනදී Confirm කළ පසු පමණක් ඩේටාබේස් එකට save වේ)[cite: 5]
+    // Handle Budget Set (මෙතැනදී Confirm කළ පසු budgets table එකට save වේ)[cite: 5]
     if (tx.action === "set_budget") {
-      await supabase
-        .from('users')
-        .update({ monthly_budget: tx.amount })
-        .eq('phone_number', phoneNumber);
+      const { error: budgetErr } = await supabase
+        .from('budgets')
+        .insert([{
+          phone_number: phoneNumber,
+          category: tx.category || 'General',
+          amount_limit: tx.amount
+        }]);
+
+      if (budgetErr) throw budgetErr;
 
       await supabase
         .from('user_sessions')
@@ -661,7 +666,6 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
-      // බජට් එකක් වුණත් දැන් pending_transaction ලෙස save වී ප්‍රිව്യൂ පෙන්වනු ලැබේ[cite: 5]
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = Number(extractedTx.amount).toLocaleString();
