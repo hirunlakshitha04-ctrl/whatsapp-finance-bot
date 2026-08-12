@@ -224,7 +224,7 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
   }
 }
 
-// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language)
+// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language with Standardized Categories)
 async function extractTransaction(
   text: string, 
   nativeCurrency: string, 
@@ -242,17 +242,26 @@ User Settings -> Selected Language: "${language}", Call User As: "${nickname}", 
 
 INSTRUCTIONS:
 - Translate the extracted "item" description string strictly into the user's selected language (${language}).
-- Translate the "category" name strictly into the user's selected language (${language}).
+- CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories into other languages:
+  - Food & Groceries
+  - Utilities (Bills, Internet, Phone)
+  - Rent/Housing
+  - Personal Care (Medical, Saloon, Hygiene)
+  - Shopping (Clothes, Gadgets)
+  - Entertainment (Movies, Subscriptions, Outings)
+  - Education (Books, Courses)
+  - Debt/Loans
+  - Savings/Investments
+  - Gifts & Charity
+  - Miscellaneous (Unexpected)
 - Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
-
-Categories: [Food, Transport, Bills, Shopping, Entertainment, Medical, Education, Salary, Starting Balance, Loan, Budget, Other].
 
 Return pure JSON:
 {
   "action": "log_transaction" | "set_budget" | "set_starting_balance",
   "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
   "item": "description string in ${language}",
-  "category": "category string in ${language}",
+  "category": "Strictly choose ONE from the allowed English category list above",
   "amount": number,
   "person": "string" | null,
   "currency": "${nativeCurrency}"
@@ -269,7 +278,7 @@ Return pure JSON:
   }
 }
 
-// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language)
+// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language with Standardized Categories)
 async function extractFromImage(
   mediaUrl: string, 
   contentType: string, 
@@ -292,14 +301,26 @@ async function extractFromImage(
         {
           role: "system",
           content: `Extract total amount and merchant from receipt image. Base Currency: ${nativeCurrency}.
-Write the "item" merchant name and "category" in the user's selected language: ${language}.
+Write the "item" merchant name in the user's selected language: ${language}.
+CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories:
+  - Food & Groceries
+  - Utilities (Bills, Internet, Phone)
+  - Rent/Housing
+  - Personal Care (Medical, Saloon, Hygiene)
+  - Shopping (Clothes, Gadgets)
+  - Entertainment (Movies, Subscriptions, Outings)
+  - Education (Books, Courses)
+  - Debt/Loans
+  - Savings/Investments
+  - Gifts & Charity
+  - Miscellaneous (Unexpected)
 
 Return pure JSON:
 {
   "action": "log_transaction",
   "type": "expense",
   "item": "Merchant/Store Name translated in ${language}",
-  "category": "Category Name translated in ${language}",
+  "category": "Strictly choose ONE from the allowed English category list above",
   "amount": number,
   "person": null,
   "currency": "${nativeCurrency}"
@@ -375,7 +396,7 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
       isIncome 
     });
 
-    // Handle Budget Set (මෙතැනදී Confirm කළ පසු budgets table එකට save වේ)[cite: 5]
+    // Handle Budget Set
     if (tx.action === "set_budget") {
       const { error: budgetErr } = await supabase
         .from('budgets')
@@ -598,7 +619,7 @@ export async function POST(req: NextRequest) {
           phone_number: from,
           type: 'income',
           item: 'Starting Capital',
-          category: 'Starting Balance',
+          category: 'Savings/Investments',
           amount: extracted.amount,
           currency: userCurrency
         }]);
