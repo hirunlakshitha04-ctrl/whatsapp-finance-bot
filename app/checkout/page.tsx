@@ -5,6 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
 import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
+// TypeScript global window extension සඳහා
+declare global {
+  interface Window {
+    createLemonSqueezy?: any;
+    LemonSqueezy?: any;
+  }
+}
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") || "pro";
@@ -25,12 +33,36 @@ function CheckoutContent() {
     // LemonSqueezy එකට Phone Number එක සහ Success URL එක එකතු කර යැවීම
     const checkoutUrl = `${baseUrl}?checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[redirect_url]=${encodeURIComponent(successUrl)}`;
 
-    // Automatic Redirect to LemonSqueezy
+    // Lemon Squeezy script එක dynamic ලෙස load කර ගැනීම
+    const script = document.createElement("script");
+    script.src = "https://app.lemonsqueezy.com/js/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      if (window.LemonSqueezy) {
+        window.LemonSqueezy.Setup({
+          eventHandler: (event: any) => {
+            if (event.event === "Checkout.Success") {
+              // Payment එක සාර්ථක වූ වහාම අපේ success page එකට යැවීම
+              window.location.href = successUrl;
+            }
+          },
+        });
+      }
+    };
+
+    // Automatic Redirect to LemonSqueezy after 1 second
     const timer = setTimeout(() => {
       window.location.href = checkoutUrl;
-    }, 1000); // 1 Second delay for smooth UI experience
+    }, 1000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
   }, [plan, phone]);
 
   return (
