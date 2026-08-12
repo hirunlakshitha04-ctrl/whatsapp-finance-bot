@@ -26,8 +26,8 @@ function CheckoutContent() {
     const baseUrl = LEMONSQUEEZY_PLANS[plan] || LEMONSQUEEZY_PLANS["pro"];
     const successUrl = `${window.location.origin}/payment-success`;
     
-    // URL එකට embed=1 එකතු කිරීම මඟින් එය modal එකක් ලෙස ක්‍රියාත්මක කරයි
-    const checkoutUrl = `${baseUrl}?embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[redirect_url]=${encodeURIComponent(successUrl)}`;
+    // 🎯 නිවැරදි Lemon Squeezy Parameter එක: checkout[product_options][redirect_url]
+    const checkoutUrl = `${baseUrl}?embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
 
     // Lemon Squeezy script එක load කිරීම
     const script = document.createElement("script");
@@ -48,7 +48,7 @@ function CheckoutContent() {
       }
     };
 
-    // 1 තත්පරයකින් Lemon Squeezy overlay checkout එක aç කිරීම
+    // 1 තත්පරයකින් Lemon Squeezy checkout එක Open කිරීම
     const timer = setTimeout(() => {
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Url.Open(checkoutUrl);
@@ -81,6 +81,17 @@ function CheckoutContent() {
         <p className="text-slate-400 text-sm mb-6">
           Please wait a moment...
         </p>
+        <div className="w-full pt-4 border-t border-slate-800/60 flex items-center justify-center gap-4 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            256-bit Secure
+          </span>
+          <span className="w-1 h-1 rounded-full bg-slate-700" />
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            Broo.ai Pro
+          </span>
+        </div>
       </div>
     </div>
   );
