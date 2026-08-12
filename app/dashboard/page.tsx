@@ -183,16 +183,14 @@ export default function BrooDashboard() {
   const [avatarUrl, setAvatarUrl] = useState<string>(AVATAR_OPTIONS[0]);
   const router = useRouter();
 
-  // 🌍 FINANCIAL & REGIONAL PREFERENCES STATES
   const [appLanguage, setAppLanguage] = useState<string>("en");
   const [dateFormat, setDateFormat] = useState<string>("DD/MM/YYYY");
   const [weekStart, setWeekStart] = useState<string>("Monday");
   const [timezone, setTimezone] = useState<string>("Asia/Colombo");
 
-  // 💳 SUBSCRIPTION PLANS ("lite" | "core" | "max")
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
 
-  // 🎯 BUDGET STATE & CATEGORY BUDGETS (WhatsApp through category wise)
+  // 🎯 BUDGET STATES LOADED FROM SUPABASE
   const [monthlyBudget, setMonthlyBudget] = useState<number>(50000);
   const [categoryBudgets, setCategoryBudgets] = useState<{ [key: string]: number }>({
     Food: 15000,
@@ -209,7 +207,6 @@ export default function BrooDashboard() {
     Bills: "10000"
   });
 
-  // 📅 SUMMARY CARDS DATE RANGE FILTER (FROM / TO)
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const todayDate = now.toISOString().slice(0, 10);
@@ -217,13 +214,11 @@ export default function BrooDashboard() {
   const [summaryFromDate, setSummaryFromDate] = useState<string>(firstDayOfMonth);
   const [summaryToDate, setSummaryToDate] = useState<string>(todayDate);
 
-  // 🔍 TRANSACTIONS TABLE FILTER STATES
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // ✏️ EDIT TRANSACTION STATES
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<string>("");
   const [editCategory, setEditCategory] = useState<string>("");
@@ -231,7 +226,6 @@ export default function BrooDashboard() {
   const [editType, setEditType] = useState<"income" | "expense">("expense");
   const [saveLoading, setSaveLoading] = useState(false);
 
-  // ⚙️ SETTINGS STATES
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState("");
@@ -255,6 +249,7 @@ export default function BrooDashboard() {
 
     setUserEmail(session.user.email || "");
 
+    // Fetch user profile & budget data from Supabase
     const { data: userData } = await supabase
       .from("users")
       .select("*")
@@ -282,10 +277,14 @@ export default function BrooDashboard() {
 
       const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
+      
+      // Update Monthly Budget from Supabase
       if (userData.monthly_budget) {
         setMonthlyBudget(Number(userData.monthly_budget));
         setTempBudget(userData.monthly_budget.toString());
       }
+      
+      // Update Category Budgets from Supabase
       if (userData.category_budgets) {
         setCategoryBudgets(userData.category_budgets);
         const tempMap: { [key: string]: string } = {};
@@ -512,7 +511,6 @@ export default function BrooDashboard() {
     }
   };
 
-  // 🧮 STATS CALCULATIONS FOR SUMMARY CARDS
   const rangeFilteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       if (!t.created_at) return false;
@@ -548,7 +546,6 @@ export default function BrooDashboard() {
 
   const accountBalance = totalIncome - totalExpense;
 
-  // 📊 Category Expense Breakdown
   const categoryExpenses = useMemo(() => {
     const map: { [key: string]: number } = {};
     rangeFilteredTransactions
@@ -564,7 +561,6 @@ export default function BrooDashboard() {
     return Object.keys(categoryExpenses).map(cat => ({ name: cat, value: categoryExpenses[cat] }));
   }, [categoryExpenses]);
 
-  // 📊 BUDGET BAR CHART DATA
   const budgetChartData = useMemo(() => {
     return [
       { name: "Monthly Target", amount: monthlyBudget },
@@ -572,7 +568,6 @@ export default function BrooDashboard() {
     ];
   }, [monthlyBudget, totalExpense]);
 
-  // 🔍 TRANSACTIONS TABLE FILTER
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchesSearch = (t.item?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
@@ -602,7 +597,6 @@ export default function BrooDashboard() {
     });
   }, [transactions, searchTerm, selectedType, startDate, endDate]);
 
-  // 📊 EXCEL EXPORT
   const handleExportExcel = () => {
     if (subscriptionPlan === "lite") {
       alert("Excel export is available for Core & Max users only. Please upgrade!");
@@ -673,15 +667,11 @@ export default function BrooDashboard() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 font-sans p-4 sm:p-6 md:p-10 relative overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
-      
-      {/* 🔮 HIGH-END PURPLE & GREEN GLASS GRADIENT LIGHTING */}
       <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[180px] pointer-events-none" />
       <div className="absolute top-[30%] right-[-10%] w-[650px] h-[650px] bg-emerald-500/15 rounded-full blur-[200px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[180px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
-        
-        {/* Top Header Bar - Glassmorphism */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -723,7 +713,6 @@ export default function BrooDashboard() {
           </div>
         </div>
 
-        {/* 🚀 UPGRADE & SUBSCRIPTION MANAGEMENT BAR (GLASS) */}
         <div className="bg-slate-900/40 border border-white/10 p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
           <div className="flex items-center gap-3.5">
             <div className={`p-3 rounded-2xl border backdrop-blur-md ${
@@ -749,7 +738,6 @@ export default function BrooDashboard() {
             </div>
           </div>
 
-          {/* DYNAMIC ACTION BUTTON */}
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             {subscriptionPlan === "lite" ? (
               <button
@@ -771,7 +759,6 @@ export default function BrooDashboard() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
           <button
             onClick={() => setActiveTab("overview")}
@@ -795,11 +782,8 @@ export default function BrooDashboard() {
           </button>
         </div>
 
-        {/* TAB 1: OVERVIEW DASHBOARD */}
         {activeTab === "overview" && (
           <div className="space-y-8">
-            
-            {/* 📅 SUMMARY CARDS DATE RANGE FILTER BAR */}
             <div className="bg-slate-900/40 border border-white/10 p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30 backdrop-blur-md">
@@ -811,7 +795,6 @@ export default function BrooDashboard() {
                 </div>
               </div>
 
-              {/* FROM / TO DATE PICKERS */}
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-2 rounded-2xl backdrop-blur-md">
                   <span className="text-[10px] text-slate-400 font-bold uppercase">From:</span>
@@ -848,10 +831,7 @@ export default function BrooDashboard() {
               </div>
             </div>
 
-            {/* 3 EQUAL SUMMARY GLASS CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* BALANCE CARD */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-emerald-500/30 transition duration-300">
                 <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
                   🏢 THIS MONTH BALANCE
@@ -864,7 +844,6 @@ export default function BrooDashboard() {
                 </p>
               </div>
 
-              {/* INCOME CARD */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-cyan-500/30 transition duration-300">
                 <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
                   📈 THIS MONTH INCOME
@@ -877,7 +856,6 @@ export default function BrooDashboard() {
                 </p>
               </div>
 
-              {/* EXPENSE CARD */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-rose-500/30 transition duration-300">
                 <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
                   📉 THIS MONTH EXPENSE
@@ -889,13 +867,9 @@ export default function BrooDashboard() {
                   Spending logged for selected period
                 </p>
               </div>
-
             </div>
 
-            {/* Donut Chart & WhatsApp Category Budget Breakdown Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* Category Breakdown Pie Chart */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] lg:col-span-2 backdrop-blur-2xl flex flex-col justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-extrabold text-base text-white flex items-center gap-2">
@@ -910,7 +884,6 @@ export default function BrooDashboard() {
 
                 {pieChartData.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center my-auto">
-                    
                     <div className="h-60 w-full flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -970,14 +943,12 @@ export default function BrooDashboard() {
                         );
                       })}
                     </div>
-
                   </div>
                 ) : (
                   <div className="text-center py-20 text-slate-500 text-xs">No expenses logged in this range</div>
                 )}
               </div>
 
-              {/* 🎯 WHATSAPP CATEGORY BUDGET & REMAINING CARD */}
               <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl flex flex-col justify-between relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -998,7 +969,6 @@ export default function BrooDashboard() {
                     )}
                   </div>
 
-                  {/* 🔒 LITE PLAN LOCK BANNER */}
                   {subscriptionPlan === "lite" ? (
                     <div className="bg-black/30 border border-white/5 rounded-2xl p-6 text-center space-y-4 my-auto backdrop-blur-md">
                       <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto backdrop-blur-md">
@@ -1016,7 +986,6 @@ export default function BrooDashboard() {
                       </button>
                     </div>
                   ) : (
-                    /* 📱 CATEGORY-WISE BUDGET & REMAINING LIST */
                     <div className="space-y-3 mt-2">
                       <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances:</p>
                       
@@ -1062,12 +1031,9 @@ export default function BrooDashboard() {
                   )}
                 </div>
               </div>
-
             </div>
 
-            {/* Recent Transactions Table Glass Box */}
             <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] space-y-6 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-              
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
                 <div>
                   <h3 className="font-extrabold text-lg text-white">Recent Transactions</h3>
@@ -1269,17 +1235,12 @@ export default function BrooDashboard() {
                   </tbody>
                 </table>
               </div>
-
             </div>
-
           </div>
         )}
 
-        {/* TAB 2: GENERAL SETTINGS */}
         {activeTab === "settings" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
-            {/* 1. USER PROFILE SETTINGS */}
             <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
               <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
                 <User size={18} className="text-emerald-400" /> User Profile Settings
@@ -1295,8 +1256,6 @@ export default function BrooDashboard() {
               )}
 
               <form onSubmit={handleUpdateProfile} className="space-y-5">
-                
-                {/* Custom Profile Picture Upload + Avatar Selection */}
                 <div>
                   <label className="text-xs text-slate-300 font-bold mb-2 flex items-center gap-1.5">
                     <Camera size={13} className="text-emerald-400" /> Profile Picture (Upload or Choose Avatar)
@@ -1400,7 +1359,6 @@ export default function BrooDashboard() {
                   />
                 </div>
 
-                {/* Preferred Currency - Fully Integrated WORLD_CURRENCIES Dropdown */}
                 <div>
                   <label className="text-xs text-slate-300 font-bold block mb-1.5">Preferred Currency</label>
                   <select 
@@ -1416,13 +1374,11 @@ export default function BrooDashboard() {
                   </select>
                 </div>
 
-                {/* 2. Financial & Regional Preferences */}
                 <div className="pt-4 border-t border-white/10 space-y-4">
                   <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Globe size={14} /> Financial & Regional Preferences
                   </h4>
 
-                  {/* Language Selection */}
                   <div>
                     <label className="text-xs text-slate-300 font-bold block mb-1.5">
                       Language: Dashboard App Language (World Languages)
@@ -1441,7 +1397,6 @@ export default function BrooDashboard() {
                     </select>
                   </div>
 
-                  {/* Date Format */}
                   <div>
                     <label className="text-xs text-slate-300 font-bold block mb-1.5">
                       Date Format: (DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD)
@@ -1457,7 +1412,6 @@ export default function BrooDashboard() {
                     </select>
                   </div>
 
-                  {/* First Day of the Week */}
                   <div>
                     <label className="text-xs text-slate-300 font-bold block mb-1.5">
                       First Day of the Week: (Monday or Sunday)
@@ -1472,7 +1426,6 @@ export default function BrooDashboard() {
                     </select>
                   </div>
 
-                  {/* Timezone Select */}
                   <div>
                     <label className="text-xs text-slate-300 font-bold block mb-1.5">
                       Timezone Select: World Timezones
@@ -1502,7 +1455,6 @@ export default function BrooDashboard() {
               </form>
             </div>
 
-            {/* SECURITY SETTINGS */}
             <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit">
               <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
                 <ShieldCheck size={18} className="text-emerald-400" /> Security Settings
@@ -1549,10 +1501,8 @@ export default function BrooDashboard() {
                 </button>
               </form>
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   );
