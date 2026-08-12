@@ -8,7 +8,6 @@ export async function POST(req: Request) {
     const signature = req.headers.get("x-signature");
     const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
 
-    // 1. Webhook Signature එක පරික්ෂා කිරීම
     if (!signature || !secret) {
       return NextResponse.json(
         { error: "Missing signature or secret" },
@@ -43,26 +42,32 @@ export async function POST(req: Request) {
       customData?.user_email || attributes?.user_email || attributes?.customer_email;
     const userPhone = customData?.phone;
 
-    // Variant ID එක ලබා ගැනීම
+    // Variant ID එක Lemon Squeezy payloads වල එන විවිධ තැන්වලින් ලබා ගැනීමට
     const variantId = String(
-      attributes?.first_subscription_item?.variant_id || attributes?.variant_id || ""
-    );
+      attributes?.first_subscription_item?.variant_id || 
+      attributes?.variant_id || 
+      event.data?.relationships?.variant?.data?.id || ""
+    ).trim();
 
-    console.log(`⚡ Lemon Squeezy Event Received: ${eventName} for ${userEmail || userPhone}`);
+    console.log(`⚡ Webhook Event: ${eventName} | Email: ${userEmail} | Variant ID: ${variantId}`);
 
-    // 2. Subscription Created / Updated / Order Created Events (Payment Success)
+    // Subscription Created / Updated / Order Created Events
     if (
       eventName === "subscription_created" ||
       eventName === "subscription_updated" ||
       eventName === "order_created"
     ) {
-      // Plan Name එක LITE, CORE, MAX ලෙස නිවැරදි කිරීම
-      let planName = "LITE"; // Default එක LITE ලෙස සැකීම
+      let planName = "LITE"; // Default
 
-      if (variantId === process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID) {
-        planName = "CORE";
-      } else if (variantId === process.env.NEXT_PUBLIC_LEMON_MAX_MONTHLY_VARIANT_ID) {
+      const coreVariantId = String(process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID || "").trim();
+      const maxVariantId = String(process.env.NEXT_PUBLIC_LEMON_MAX_MONTHLY_VARIANT_ID || "").trim();
+
+      if (variantId && variantId === maxVariantId) {
         planName = "MAX";
+      } else if (variantId && variantId === coreVariantId) {
+        planName = "CORE";
+      } else {
+        console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match configured environment variables. Defaulting to LITE.`);
       }
 
       const updateData = {
@@ -96,7 +101,7 @@ export async function POST(req: Request) {
       console.log(`✅ Successfully updated user to plan: ${planName}`, data);
     }
 
-    // 3. Subscription Cancelled / Expired Events
+    // Subscription Cancelled / Expired Events
     if (
       eventName === "subscription_cancelled" ||
       eventName === "subscription_expired"
@@ -116,8 +121,7 @@ export async function POST(req: Request) {
       }
 
       await query;
-
-      console.log(`⚠️ Subscription cancelled/expired for user. Updated is_active to false.`);
+      console.log(`⚠️ Subscription cancelled/expired for user.`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
