@@ -763,35 +763,53 @@ export default function BrooDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>
+                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>[cite: 4]
                 </h4>
               </div>
               <p className="text-[11px] text-slate-300/80 mt-0.5">
                 {subscriptionPlan === "lite" && "Upgrade to Core or Max to unlock Budget Chart and Excel Export."}
-                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}
+                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}[cite: 4]
                 {subscriptionPlan === "max" && "You are on the highest plan! Enjoy full unlimited feature access."}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-            {subscriptionPlan === "lite" ? (
+            {subscriptionPlan === "lite" && (
               <button
                 onClick={() => router.push("/pricing")}
                 className="w-full md:w-auto bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
               >
                 <Zap size={14} className="fill-slate-950" /> Upgrade Plan 🚀
               </button>
-            ) : (
-              <a
-                href="https://app.lemonsqueezy.com/my-orders"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2"
-              >
-                <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription
-              </a>
             )}
+
+            {subscriptionPlan === "core" && (
+              <button
+                onClick={() => router.push("/pricing")}
+                className="w-full md:w-auto bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
+              >
+                <Sparkles size={14} /> Upgrade to Max 🚀
+              </button>
+            )}
+
+            {subscriptionPlan === "max" && (
+              <button
+                disabled
+                className="w-full md:w-auto bg-purple-500/20 border border-purple-400/30 text-purple-300 font-bold text-xs px-4 py-2.5 rounded-xl cursor-default flex items-center justify-center gap-2"
+              >
+                <Sparkles size={13} /> Max Plan Active
+              </button>
+            )}
+
+            <a
+              href="https://app.lemonsqueezy.com/my-orders"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2"
+            >
+              <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription[cite: 4]
+            </a>
           </div>
         </div>
 
