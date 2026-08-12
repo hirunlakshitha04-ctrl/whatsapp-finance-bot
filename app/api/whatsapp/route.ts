@@ -224,7 +224,7 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
   }
 }
 
-// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language with Standardized Categories)
+// 2. 🧠 AI Engine: Text / Voice Parser (Outputs in Selected Language with Standardized Categories including Transport)
 async function extractTransaction(
   text: string, 
   nativeCurrency: string, 
@@ -244,6 +244,7 @@ INSTRUCTIONS:
 - Translate the extracted "item" description string strictly into the user's selected language (${language}).
 - CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories into other languages:
   - Food & Groceries
+  - Transport (Bus, Train, Fuel, Taxi)
   - Utilities (Bills, Internet, Phone)
   - Rent/Housing
   - Personal Care (Medical, Saloon, Hygiene)
@@ -278,7 +279,7 @@ Return pure JSON:
   }
 }
 
-// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language with Standardized Categories)
+// 3. 📸 AI Engine: Vision Receipt Parser (Outputs in Selected Language with Standardized Categories including Transport)
 async function extractFromImage(
   mediaUrl: string, 
   contentType: string, 
@@ -304,8 +305,8 @@ async function extractFromImage(
 Write the "item" merchant name in the user's selected language: ${language}.
 CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories:
   - Food & Groceries
-  - Utilities (Bills, Internet, Phone)
   - Transport (Bus, Train, Fuel, Taxi)
+  - Utilities (Bills, Internet, Phone)
   - Rent/Housing
   - Personal Care (Medical, Saloon, Hygiene)
   - Shopping (Clothes, Gadgets)
