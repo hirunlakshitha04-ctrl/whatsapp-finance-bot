@@ -305,6 +305,7 @@ Write the "item" merchant name in the user's selected language: ${language}.
 CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories:
   - Food & Groceries
   - Utilities (Bills, Internet, Phone)
+  - Transport (Bus, Train, Fuel, Taxi)
   - Rent/Housing
   - Personal Care (Medical, Saloon, Hygiene)
   - Shopping (Clothes, Gadgets)
