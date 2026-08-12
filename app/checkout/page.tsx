@@ -1,3 +1,4 @@
+// app/checkout/page.tsx
 "use client";
 
 import { useSearchParams } from "next/navigation";
@@ -18,8 +19,11 @@ function CheckoutContent() {
 
     const baseUrl = LEMONSQUEEZY_PLANS[plan] || LEMONSQUEEZY_PLANS["pro"];
     
-    // LemonSqueezy එකට User ගේ Phone Number එක Passthrough Parameter එකක් ලෙස යැවීම
-    const checkoutUrl = `${baseUrl}?checkout[custom][phone]=${encodeURIComponent(phone)}`;
+    // Success URL එක ස්වයංක්‍රීයව සකසා ගැනීම
+    const successUrl = `${window.location.origin}/payment-success`;
+    
+    // LemonSqueezy එකට Phone Number එක සහ Success URL එක එකතු කර යැවීම
+    const checkoutUrl = `${baseUrl}?checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[redirect_url]=${encodeURIComponent(successUrl)}`;
 
     // Automatic Redirect to LemonSqueezy
     const timer = setTimeout(() => {
