@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
 
     // Default Variant ID from Environment Variable
-    const rawVariantId = variantId || process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID;
+    const rawVariantId = variantId || process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID;
 
     if (!apiKey || !storeId || !rawVariantId) {
       console.error("❌ Configuration Missing:", {

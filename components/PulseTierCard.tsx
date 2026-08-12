@@ -27,7 +27,7 @@ export default function PulseTierCard({
         body: JSON.stringify({
           email: userEmail,
           phone: userPhone,
-          variantId: variantId || process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID,
+          variantId: variantId || process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID,
         }),
       });
 

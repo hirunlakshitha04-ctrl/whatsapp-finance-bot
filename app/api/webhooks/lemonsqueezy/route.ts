@@ -59,9 +59,9 @@ export async function POST(req: Request) {
       // Plan Name එක LITE, CORE, MAX ලෙස නිවැරදි කිරීම
       let planName = "LITE"; // Default එක LITE ලෙස සැකීම
 
-      if (variantId === process.env.NEXT_PUBLIC_LEMON_PRO_MONTHLY_VARIANT_ID) {
+      if (variantId === process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID) {
         planName = "CORE";
-      } else if (variantId === process.env.NEXT_PUBLIC_LEMON_ORBIT_MONTHLY_VARIANT_ID) {
+      } else if (variantId === process.env.NEXT_PUBLIC_LEMON_MAX_MONTHLY_VARIANT_ID) {
         planName = "MAX";
       }
 
