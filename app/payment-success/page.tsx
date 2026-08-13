@@ -9,7 +9,7 @@ function PaymentSuccessContent() {
   const isDirect = searchParams.get("type") === "direct"; // direct පේමන්ට් කළ අයෙක්දැයි පරීක්ෂා කිරීම
 
   // WhatsApp අංකය (ඔබේ අංකය මෙතැනට දාන්න)
-  const whatsappNumber = "+1(415)523-8886"; 
+  const whatsappNumber = "+14155238886"; 
 
   // Direct නම් පමණක් මැසේජ් එකක් සමඟ සකස් කිරීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම
   const whatsappLink = isDirect 
