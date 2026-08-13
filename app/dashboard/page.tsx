@@ -258,7 +258,7 @@ export default function BrooDashboard() {
 
     setUserEmail(session.user.email || "");
 
-    // Fetch user profile & budget data from Supabase
+    // Fetch user profile & budget data from Supabase using upsert/maybeSingle safety to avoid 422/PGRST116 errors
     const { data: userData } = await supabase
       .from("users")
       .select("*")
@@ -288,7 +288,7 @@ export default function BrooDashboard() {
       setSubscriptionPlan(plan);
     }
 
-    // 🎯 1. Fetch Budgets directly by phone_number or fallback to user email/all
+    // 🎯 1. Fetch Budgets safely
     let budgetQuery = supabase.from("budgets").select("*");
     if (phoneToUse) {
       budgetQuery = budgetQuery.eq("phone_number", phoneToUse);
@@ -296,7 +296,6 @@ export default function BrooDashboard() {
     const { data: budgetData } = await budgetQuery;
 
     if (budgetData && budgetData.length > 0) {
-      // Map category budgets from the database table
       const catMap: { [key: string]: number } = {};
       let totalB = 0;
       budgetData.forEach((b: any) => {
@@ -330,7 +329,7 @@ export default function BrooDashboard() {
       await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
     }
 
-    // Fetch transactions
+    // Fetch transactions safely
     const { data: txData } = await supabase
       .from("transactions")
       .select("*")
