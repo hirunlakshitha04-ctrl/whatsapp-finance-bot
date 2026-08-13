@@ -460,11 +460,20 @@ function RegisterForm() {
     }
 
     const queryParams = new URLSearchParams();
-    if (cleanedPhone) queryParams.append("checkout[custom][phone]", cleanedPhone);
+    
+    // 422 Error එක වළක්වා ගැනීමට Phone එක හිස් නැත්නම් පමණක් එකතු කිරීම
+    if (cleanedPhone && cleanedPhone.trim() !== "") {
+      queryParams.append("checkout[custom][phone]", cleanedPhone);
+    }
     if (formData.email) queryParams.append("checkout[email]", formData.email);
     if (formData.name) queryParams.append("checkout[name]", formData.name);
 
-    window.location.href = `${lemonBaseUrl}?${queryParams.toString()}`;
+    // Success URL එකට අදාළ plan එක (core හෝ max) රැගෙන යාමට redirect_url එකට plan parameter එක ඇතුළත් කිරීම
+    const successRedirectUrl = `${window.location.origin}/payment-success?plan=${currentPlan}`;
+    queryParams.append("checkout[product_options][redirect_url]", successRedirectUrl);
+
+    const queryString = queryParams.toString();
+    window.location.href = queryString ? `${lemonBaseUrl}?${queryString}` : lemonBaseUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

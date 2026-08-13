@@ -7,18 +7,16 @@ import { Suspense } from 'react';
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට[cite: 3]
-  const plan = searchParams.get("plan") || "core"; // plan එක (core හෝ max)[cite: 3]
+  const plan = searchParams.get("plan") || "core"; // plan එක (core, max හෝ වෙනත්)[cite: 3]
 
   // WhatsApp අංකය
-  const whatsappNumber = "+14155238886"; 
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886"; 
 
-  // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)[cite: 3]
-  const planName = plan.toLowerCase() === "max" ? "Max" : "Core";
+  // Plan එකේ නම නිවැරදි කරගැනීම (Core, Max හෝ ලැබෙන අනෙකුත් සැලසුම්)[cite: 3]
+  const planName = plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase();
 
-  // Direct පේමන්ට් එකක් නම් පමණක් මැසේජ් එක සමඟ ලින්ක් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම[cite: 3]
-  const whatsappLink = type === "direct" 
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
-    : `https://wa.me/${whatsappNumber}`;
+  // Direct පේමන්ට් එකක් නම් හෝ ලින්ක් එකෙන් ප්ලෑන් එකක් පැමිණ තිබේ නම් මැසේජ් එක සමඟ ලින්ක් එක සැකසීම[cite: 3]
+  const whatsappLink = `https://wa.me/${whatsappNumber.replace("+", "")}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`;
 
   return (
     <main className="min-h-screen bg-[#07070B] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,50,190,0.15),rgba(255,255,255,0))] flex items-center justify-center p-4">
@@ -48,7 +46,7 @@ function PaymentSuccessContent() {
 
         {/* Description */}
         <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-[480px] mx-auto mb-8">
-          Thank you for subscribing. Your account has been upgraded successfully. Click below to connect your profile and start tracking instantly on WhatsApp.
+          Thank you for subscribing to the <span className="text-purple-300 font-semibold">{planName}</span> plan. Your account has been upgraded successfully. Click below to connect your profile and start tracking instantly on WhatsApp.
         </p>
 
         {/* Professional Green WhatsApp CTA Button */}
@@ -79,7 +77,14 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccess() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#07070B] text-white flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#07070B] text-white flex items-center justify-center">
+        <div className="animate-pulse flex items-center gap-2">
+          <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce"></div>
+          <span>Loading Payment Details...</span>
+        </div>
+      </div>
+    }>
       <PaymentSuccessContent />
     </Suspense>
   );
