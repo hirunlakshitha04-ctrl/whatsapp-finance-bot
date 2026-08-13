@@ -7,8 +7,13 @@ import { ShieldCheck, Sparkles } from "lucide-react";
 
 declare global {
   interface Window {
-    createLemonSqueezy?: any;
-    LemonSqueezy?: any;
+    createLemonSqueezy?: unknown;
+    LemonSqueezy?: {
+      Setup: (options: { eventHandler: (event: { event?: string }) => void }) => void;
+      Url: {
+        Open: (url: string) => void;
+      };
+    };
   }
 }
 
@@ -19,22 +24,23 @@ function CheckoutContent() {
   const type = searchParams.get("type") || "direct";
 
   const LEMONSQUEEZY_PLANS: Record<string, string> = {
-    core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56", // අවශ්‍ය නම් ඔබේ Core ලින්ක් එක දාන්න
-    max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",  // අවශ්‍ය නම් ඔබේ Max ලින්ක් එක දාන්න
+    core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
+    max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
   };
 
   const baseUrl = LEMONSQUEEZY_PLANS[plan.toLowerCase()] || LEMONSQUEEZY_PLANS["core"];
   
   // Success URL එක සැකසීම
-  const successUrl = `${window.location.origin}/payment-success?type=${type}&plan=${plan}`;
+  const successUrl = typeof window !== "undefined" 
+    ? `${window.location.origin}/payment-success?type=${type}&plan=${plan}` 
+    : "";
   
-  // 🎯 Lemon Squeezy URL එක නිවැරදි පරාමිතීන් සමඟ සැකසීම
-  // මුල් ලින්ක් එකේ '?' ලකුණක් තිබේදැයි පරීක්ෂා කර එයට අනුව '&' හෝ '?' යෙදීම
   const separator = baseUrl.includes("?") ? "&" : "?";
-  
   const checkoutUrl = `${baseUrl}${separator}embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
 
   useEffect(() => {
+    if (!successUrl) return;
+
     const script = document.createElement("script");
     script.src = "https://app.lemonsqueezy.com/js/checkout.js";
     script.async = true;
@@ -43,7 +49,7 @@ function CheckoutContent() {
     script.onload = () => {
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Setup({
-          eventHandler: (event: any) => {
+          eventHandler: (event) => {
             if (event.event === "Checkout.Success") {
               window.location.href = successUrl;
             }
