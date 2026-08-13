@@ -15,8 +15,14 @@ function PaymentSuccessContent() {
   // Plan එකේ නම නිවැරදි කරගැනීම (Core, Max හෝ ලැබෙන අනෙකුත් සැලසුම්)[cite: 3]
   const planName = plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase();
 
-  // Direct පේමන්ට් එකක් නම් හෝ ලින්ක් එකෙන් ප්ලෑන් එකක් පැමිණ තිබේ නම් මැසේජ් එක සමඟ ලින්ක් එක සැකසීම[cite: 3]
-  const whatsappLink = `https://wa.me/${whatsappNumber.replace("+", "")}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`;
+  // Direct පේමන්ට් එකක් (type=direct) නම් විතරක් auto message එක සමඟ ලින්ක් එක සැකසීම.
+  // Pricing page එකෙන් / dashboard upgrade එකෙන් ආවා නම් (type != "direct") plain WhatsApp
+  // navigation එකක් විතරයි - auto message එකක් නෑ.
+  const isDirect = type === "direct";
+
+  const whatsappLink = isDirect
+    ? `https://wa.me/${whatsappNumber.replace("+", "")}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
+    : `https://wa.me/${whatsappNumber.replace("+", "")}`;
 
   return (
     <main className="min-h-screen bg-[#07070B] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,50,190,0.15),rgba(255,255,255,0))] flex items-center justify-center p-4">
