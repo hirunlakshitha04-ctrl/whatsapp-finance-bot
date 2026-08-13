@@ -42,7 +42,7 @@ export async function GET(req: Request) {
         headers: {
           Accept: "application/vnd.api+json",
           "Content-Type": "application/vnd.api+json",
-          Authorization: `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`,
+          Authorization: `Bearer ${process.env.LEMON_SQUEEZY_API_KEY}`,
         },
       }
     );
