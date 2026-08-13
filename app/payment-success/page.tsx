@@ -1,8 +1,20 @@
 // app/payment-success/page.tsx
-import Link from 'next/link';
+"use client";
 
-export default function PaymentSuccess() {
-  const whatsappLink = "https://wa.me/947XXXXXXXXX?text=Hello!%20I%20have%20completed%20my%20payment%20for%20Broo.ai";
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+
+function PaymentSuccessContent() {
+  const searchParams = useSearchParams();
+  const isDirect = searchParams.get("type") === "direct"; // direct පේමන්ට් කළ අයෙක්දැයි පරීක්ෂා කිරීම
+
+  // WhatsApp අංකය (ඔබේ අංකය මෙතැනට දාන්න)
+  const whatsappNumber = "+1(415)523-8886"; 
+
+  // Direct නම් පමණක් මැසේජ් එකක් සමඟ සකස් කිරීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම
+  const whatsappLink = isDirect 
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hello! I have completed my payment for Broo.ai")}`
+    : `https://wa.me/${whatsappNumber}`;
 
   return (
     <main className="min-h-screen bg-[#07070B] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,50,190,0.15),rgba(255,255,255,0))] flex items-center justify-center p-4">
@@ -58,5 +70,13 @@ export default function PaymentSuccess() {
 
       </div>
     </main>
+  );
+}
+
+export default function PaymentSuccess() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#07070B] text-white flex items-center justify-center">Loading...</div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
