@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
+  const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට
   const plan = searchParams.get("plan") || "core"; // plan එක (core හෝ max)
 
   // WhatsApp අංකය
@@ -14,8 +15,10 @@ function PaymentSuccessContent() {
   // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)
   const planName = plan.toLowerCase() === "max" ? "Max" : "Core";
 
-  // WhatsApp මැසේජ් එක ස්වයංක්‍රීයව ටයිප් වී එන සේ සැකසීම
-  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`;
+  // Direct පේමන්ට් එකක් නම් පමණක් මැසේජ් එක සමඟ ਲින්ක් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම[cite: 3]
+  const whatsappLink = type === "direct" 
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
+    : `https://wa.me/${whatsappNumber}`;
 
   return (
     <main className="min-h-screen bg-[#07070B] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,50,190,0.15),rgba(255,255,255,0))] flex items-center justify-center p-4">
