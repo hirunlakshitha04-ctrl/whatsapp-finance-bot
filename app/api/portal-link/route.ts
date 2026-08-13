@@ -1,33 +1,27 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll() {},
-        },
-      }
-    );
+    // 1. Client eken yawapu Authorization header eken token eka ganna
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
+    if (!token) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // 2. Token eka verify karala user eka ganna (admin client eken)
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // 3. Database eken subscription_id eka ganna
     const { data: userRow, error: dbError } = await supabaseAdmin
       .from("users")
       .select("lemon_squeezy_subscription_id")
@@ -41,6 +35,7 @@ export async function GET() {
       );
     }
 
+    // 4. Lemon Squeezy API ekata call karala fresh signed URL eka ganna
     const res = await fetch(
       `https://api.lemonsqueezy.com/v1/subscriptions/${userRow.lemon_squeezy_subscription_id}`,
       {
