@@ -24,7 +24,7 @@ function CheckoutContent() {
     };
 
     const baseUrl = LEMONSQUEEZY_PLANS[plan] || LEMONSQUEEZY_PLANS["pro"];
-    const successUrl = `${window.location.origin}/payment-success`;
+    const successUrl = `${window.location.origin}/payment-success?type=direct&plan=${plan}`;
     
     // 🎯 නිවැරදි Lemon Squeezy Parameter එක: checkout[product_options][redirect_url]
     const checkoutUrl = `${baseUrl}?embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;

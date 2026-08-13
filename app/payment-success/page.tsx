@@ -6,14 +6,18 @@ import { Suspense } from 'react';
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
-  const isDirect = searchParams.get("type") === "direct"; // direct පේමන්ට් කළ අයෙක්දැයි පරීක්ෂා කිරීම
+  const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට
+  const plan = searchParams.get("plan") || "core"; // plan එක (core හෝ max)
 
-  // WhatsApp අංකය (ඔබේ අංකය මෙතැනට දාන්න)
+  // WhatsApp අංකය
   const whatsappNumber = "+14155238886"; 
 
-  // Direct නම් පමණක් මැසේජ් එකක් සමඟ සකස් කිරීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම
-  const whatsappLink = isDirect 
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hello! I have completed my payment for Broo.ai")}`
+  // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)
+  const planName = plan.toLowerCase() === "max" ? "Max" : "Core";
+
+  // Direct පේමන්ට් එකක් නම් අදාළ plan එක සඳහන් කර මැසේජ් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම
+  const whatsappLink = type === "direct" 
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
     : `https://wa.me/${whatsappNumber}`;
 
   return (
