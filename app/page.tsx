@@ -20,7 +20,7 @@ import {
   Activity
 } from "lucide-react";
 
-// Pricing Plans Data (Updated to match exact image specs)
+// Pricing Plans Data (Updated to include type=direct for automatic message flow)
 const PRICING_PLANS = [
   {
     id: "free",
@@ -32,6 +32,7 @@ const PRICING_PLANS = [
     highlight: false,
     buttonText: "GET STARTED FREE",
     buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
+    link: "/register?plan=free&type=direct",
     features: [
       { text: "3 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -51,6 +52,7 @@ const PRICING_PLANS = [
     highlight: true,
     buttonText: "UPGRADE TO BROO CORE",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
+    link: "/register?plan=core&type=direct",
     features: [
       { text: "10 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -70,6 +72,7 @@ const PRICING_PLANS = [
     highlight: false,
     buttonText: "GET BROO MAX",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
+    link: "/register?plan=max&type=direct",
     features: [
       { text: "Unlimited Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -159,7 +162,7 @@ export default function BrooLandingPage() {
               Login
             </Link>
             <Link
-              href="/register?plan=free"
+              href="/register?plan=free&type=direct"
               className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
             >
               <span>Get Started</span>
@@ -198,7 +201,7 @@ export default function BrooLandingPage() {
 
           <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Link
-              href="/register?plan=free"
+              href="/register?plan=free&type=direct"
               className="px-8 py-4 rounded-full font-bold text-sm bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 transition-all shadow-xl shadow-emerald-500/25 flex items-center gap-2 group"
             >
               <span>Start Free Forever 🚀</span>
@@ -411,7 +414,7 @@ export default function BrooLandingPage() {
 
                 {/* Action Button */}
                 <Link
-                  href={`/register?plan=${plan.id}`}
+                  href={plan.link}
                   className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
                 >
                   <span>{plan.buttonText}</span>
@@ -486,7 +489,7 @@ export default function BrooLandingPage() {
             Join thousands of smart spenders tracking expenses directly inside WhatsApp.
           </p>
           <Link
-            href="/register?plan=free"
+            href="/register?plan=free&type=direct"
             className="inline-flex items-center gap-2 px-10 py-4 rounded-full font-bold text-sm bg-white text-slate-950 hover:bg-slate-200 transition shadow-2xl shadow-white/20"
           >
             <span>Start Tracking Free 🚀</span>
@@ -506,7 +509,7 @@ export default function BrooLandingPage() {
           </div>
 
           <Link 
-            href="/register?plan=free" 
+            href="/register?plan=free&type=direct" 
             className="px-5 py-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 whitespace-nowrap"
           >
             <span>Get Started</span>

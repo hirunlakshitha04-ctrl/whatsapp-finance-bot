@@ -6,13 +6,13 @@ import { Suspense } from 'react';
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
-  const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට
-  const plan = searchParams.get("plan") || "core"; // plan එක (core හෝ max)
+  const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට[cite: 3]
+  const plan = searchParams.get("plan") || "core"; // plan එක (core හෝ max)[cite: 3]
 
   // WhatsApp අංකය
   const whatsappNumber = "+14155238886"; 
 
-  // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)
+  // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)[cite: 3]
   const planName = plan.toLowerCase() === "max" ? "Max" : "Core";
 
   // Direct පේමන්ට් එකක් නම් පමණක් මැසේජ් එක සමඟ ලින්ක් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම[cite: 3]

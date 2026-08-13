@@ -1,4 +1,4 @@
-// app/checkout/page.tsx
+// app/checkout/page.tsx[cite: 5]
 "use client";
 
 import { useSearchParams } from "next/navigation";
