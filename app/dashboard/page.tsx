@@ -476,22 +476,32 @@ export default function BrooDashboard() {
   };
 
   const handleManageSubscription = async () => {
-    setPortalLoading(true);
-    try {
-      const res = await fetch("/api/portal-link");
-      const data = await res.json();
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      } else {
-        alert(data?.error || "No active subscription found.");
-      }
-    } catch (err) {
-      console.error("Portal link error:", err);
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setPortalLoading(false);
+  setPortalLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert("Please log in again.");
+      return;
     }
-  };
+
+    const res = await fetch("/api/portal-link", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+    const data = await res.json();
+    if (data?.url) {
+      window.open(data.url, "_blank");
+    } else {
+      alert(data?.error || "No active subscription found.");
+    }
+  } catch (err) {
+    console.error("Portal link error:", err);
+    alert("Something went wrong. Please try again.");
+  } finally {
+    setPortalLoading(false);
+  }
+};
 
   const handleSaveBudget = async () => {
     const val = Number(tempBudget);
