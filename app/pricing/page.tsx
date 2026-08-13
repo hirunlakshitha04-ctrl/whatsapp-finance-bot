@@ -98,7 +98,7 @@ export default function PricingPage() {
 
     if (isLoggedIn && lemonUrl) {
       e.preventDefault();
-      // Append user email to Lemon Squeezy checkout URL for automatic account mapping via webhook
+      // Append user email and ensure direct checkout type / parameters
       const checkoutUrl = `${lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`;
       window.location.href = checkoutUrl;
     }
@@ -165,9 +165,11 @@ export default function PricingPage() {
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {PRICING_PLANS.map((plan) => {
-            // If logged in and paid plan, destination can be direct Lemon Squeezy URL with email query param
+            // If logged in and paid plan, destination links directly to Lemon Squeezy checkout with prefilled parameters
             const destinationHref = isLoggedIn && plan.id !== "free" && plan.lemonUrl
               ? `${plan.lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`
+              : plan.id === "free" && isLoggedIn
+              ? "/"
               : `/register?plan=${plan.id}`;
 
             return (
