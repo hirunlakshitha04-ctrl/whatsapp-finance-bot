@@ -17,14 +17,50 @@ import {
   PieChart,
   Check,
   X,
-  Activity
+  Activity,
+  Mail,
+  Phone,
+  MapPin,
+  Send
 } from "lucide-react";
+
+// Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
+// so these are small local SVG replacements kept in the same stroke style.
+const TwitterIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M4 4l16 16M20 4L4 20" stroke="currentColor" strokeWidth="0" />
+    <path
+      d="M18.9 3H21.7L15.3 10.3 22.8 21H16.9L12.3 14.7 7 21H4.2L11 13.2 3.8 3H9.9L14.1 8.8 18.9 3Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+const InstagramIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const LinkedinIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.83v1.98h.05c.53-1 1.84-2.05 3.79-2.05 4.05 0 4.8 2.67 4.8 6.14V23h-4v-6.65c0-1.59-.03-3.63-2.21-3.63-2.22 0-2.56 1.73-2.56 3.52V23h-4V8.5z" />
+  </svg>
+);
+
+const FacebookIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M13.5 22v-8.4h2.8l.4-3.3h-3.2V8.1c0-.95.27-1.6 1.63-1.6H17V3.5C16.68 3.46 15.58 3.36 14.3 3.36c-2.6 0-4.4 1.6-4.4 4.53v2.4H7.1v3.3h2.8V22h3.6z" />
+  </svg>
+);
 
 // Pricing Plans Data (Updated to include type=direct for automatic message flow)
 const PRICING_PLANS = [
   {
     id: "free",
-    name: "BROO LITE",
+    name: "BRO LITE",
     price: "$0.00",
     period: "/ month",
     badge: "Free Forever",
@@ -44,13 +80,13 @@ const PRICING_PLANS = [
   },
   {
     id: "core",
-    name: "BROO CORE",
+    name: "BRO CORE",
     price: "$2.55",
     period: "/ month",
     badge: "MOST POPULAR",
     description: "Ideal for active spenders & daily users.",
     highlight: true,
-    buttonText: "UPGRADE TO BROO CORE",
+    buttonText: "UPGRADE TO BRO CORE",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
     link: "/register?plan=core&type=direct",
     features: [
@@ -64,13 +100,13 @@ const PRICING_PLANS = [
   },
   {
     id: "max",
-    name: "BROO MAX",
+    name: "BRO MAX",
     price: "$5.99",
     period: "/ month",
     badge: "POWER USERS",
     description: "For freelancers, business owners & power users.",
     highlight: false,
-    buttonText: "GET BROO MAX",
+    buttonText: "GET BRO MAX",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
     link: "/register?plan=max&type=direct",
     features: [
@@ -84,8 +120,10 @@ const PRICING_PLANS = [
   },
 ];
 
-export default function BrooLandingPage() {
+export default function BroFInAiLandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
+  const [contactSent, setContactSent] = useState(false);
   const { scrollYProgress } = useScroll();
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
@@ -93,6 +131,14 @@ export default function BrooLandingPage() {
 
   const toggleFaq = (index: number) => {
     setActiveFaq(activeFaq === index ? null : index);
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Hook this up to your API route / email service of choice
+    setContactSent(true);
+    setContactForm({ name: "", email: "", message: "" });
+    setTimeout(() => setContactSent(false), 4000);
   };
 
   // Smooth Scroll Helper
@@ -146,7 +192,7 @@ export default function BrooLandingPage() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Broo<span className="text-purple-400">.ai</span>
+              Bro<span className="text-purple-400">FInAi</span>
             </span>
           </Link>
 
@@ -155,6 +201,7 @@ export default function BrooLandingPage() {
             <a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a>
             <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a>
+            <a href="#contact" onClick={(e) => scrollToSection(e, "contact")} className="hover:text-white transition-colors">Contact</a>
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-4">
@@ -229,7 +276,7 @@ export default function BrooLandingPage() {
               </div>
               <span className="text-xs font-mono text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                 <Activity className="w-3 h-3 animate-spin text-emerald-400" />
-                Broo AI Bot Live
+                BroFInAi Bot Live
               </span>
             </div>
 
@@ -441,8 +488,8 @@ export default function BrooLandingPage() {
         <div className="space-y-4">
           {[
             {
-              q: "Is Broo Lite really free forever?",
-              a: "Yes! Broo Lite is 100% free forever. You get 3 daily transactions and 1 daily AI receipt scan at zero cost."
+              q: "Is Bro Lite really free forever?",
+              a: "Yes! Bro Lite is 100% free forever. You get 3 daily transactions and 1 daily AI receipt scan at zero cost."
             },
             {
               q: "How does AI Receipt Scanning work?",
@@ -497,6 +544,191 @@ export default function BrooLandingPage() {
           </Link>
         </div>
       </section>
+
+      {/* CONTACT US SECTION */}
+      <section id="contact" className="scroll-mt-24">
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
+        >
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-pink-400">Get In Touch</div>
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">We'd Love to Hear From You</h2>
+            <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
+              Questions, feedback, or partnership ideas — our team usually replies within 24 hours.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-6xl mx-auto items-start">
+            {/* Contact Info Cards */}
+            <motion.div variants={fadeInUp} className="lg:col-span-4 space-y-4">
+              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 transition-all flex items-start gap-4">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm mb-1">Email Us</h3>
+                  <a href="mailto:hello@brofinai" className="text-slate-400 text-xs hover:text-emerald-300 transition-colors">hello@brofinai</a>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all flex items-start gap-4">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                  <Phone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm mb-1">WhatsApp Support</h3>
+                  <span className="text-slate-400 text-xs">+1 (555) 010-2024</span>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 transition-all flex items-start gap-4">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm mb-1">Headquarters</h3>
+                  <span className="text-slate-400 text-xs">Remote-first · Serving 40+ countries</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Contact Form */}
+            <motion.div variants={fadeInUp} className="lg:col-span-8">
+              <form
+                onSubmit={handleContactSubmit}
+                className="p-6 md:p-8 rounded-3xl bg-slate-900/50 border border-white/10 backdrop-blur-xl space-y-5"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={contactForm.name}
+                      onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                      placeholder="Jane Doe"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/60 focus:bg-white/[0.07] transition"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={contactForm.email}
+                      onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                      placeholder="jane@example.com"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/60 focus:bg-white/[0.07] transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Message</label>
+                  <textarea
+                    required
+                    rows={5}
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    placeholder="Tell us what's on your mind..."
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/60 focus:bg-white/[0.07] transition resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  <AnimatePresence>
+                    {contactSent && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Message sent — we'll be in touch!
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  <button
+                    type="submit"
+                    className="ml-auto px-8 py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center gap-2 group transition-transform hover:scale-[1.02]"
+                  >
+                    <span>Send Message</span>
+                    <Send className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-6 pt-20 pb-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+            {/* Brand Column */}
+            <div className="md:col-span-5 space-y-5">
+              <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight w-fit">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                  Bro<span className="text-purple-400">FInAi</span>
+                </span>
+              </Link>
+              <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+                Track every expense right inside WhatsApp. No new apps, no spreadsheets — just message, snap, and go.
+              </p>
+              <div className="flex items-center gap-3 pt-1">
+                <a href="#" aria-label="Twitter" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition">
+                  <TwitterIcon className="w-4 h-4" />
+                </a>
+                <a href="#" aria-label="Instagram" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition">
+                  <InstagramIcon className="w-4 h-4" />
+                </a>
+                <a href="#" aria-label="LinkedIn" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition">
+                  <LinkedinIcon className="w-4 h-4" />
+                </a>
+                <a href="#" aria-label="Facebook" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition">
+                  <FacebookIcon className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Product Links */}
+            <div className="md:col-span-3 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-300">Product</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a></li>
+                <li><a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a></li>
+              </ul>
+            </div>
+
+            {/* Legal Links */}
+            <div className="md:col-span-4 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-300">Legal</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-xs text-slate-500">© {new Date().getFullYear()} BroFInAi. All rights reserved.</span>
+            <span className="text-xs text-slate-500 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Bank-grade encryption on every message
+            </span>
+          </div>
+        </div>
+      </footer>
 
       {/* FLOATING STICKY DOCK */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-3xl">

@@ -33,7 +33,7 @@ async function generateWeeklySummary(
   language: string
 ): Promise<string> {
   const netSavings = income - expense;
-  const baseEnglishText = `📈 *Broo.ai WEEKLY SUMMARY*\n\nHi ${nickname}! Here is your financial summary for this week:\n\n🟢 *Total Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Expense:* ${currency} ${expense.toLocaleString()}\n💰 *Net Savings:* ${currency} ${netSavings.toLocaleString()}\n\nGreat job keeping track of your money! Have a peaceful week ahead! 🌟`;
+  const baseEnglishText = `📈 *Brofinai WEEKLY SUMMARY*\n\nHi ${nickname}! Here is your financial summary for this week:\n\n🟢 *Total Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Expense:* ${currency} ${expense.toLocaleString()}\n💰 *Net Savings:* ${currency} ${netSavings.toLocaleString()}\n\nGreat job keeping track of your money! Have a peaceful week ahead! 🌟`;
 
   if (!language || language.toLowerCase() === "english") {
     return baseEnglishText;
@@ -45,7 +45,7 @@ async function generateWeeklySummary(
       messages: [
         {
           role: "system",
-          content: `You are a translator for Broo.ai personal finance app. Translate the following weekly financial report into "${language}". Keep formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
+          content: `You are a translator for Brofinai personal finance app. Translate the following weekly financial report into "${language}". Keep formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
         },
         { role: "user", content: baseEnglishText }
       ],

@@ -33,7 +33,7 @@ async function generateLocalizedSummary(
   expense: number,
   language: string
 ): Promise<string> {
-  const baseEnglishText = `📊 *Broo.ai DAILY SUMMARY*\n\nHi ${nickname}! Here is your financial summary for today:\n\n🟢 *Total Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Expense:* ${currency} ${expense.toLocaleString()}\n💡 *Remaining Balance:* ${currency} ${(income - expense).toLocaleString()}\n\nHave a great evening! 🚀`;
+  const baseEnglishText = `📊 *Brofinai DAILY SUMMARY*\n\nHi ${nickname}! Here is your financial summary for today:\n\n🟢 *Total Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Expense:* ${currency} ${expense.toLocaleString()}\n💡 *Remaining Balance:* ${currency} ${(income - expense).toLocaleString()}\n\nHave a great evening! 🚀`;
 
   if (!language || language.toLowerCase() === "english") {
     return baseEnglishText;
@@ -45,7 +45,7 @@ async function generateLocalizedSummary(
       messages: [
         {
           role: "system",
-          content: `You are a translator for Broo.ai personal finance app. Translate the following daily financial report into "${language}". Keep all formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
+          content: `You are a translator for Brofinai personal finance app. Translate the following daily financial report into "${language}". Keep all formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
         },
         { role: "user", content: baseEnglishText }
       ],

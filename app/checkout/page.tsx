@@ -108,7 +108,7 @@ function CheckoutContent() {
           <span className="w-1 h-1 rounded-full bg-slate-700" />
           <span className="flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            Broo.ai Pro
+            Brofinai Pro
           </span>
         </div>
 

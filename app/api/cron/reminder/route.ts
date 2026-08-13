@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
     // 4. 📩 අදාළ Users ලාට WhatsApp Messages යැවීම
     const sendPromises = expiringUsers.map(async (user) => {
       const phone = user.phone_number;
-      const checkoutUrl = `https://broo.ai/checkout?phone=${encodeURIComponent(phone)}`;
+      const checkoutUrl = `https://brofinai/checkout?phone=${encodeURIComponent(phone)}`;
 
-      const messageBody = `Hi Bro! 👋\n\nඔයාගේ *Broo.ai* 7-Day Free Trial එක හෙටින් ඉවර වෙනවා. ⏳\n\nService එක Block වෙන්නේ නැතුව දිගටම Expense Tracker එක පාවිච්චි කරන්න මෙතනින් Subscribe වෙන්න:\n👉 ${checkoutUrl}`;
+      const messageBody = `Hi Bro! 👋\n\nඔයාගේ *Brofinai* 7-Day Free Trial එක හෙටින් ඉවර වෙනවා. ⏳\n\nService එක Block වෙන්නේ නැතුව දිගටම Expense Tracker එක පාවිච්චි කරන්න මෙතනින් Subscribe වෙන්න:\n👉 ${checkoutUrl}`;
 
       try {
         await twilioClient.messages.create({

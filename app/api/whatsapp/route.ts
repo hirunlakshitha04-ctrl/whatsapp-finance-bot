@@ -61,8 +61,8 @@ async function getLocalizedMessages(
 
   // Base English Template with Placeholders
   const ENGLISH_TEMPLATE: LocalizedMessages = {
-    welcome: `👋 Welcome {NICKNAME}!\n\nI am your Personal Finance Assistant *Broo.ai*! 🚀\n\nTo start, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
-    guidelines: `🎯 Awesome {NICKNAME}! Your **Starting Balance** is set to *{CURRENCY} {AMOUNT}*! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"\n\n🚀 *Send your first Expense or Income now!*`,
+    welcome: `👋 Welcome {NICKNAME}!\n\nI am your Personal Finance Assistant *Brofinai*! 🚀\n\nTo start, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
+    guidelines: `🎯 Awesome {NICKNAME}! Your **Starting Balance** is set to *{CURRENCY} {AMOUNT}*! 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"\n\n🚀 *Send your first Expense or Income now!*`,
     proFeatureImage: `🔒 *AI Receipt Scanning Limit Reached / Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max for more scans:\n👉 {WEBSITE}/#pricing`,
     proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
     limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, upgrade to BROO MAX:\n👉 {WEBSITE}/#pricing`,
@@ -86,8 +86,8 @@ async function getLocalizedMessages(
   // 1. SINGLISH FORMATTED TEMPLATE
   if (key === "singlish") {
     const SINGLISH_TEMPLATE: LocalizedMessages = {
-      welcome: `👋 සාදරයෙන් පිළිගන්නවා {NICKNAME}!\n\nමම ඔයාගේ Personal Finance Assistant *Broo.ai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
-      guidelines: `🎯 නියමයි {NICKNAME}! ඔයාගේ Starting Balance එක *{CURRENCY} {AMOUNT}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Broo.ai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා {NICKNAME}!\n\nමම ඔයාගේ Personal Finance Assistant *Brofinai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
+      guidelines: `🎯 නියමයි {NICKNAME}! ඔයාගේ Starting Balance එක *{CURRENCY} {AMOUNT}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
       proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, **BROO LITE** plan එකෙන් දවසට Scan 1යි. Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, Voice Notes පහසුකම Broo Lite එකේ නෑ. Pro Plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
@@ -120,7 +120,7 @@ async function getLocalizedMessages(
     rawTemplate = translationCache.get(key)!;
   } else {
     try {
-      const prompt = `You are translating WhatsApp UI message templates for "Broo.ai" (a personal finance bot) into "${targetLang}".
+      const prompt = `You are translating WhatsApp UI message templates for "Brofinai" (a personal finance bot) into "${targetLang}".
 
 Rules:
 - Translate ONLY human-readable sentences into ${targetLang}.
@@ -237,7 +237,7 @@ async function extractTransaction(
       messages: [
         {
           role: "system",
-          content: `You are Broo.ai, a smart financial assistant.
+          content: `You are Brofinai, a smart financial assistant.
 User Settings -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
 INSTRUCTIONS:
@@ -472,7 +472,7 @@ export async function POST(req: NextRequest) {
     // UNREGISTERED USER
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-      const registerMsg = `👋 Welcome to Broo.ai!\n\nPlease complete your registration first:\n👉 ${websiteUrl}/register`;
+      const registerMsg = `👋 Welcome to Brofinai!\n\nPlease complete your registration first:\n👉 ${websiteUrl}/register`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -502,7 +502,7 @@ export async function POST(req: NextRequest) {
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
           to: `whatsapp:${from}`,
-          body: `📊 *Excel Exports & Budget Handling are Locked!*\n\nExcel spreadsheets instant download කිරීම සහ Monthly Budget Limits set කිරීම Broo LITE හි ලබාගත නොහැක.\n\n🔓 *Unlock Core Features for $2.55/mo:*\n• One-click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Unlock Features: https://broo.ai/register?plan=core`,
+          body: `📊 *Excel Exports & Budget Handling are Locked!*\n\nExcel spreadsheets instant download කිරීම සහ Monthly Budget Limits set කිරීම Broo LITE හි ලබාගත නොහැක.\n\n🔓 *Unlock Core Features for $2.55/mo:*\n• One-click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Unlock Features: https://brofinai/register?plan=core`,
         });
         return new NextResponse("OK", { status: 200 });
       }

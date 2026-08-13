@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
 import { Phone, Lock, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
@@ -76,7 +77,7 @@ export default function LoginPage() {
         
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-2">
-            <Sparkles size={12} /> Broo.ai Portal
+            <Sparkles size={12} /> Brofinai Portal
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">
             Welcome Back 👋
@@ -101,7 +102,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 required
-                placeholder="0711607900 or email@example.com"
+                placeholder="+94711158910 or email@example.com"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full bg-slate-950/60 border border-slate-800 text-sm text-slate-200 pl-10 pr-4 py-3 rounded-2xl focus:outline-none focus:border-emerald-500/50 backdrop-blur-md transition"
@@ -148,6 +149,13 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <p className="text-center text-xs text-slate-400">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-emerald-400 font-semibold hover:underline transition">
+            Register
+          </Link>
+        </p>
 
       </div>
 

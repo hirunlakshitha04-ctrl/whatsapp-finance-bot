@@ -42,7 +42,7 @@ async function generateMonthlySummary(
   language: string
 ): Promise<string> {
   const netSavings = income - expense;
-  const baseEnglishText = `📅 *Broo.ai MONTHLY SUMMARY*\n\nHi ${nickname}! Here is your full financial recap for this month:\n\n🟢 *Total Monthly Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Monthly Expense:* ${currency} ${expense.toLocaleString()}\n💰 *Net Savings/Loss:* ${currency} ${netSavings.toLocaleString()}\n\nReady to conquer next month? Let's keep building good financial habits! 🚀`;
+  const baseEnglishText = `📅 *Brofinai MONTHLY SUMMARY*\n\nHi ${nickname}! Here is your full financial recap for this month:\n\n🟢 *Total Monthly Income:* ${currency} ${income.toLocaleString()}\n🔴 *Total Monthly Expense:* ${currency} ${expense.toLocaleString()}\n💰 *Net Savings/Loss:* ${currency} ${netSavings.toLocaleString()}\n\nReady to conquer next month? Let's keep building good financial habits! 🚀`;
 
   if (!language || language.toLowerCase() === "english") {
     return baseEnglishText;
@@ -54,7 +54,7 @@ async function generateMonthlySummary(
       messages: [
         {
           role: "system",
-          content: `You are a translator for Broo.ai personal finance app. Translate the following monthly financial report into "${language}". Keep formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
+          content: `You are a translator for Brofinai personal finance app. Translate the following monthly financial report into "${language}". Keep formatting (*, emojis, numbers, currency) intact. Return only the translated text.`
         },
         { role: "user", content: baseEnglishText }
       ],

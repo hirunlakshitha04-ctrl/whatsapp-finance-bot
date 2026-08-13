@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const sendPromises = activeUsers.map(async (user) => {
       const phone = user.phone_number;
 
-      const messageBody = `Hi Bro! 👋\n\nඔයාගේ *Broo.ai Pro* Monthly Subscription එක තව දවස් 3කින් Auto-Renew වෙනවා. 💳\n\nBroo.ai එකත් එක්ක එකතු වෙලා daily expenses පිළිවෙලට manage කරගන්නවාට තැන්කියු! 🚀\n\nගෙවීම් සම්බන්ධව යම් ගැටලුවක් ඇත්නම් Support එක අමතන්න.`;
+      const messageBody = `Hi Bro! 👋\n\nඔයාගේ *Brofinai Pro* Monthly Subscription එක තව දවස් 3කින් Auto-Renew වෙනවා. 💳\n\nBrofinai එකත් එක්ක එකතු වෙලා daily expenses පිළිවෙලට manage කරගන්නවාට තැන්කියු! 🚀\n\nගෙවීම් සම්බන්ධව යම් ගැටලුවක් ඇත්නම් Support එක අමතන්න.`;
 
       try {
         await twilioClient.messages.create({
