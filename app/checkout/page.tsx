@@ -14,30 +14,27 @@ declare global {
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
-  // ඩිෆෝල්ට් ප්ලෑන් එක core ලෙස සකස් කර ඇත
   const plan = searchParams.get("plan") || "core";
   const phone = searchParams.get("phone") || "";
-  
-  // URL එකෙන් එන type එක ලබා ගැනීම[cite: 4]
   const type = searchParams.get("type") || "direct";
 
-  // 🎯 Core සහ Max සඳහා අදාළ Lemon Squeezy Checkout Links මෙතැනට දාන්න
   const LEMONSQUEEZY_PLANS: Record<string, string> = {
-    core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
-    max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
+    core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56", // අවශ්‍ය නම් ඔබේ Core ලින්ක් එක දාන්න
+    max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",  // අවශ්‍ය නම් ඔබේ Max ලින්ක් එක දාන්න
   };
 
-  // ප්ලෑන් එක හරි නැත්නම් ඩිෆෝල්ට් එකට core ප්ලෑන් එක ගැනීම
   const baseUrl = LEMONSQUEEZY_PLANS[plan.toLowerCase()] || LEMONSQUEEZY_PLANS["core"];
   
-  // ලබාගත් type අගය successUrl එක වෙත යැවීම[cite: 4]
+  // Success URL එක සැකසීම
   const successUrl = `${window.location.origin}/payment-success?type=${type}&plan=${plan}`;
   
-  // 🎯 නිවැරදි Lemon Squeezy Parameter එක: checkout[product_options][redirect_url][cite: 4]
-  const checkoutUrl = `${baseUrl}?embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
+  // 🎯 Lemon Squeezy URL එක නිවැරදි පරාමිතීන් සමඟ සැකසීම
+  // මුල් ලින්ක් එකේ '?' ලකුණක් තිබේදැයි පරීක්ෂා කර එයට අනුව '&' හෝ '?' යෙදීම
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  
+  const checkoutUrl = `${baseUrl}${separator}embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
 
   useEffect(() => {
-    // Lemon Squeezy script එක load කිරීම[cite: 4]
     const script = document.createElement("script");
     script.src = "https://app.lemonsqueezy.com/js/checkout.js";
     script.async = true;
@@ -48,7 +45,6 @@ function CheckoutContent() {
         window.LemonSqueezy.Setup({
           eventHandler: (event: any) => {
             if (event.event === "Checkout.Success") {
-              // Payment එක සාර්ථක වූ වහාම අපේ success page එකට යැවීම[cite: 4]
               window.location.href = successUrl;
             }
           },
@@ -63,7 +59,6 @@ function CheckoutContent() {
     };
   }, [successUrl]);
 
-  // බටන් එක ක්ලික් කළ විට පමණක් Lemon Squeezy Checkout එක ඕපන් වීම
   const handleOpenCheckout = () => {
     if (window.LemonSqueezy) {
       window.LemonSqueezy.Url.Open(checkoutUrl);
@@ -91,7 +86,6 @@ function CheckoutContent() {
           Click the button below to securely proceed with your payment.
         </p>
 
-        {/* Proceed to Payment Button */}
         <button
           onClick={handleOpenCheckout}
           className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 hover:scale-[1.01] transition-all mb-6 cursor-pointer"
