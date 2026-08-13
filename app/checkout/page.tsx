@@ -16,6 +16,9 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") || "pro";
   const phone = searchParams.get("phone") || "";
+  
+  // URL එකෙන් එන type එක ලබා ගැනීම (නැත්නම් ඩිෆෝල්ට් එකට direct ලෙස ගැනීම)[cite: 4]
+  const type = searchParams.get("type") || "direct";
 
   useEffect(() => {
     const LEMONSQUEEZY_PLANS: Record<string, string> = {
@@ -24,12 +27,14 @@ function CheckoutContent() {
     };
 
     const baseUrl = LEMONSQUEEZY_PLANS[plan] || LEMONSQUEEZY_PLANS["pro"];
-    const successUrl = `${window.location.origin}/payment-success?type=direct&plan=${plan}`;
     
-    // 🎯 නිවැරදි Lemon Squeezy Parameter එක: checkout[product_options][redirect_url]
+    // ලබාගත් type අගය successUrl එක වෙත යැවීම[cite: 4]
+    const successUrl = `${window.location.origin}/payment-success?type=${type}&plan=${plan}`;
+    
+    // 🎯 නිවැරදි Lemon Squeezy Parameter එක: checkout[product_options][redirect_url][cite: 4]
     const checkoutUrl = `${baseUrl}?embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
 
-    // Lemon Squeezy script එක load කිරීම
+    // Lemon Squeezy script එක load කිරීම[cite: 4]
     const script = document.createElement("script");
     script.src = "https://app.lemonsqueezy.com/js/checkout.js";
     script.async = true;
@@ -40,7 +45,7 @@ function CheckoutContent() {
         window.LemonSqueezy.Setup({
           eventHandler: (event: any) => {
             if (event.event === "Checkout.Success") {
-              // Payment එක සාර්ථක වූ වහාම අපේ success page එකට යැවීම
+              // Payment එක සාර්ථක වූ වහාම අපේ success page එකට යැවීම[cite: 4]
               window.location.href = successUrl;
             }
           },
@@ -48,7 +53,7 @@ function CheckoutContent() {
       }
     };
 
-    // 1 තත්පරයකින් Lemon Squeezy checkout එක Open කිරීම
+    // 1 තත්පරයකින් Lemon Squeezy checkout එක Open කිරීම[cite: 4]
     const timer = setTimeout(() => {
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Url.Open(checkoutUrl);
@@ -63,7 +68,7 @@ function CheckoutContent() {
         script.parentNode.removeChild(script);
       }
     };
-  }, [plan, phone]);
+  }, [plan, phone, type]);
 
   return (
     <div className="relative min-h-screen bg-[#07090e] text-white flex items-center justify-center overflow-hidden px-4">

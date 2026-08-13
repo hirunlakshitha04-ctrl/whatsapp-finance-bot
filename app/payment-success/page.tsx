@@ -15,7 +15,7 @@ function PaymentSuccessContent() {
   // Plan එකේ නම නිවැරදි කරගැනීම (Core හෝ Max)
   const planName = plan.toLowerCase() === "max" ? "Max" : "Core";
 
-  // Direct පේමන්ට් එකක් නම් පමණක් මැසේජ් එක සමඟ ਲින්ක් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම[cite: 3]
+  // Direct පේමන්ට් එකක් නම් පමණක් මැසේජ් එක සමඟ ලින්ක් එක සැකසීම, නැතහොත් පිරිසිදු ලින්ක් එක ලබා දීම[cite: 3]
   const whatsappLink = type === "direct" 
     ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
     : `https://wa.me/${whatsappNumber}`;
