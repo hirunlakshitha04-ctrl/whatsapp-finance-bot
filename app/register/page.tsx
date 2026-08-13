@@ -19,8 +19,7 @@ import {
   Lock,
   Mail,
   KeyRound,
-  Loader2,
-  Clock
+  Loader2
 } from "lucide-react";
 
 // Supabase Client Setup
@@ -61,23 +60,207 @@ const WORLD_COUNTRIES = [
   "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
 ];
 
-// Major Timezones
-const WORLD_TIMEZONES = [
-  { value: "Asia/Colombo", label: "(UTC+05:30) Sri Lanka, India" },
-  { value: "UTC", label: "(UTC+00:00) UTC / GMT" },
-  { value: "America/New_York", label: "(UTC-05:00) Eastern Time (US & Canada)" },
-  { value: "America/Chicago", label: "(UTC-06:00) Central Time (US & Canada)" },
-  { value: "America/Denver", label: "(UTC-07:00) Mountain Time (US & Canada)" },
-  { value: "America/Los_Angeles", label: "(UTC-08:00) Pacific Time (US & Canada)" },
-  { value: "Europe/London", label: "(UTC+00:00) London, Dublin, Edinburgh" },
-  { value: "Europe/Paris", label: "(UTC+01:00) Paris, Berlin, Rome, Madrid" },
-  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai, Abu Dhabi, Muscat" },
-  { value: "Asia/Riyadh", label: "(UTC+03:00) Riyadh, Qatar, Kuwait" },
-  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore, Kuala Lumpur" },
-  { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo, Osaka, Seoul" },
-  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney, Melbourne, Canberra" },
-  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland, Wellington" }
-];
+const COUNTRY_TIMEZONE_MAP: Record<string, string> = {
+  "Afghanistan": "Asia/Kabul",
+  "Albania": "Europe/Tirane",
+  "Algeria": "Africa/Algiers",
+  "Andorra": "Europe/Andorra",
+  "Angola": "Africa/Luanda",
+  "Antigua and Barbuda": "America/Antigua",
+  "Argentina": "America/Argentina/Buenos_Aires",
+  "Armenia": "Asia/Yerevan",
+  "Australia": "Australia/Sydney",
+  "Austria": "Europe/Vienna",
+  "Azerbaijan": "Asia/Baku",
+  "Bahamas": "America/Nassau",
+  "Bahrain": "Asia/Bahrain",
+  "Bangladesh": "Asia/Dhaka",
+  "Barbados": "America/Barbados",
+  "Belarus": "Europe/Minsk",
+  "Belgium": "Europe/Brussels",
+  "Belize": "America/Belize",
+  "Benin": "Africa/Porto-Novo",
+  "Bhutan": "Asia/Thimphu",
+  "Bolivia": "America/La_Paz",
+  "Bosnia and Herzegovina": "Europe/Sarajevo",
+  "Botswana": "Africa/Gaborone",
+  "Brazil": "America/Sao_Paulo",
+  "Brunei": "Asia/Brunei",
+  "Bulgaria": "Europe/Sofia",
+  "Burkina Faso": "Africa/Ouagadougou",
+  "Burundi": "Africa/Bujumbura",
+  "Cabo Verde": "Atlantic/Cape_Verde",
+  "Cambodia": "Asia/Phnom_Penh",
+  "Cameroon": "Africa/Douala",
+  "Canada": "America/Toronto",
+  "Central African Republic": "Africa/Bangui",
+  "Chad": "Africa/Ndjamena",
+  "Chile": "America/Santiago",
+  "China": "Asia/Shanghai",
+  "Colombia": "America/Bogota",
+  "Comoros": "Indian/Comoro",
+  "Congo (Republic of the)": "Africa/Brazzaville",
+  "Costa Rica": "America/Costa_Rica",
+  "Croatia": "Europe/Zagreb",
+  "Cuba": "America/Havana",
+  "Cyprus": "Asia/Nicosia",
+  "Czech Republic": "Europe/Prague",
+  "Democratic Republic of the Congo": "Africa/Kinshasa",
+  "Denmark": "Europe/Copenhagen",
+  "Djibouti": "Africa/Djibouti",
+  "Dominica": "America/Dominica",
+  "Dominican Republic": "America/Santo_Domingo",
+  "East Timor (Timor-Leste)": "Asia/Dili",
+  "Ecuador": "America/Guayaquil",
+  "Egypt": "Africa/Cairo",
+  "El Salvador": "America/El_Salvador",
+  "Equatorial Guinea": "Africa/Malabo",
+  "Eritrea": "Africa/Asmara",
+  "Estonia": "Europe/Tallinn",
+  "Eswatini": "Africa/Mbabane",
+  "Ethiopia": "Africa/Addis_Ababa",
+  "Fiji": "Pacific/Fiji",
+  "Finland": "Europe/Helsinki",
+  "France": "Europe/Paris",
+  "Gabon": "Africa/Libreville",
+  "Gambia": "Africa/Banjul",
+  "Georgia": "Asia/Tbilisi",
+  "Germany": "Europe/Berlin",
+  "Ghana": "Africa/Accra",
+  "Greece": "Europe/Athens",
+  "Grenada": "America/Grenada",
+  "Guatemala": "America/Guatemala",
+  "Guinea": "Africa/Conakry",
+  "Guinea-Bissau": "Africa/Bissau",
+  "Guyana": "America/Guyana",
+  "Haiti": "America/Port-au-Prince",
+  "Honduras": "America/Tegucigalpa",
+  "Hong Kong": "Asia/Hong_Kong",
+  "Hungary": "Europe/Budapest",
+  "Iceland": "Atlantic/Reykjavik",
+  "India": "Asia/Kolkata",
+  "Indonesia": "Asia/Jakarta",
+  "Iran": "Asia/Tehran",
+  "Iraq": "Asia/Baghdad",
+  "Ireland": "Europe/Dublin",
+  "Israel": "Asia/Jerusalem",
+  "Italy": "Europe/Rome",
+  "Ivory Coast (Côte d'Ivoire)": "Africa/Abidjan",
+  "Jamaica": "America/Jamaica",
+  "Japan": "Asia/Tokyo",
+  "Jordan": "Asia/Amman",
+  "Kazakhstan": "Asia/Almaty",
+  "Kenya": "Africa/Nairobi",
+  "Kiribati": "Pacific/Tarawa",
+  "Kosovo": "Europe/Belgrade",
+  "Kuwait": "Asia/Kuwait",
+  "Laos": "Asia/Vientiane",
+  "Latvia": "Europe/Riga",
+  "Lebanon": "Asia/Beirut",
+  "Lesotho": "Africa/Maseru",
+  "Liberia": "Africa/Monrovia",
+  "Libya": "Africa/Tripoli",
+  "Liechtenstein": "Europe/Vaduz",
+  "Lithuania": "Europe/Vilnius",
+  "Luxembourg": "Europe/Luxembourg",
+  "Macau": "Asia/Macau",
+  "Madagascar": "Indian/Antananarivo",
+  "Malawi": "Africa/Blantyre",
+  "Malaysia": "Asia/Kuala_Lumpur",
+  "Maldives": "Indian/Maldives",
+  "Mali": "Africa/Bamako",
+  "Malta": "Europe/Malta",
+  "Marshall Islands": "Pacific/Majuro",
+  "Mauritania": "Africa/Nouakchott",
+  "Mauritius": "Indian/Mauritius",
+  "Mexico": "America/Mexico_City",
+  "Micronesia": "Pacific/Chuuk",
+  "Moldova": "Europe/Chisinau",
+  "Monaco": "Europe/Monaco",
+  "Mongolia": "Asia/Ulaanbaatar",
+  "Montenegro": "Europe/Podgorica",
+  "Morocco": "Africa/Casablanca",
+  "Mozambique": "Africa/Maputo",
+  "Myanmar (Burma)": "Asia/Yangon",
+  "Namibia": "Africa/Windhoek",
+  "Nauru": "Pacific/Nauru",
+  "Nepal": "Asia/Kathmandu",
+  "Netherlands": "Europe/Amsterdam",
+  "New Zealand": "Pacific/Auckland",
+  "Nicaragua": "America/Managua",
+  "Niger": "Africa/Lagos",
+  "Nigeria": "Africa/Lagos",
+  "North Korea": "Asia/Pyongyang",
+  "North Macedonia": "Europe/Skopje",
+  "Norway": "Europe/Oslo",
+  "Oman": "Asia/Muscat",
+  "Pakistan": "Asia/Karachi",
+  "Palau": "Pacific/Palau",
+  "Palestine": "Asia/Gaza",
+  "Panama": "America/Panama",
+  "Papua New Guinea": "Pacific/Port_Moresby",
+  "Paraguay": "America/Asuncion",
+  "Peru": "America/Lima",
+  "Philippines": "Asia/Manila",
+  "Poland": "Europe/Warsaw",
+  "Portugal": "Europe/Lisbon",
+  "Puerto Rico": "America/Puerto_Rico",
+  "Qatar": "Asia/Qatar",
+  "Romania": "Europe/Bucharest",
+  "Russia": "Europe/Moscow",
+  "Rwanda": "Africa/Kigali",
+  "Saint Kitts and Nevis": "America/St_Kitts",
+  "Saint Lucia": "America/St_Lucia",
+  "Saint Vincent and the Grenadines": "America/St_Vincent",
+  "Samoa": "Pacific/Apia",
+  "San Marino": "Europe/San_Marino",
+  "Sao Tome and Principe": "Africa/Sao_Tome",
+  "Saudi Arabia": "Asia/Riyadh",
+  "Senegal": "Africa/Dakar",
+  "Serbia": "Europe/Belgrade",
+  "Seychelles": "Indian/Mahe",
+  "Sierra Leone": "Africa/Freetown",
+  "Singapore": "Asia/Singapore",
+  "Slovakia": "Europe/Bratislava",
+  "Slovenia": "Europe/Ljubljana",
+  "Solomon Islands": "Pacific/Guadalcanal",
+  "Somalia": "Africa/Mogadishu",
+  "South Africa": "Africa/Johannesburg",
+  "South Korea": "Asia/Seoul",
+  "South Sudan": "Africa/Juba",
+  "Spain": "Europe/Madrid",
+  "Sri Lanka": "Asia/Colombo",
+  "Sudan": "Africa/Khartoum",
+  "Suriname": "America/Paramaribo",
+  "Sweden": "Europe/Stockholm",
+  "Switzerland": "Europe/Zurich",
+  "Syria": "Asia/Damascus",
+  "Taiwan": "Asia/Taipei",
+  "Tajikistan": "Asia/Dushanbe",
+  "Tanzania": "Africa/Dar_es_Salaam",
+  "Thailand": "Asia/Bangkok",
+  "Togo": "Africa/Lome",
+  "Tonga": "Pacific/Tongatapu",
+  "Trinidad and Tobago": "America/Port_of_Spain",
+  "Tunisia": "Africa/Tunis",
+  "Turkey": "Europe/Istanbul",
+  "Turkmenistan": "Asia/Ashgabat",
+  "Tuvalu": "Pacific/Funafuti",
+  "Uganda": "Africa/Kampala",
+  "Ukraine": "Europe/Kyiv",
+  "United Arab Emirates": "Asia/Dubai",
+  "United Kingdom": "Europe/London",
+  "United States": "America/New_York",
+  "Uruguay": "America/Montevideo",
+  "Uzbekistan": "Asia/Tashkent",
+  "Vanuatu": "Pacific/Efate",
+  "Vatican City": "Europe/Vatican",
+  "Venezuela": "America/Caracas",
+  "Vietnam": "Asia/Ho_Chi_Minh",
+  "Yemen": "Asia/Aden",
+  "Zambia": "Africa/Lusaka",
+  "Zimbabwe": "Africa/Harare"
+};
 
 const WORLD_LANGUAGES = [
   { code: "af", name: "Afrikaans" },
@@ -404,6 +587,7 @@ function RegisterForm() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     phone_number: "",
     country: "Sri Lanka",
     language: "en",
@@ -418,14 +602,12 @@ function RegisterForm() {
 
   useEffect(() => {
     setIsMounted(true);
-    try {
-      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (userTz) {
-        setFormData((prev) => ({ ...prev, timezone: userTz }));
-      }
-    } catch (e) {
-      console.warn("Timezone detection error:", e);
+    // Timezone is derived automatically from the selected country (no user prompt needed).
+    const initialTz = COUNTRY_TIMEZONE_MAP[formData.country];
+    if (initialTz) {
+      setFormData((prev) => ({ ...prev, timezone: initialTz }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (
@@ -435,6 +617,10 @@ function RegisterForm() {
     if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData({ ...formData, [name]: checked });
+    } else if (name === "country") {
+      // Auto-update timezone in the background whenever the country changes.
+      const autoTz = COUNTRY_TIMEZONE_MAP[value] || formData.timezone;
+      setFormData({ ...formData, country: value, timezone: autoTz });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -491,6 +677,12 @@ function RegisterForm() {
 
     if (formData.password.length < 6) {
       setErrorMsg("Password must be at least 6 characters long.");
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMsg("Passwords do not match.");
       setLoading(false);
       return;
     }
@@ -730,23 +922,8 @@ function RegisterForm() {
               </div>
             </div>
 
-            {/* Row 2: Email & Password */}
+            {/* Row 2: Password & Confirm Password */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-sky-400"/> Email Address *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="john@example.com"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-                />
-              </div>
-
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
                   <KeyRound className="w-3.5 h-3.5 text-indigo-400"/> Password *
@@ -761,6 +938,37 @@ function RegisterForm() {
                   className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
                 />
               </div>
+
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-indigo-400"/> Confirm Password *
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* Row 2b: Email */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-sky-400"/> Email Address *
+              </label>
+              <input
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="john@example.com"
+                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+              />
             </div>
 
             {/* Row 3: Country & Nickname */}
@@ -835,25 +1043,6 @@ function RegisterForm() {
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* Row 5: Timezone */}
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-orange-400"/> Timezone
-              </label>
-              <select
-                name="timezone"
-                value={formData.timezone}
-                onChange={handleChange}
-                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-              >
-                {WORLD_TIMEZONES.map((tz) => (
-                  <option key={tz.value} value={tz.value} className="bg-slate-900 text-white">
-                    {tz.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Privacy Checkbox */}
