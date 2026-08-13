@@ -15,7 +15,7 @@ import {
 const PRICING_PLANS = [
   {
     id: "free",
-    name: "BROO LITE",
+    name: "BRO LITE",
     price: "$0.00",
     period: "/ month",
     badge: "Free Forever",
@@ -34,13 +34,13 @@ const PRICING_PLANS = [
   },
   {
     id: "core",
-    name: "BROO CORE",
+    name: "BRO CORE",
     price: "$2.55",
     period: "/ month",
     badge: "MOST POPULAR",
     description: "Ideal for active spenders & daily users.",
     highlight: true,
-    buttonText: "Upgrade to Broo Core",
+    buttonText: "Upgrade to Bro Core",
     // 💡 Lemon Squeezy Checkout Test / Live Links can be embedded or handled via state
     lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
@@ -55,13 +55,13 @@ const PRICING_PLANS = [
   },
   {
     id: "max",
-    name: "BROO MAX",
+    name: "BRO MAX",
     price: "$5.99",
     period: "/ month",
     badge: "POWER USERS",
     description: "For freelancers, business owners & power users.",
     highlight: false,
-    buttonText: "Get Broo Max",
+    buttonText: "Get Bro Max",
     lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
     features: [
@@ -122,7 +122,7 @@ export default function PricingPage() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Broo<span className="text-purple-400">.ai</span>
+              Bro<span className="text-purple-400">FinAi</span>
             </span>
           </Link>
 
