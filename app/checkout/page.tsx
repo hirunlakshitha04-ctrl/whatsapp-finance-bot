@@ -14,18 +14,21 @@ declare global {
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") || "pro";
+  // ඩිෆෝල්ට් ප්ලෑන් එක core ලෙස සකස් කර ඇත
+  const plan = searchParams.get("plan") || "core";
   const phone = searchParams.get("phone") || "";
   
-  // URL එකෙන් එන type එක ලබා ගැනීම (නැත්නම් ඩිෆෝල්ට් එකට direct ලෙස ගැනීම)[cite: 4]
+  // URL එකෙන් එන type එක ලබා ගැනීම[cite: 4]
   const type = searchParams.get("type") || "direct";
 
+  // 🎯 Core සහ Max සඳහා අදාළ Lemon Squeezy Checkout Links මෙතැනට දාන්න
   const LEMONSQUEEZY_PLANS: Record<string, string> = {
-    pro: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
-    yearly: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
+    core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
+    max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
   };
 
-  const baseUrl = LEMONSQUEEZY_PLANS[plan] || LEMONSQUEEZY_PLANS["pro"];
+  // ප්ලෑන් එක හරි නැත්නම් ඩිෆෝල්ට් එකට core ප්ලෑන් එක ගැනීම
+  const baseUrl = LEMONSQUEEZY_PLANS[plan.toLowerCase()] || LEMONSQUEEZY_PLANS["core"];
   
   // ලබාගත් type අගය successUrl එක වෙත යැවීම[cite: 4]
   const successUrl = `${window.location.origin}/payment-success?type=${type}&plan=${plan}`;
