@@ -45,130 +45,238 @@ const AVATAR_OPTIONS = [
 ];
 
 const WORLD_CURRENCIES = [
-  { code: "USD", name: "USD - US Dollar" },
-  { code: "LKR", name: "LKR - Sri Lankan Rupee" },
-  { code: "EUR", name: "EUR - Euro" },
-  { code: "GBP", name: "GBP - British Pound" },
-  { code: "AED", name: "AED - UAE Dirham" },
-  { code: "SAR", name: "SAR - Saudi Riyal" },
-  { code: "INR", name: "INR - Indian Rupee" },
+  { code: "AFN", name: "AFN - Afghan Afghani" },
+  { code: "ALL", name: "ALL - Albanian Lek" },
+  { code: "DZD", name: "DZD - Algerian Dinar" },
+  { code: "AOA", name: "AOA - Angolan Kwanza" },
+  { code: "ARS", name: "ARS - Argentine Peso" },
+  { code: "AMD", name: "AMD - Armenian Dram" },
+  { code: "AWG", name: "AWG - Aruban Florin" },
   { code: "AUD", name: "AUD - Australian Dollar" },
-  { code: "CAD", name: "CAD - Canadian Dollar" },
-  { code: "SGD", name: "SGD - Singapore Dollar" },
-  { code: "JPY", name: "JPY - Japanese Yen" },
-  { code: "CNY", name: "CNY - Chinese Yuan" },
-  { code: "QAR", name: "QAR - Qatari Riyal" },
-  { code: "KWD", name: "KWD - Kuwaiti Dinar" },
+  { code: "AZN", name: "AZN - Azerbaijani Manat" },
+  { code: "BSD", name: "BSD - Bahamian Dollar" },
   { code: "BHD", name: "BHD - Bahraini Dinar" },
-  { code: "OMR", name: "OMR - Omani Rial" },
-  { code: "MYR", name: "MYR - Malaysian Ringgit" },
-  { code: "THB", name: "THB - Thai Baht" },
-  { code: "NZD", name: "NZD - New Zealand Dollar" },
-  { code: "CHF", name: "CHF - Swiss Franc" },
-  { code: "RUB", name: "RUB - Russian Ruble" },
-  { code: "KRW", name: "KRW - South Korean Won" },
-  { code: "ZAR", name: "ZAR - South African Rand" },
+  { code: "BDT", name: "BDT - Bangladeshi Taka" },
+  { code: "BBD", name: "BBD - Barbadian Dollar" },
+  { code: "BYN", name: "BYN - Belarusian Ruble" },
+  { code: "BZD", name: "BZD - Belize Dollar" },
+  { code: "BMD", name: "BMD - Bermudan Dollar" },
+  { code: "BTN", name: "BTN - Bhutanese Ngultrum" },
+  { code: "BOB", name: "BOB - Bolivian Boliviano" },
+  { code: "BAM", name: "BAM - Bosnia-Herzegovina Convertible Mark" },
+  { code: "BWP", name: "BWP - Botswanan Pula" },
   { code: "BRL", name: "BRL - Brazilian Real" },
+  { code: "GBP", name: "GBP - British Pound" },
+  { code: "BND", name: "BND - Brunei Dollar" },
+  { code: "BGN", name: "BGN - Bulgarian Lev" },
+  { code: "BIF", name: "BIF - Burundian Franc" },
+  { code: "KHR", name: "KHR - Cambodian Riel" },
+  { code: "CAD", name: "CAD - Canadian Dollar" },
+  { code: "CVE", name: "CVE - Cape Verdean Escudo" },
+  { code: "KYD", name: "KYD - Cayman Islands Dollar" },
+  { code: "XAF", name: "XAF - Central African CFA Franc" },
+  { code: "XPF", name: "XPF - CFP Franc" },
+  { code: "CLP", name: "CLP - Chilean Peso" },
+  { code: "CNY", name: "CNY - Chinese Yuan" },
+  { code: "COP", name: "COP - Colombian Peso" },
+  { code: "KMF", name: "KMF - Comorian Franc" },
+  { code: "CDF", name: "CDF - Congolese Franc" },
+  { code: "CRC", name: "CRC - Costa Rican Colón" },
+  { code: "HRK", name: "HRK - Croatian Kuna" },
+  { code: "CUP", name: "CUP - Cuban Peso" },
+  { code: "CZK", name: "CZK - Czech Koruna" },
+  { code: "DKK", name: "DKK - Danish Krone" },
+  { code: "DJF", name: "DJF - Djiboutian Franc" },
+  { code: "DOP", name: "DOP - Dominican Peso" },
+  { code: "XCD", name: "XCD - East Caribbean Dollar" },
+  { code: "EGP", name: "EGP - Egyptian Pound" },
+  { code: "ERN", name: "ERN - Eritrean Nakfa" },
+  { code: "SZL", name: "SZL - Eswatini Lilangeni" },
+  { code: "ETB", name: "ETB - Ethiopian Birr" },
+  { code: "EUR", name: "EUR - Euro" },
+  { code: "FJD", name: "FJD - Fijian Dollar" },
+  { code: "GMD", name: "GMD - Gambian Dalasi" },
+  { code: "GEL", name: "GEL - Georgian Lari" },
+  { code: "GHS", name: "GHS - Ghanaian Cedi" },
+  { code: "GTQ", name: "GTQ - Guatemalan Quetzal" },
+  { code: "GNF", name: "GNF - Guinean Franc" },
+  { code: "GYD", name: "GYD - Guyanaese Dollar" },
+  { code: "HTG", name: "HTG - Haitian Gourde" },
+  { code: "HNL", name: "HNL - Honduran Lempira" },
+  { code: "HKD", name: "HKD - Hong Kong Dollar" },
+  { code: "HUF", name: "HUF - Hungarian Forint" },
+  { code: "ISK", name: "ISK - Icelandic Króna" },
+  { code: "INR", name: "INR - Indian Rupee" },
+  { code: "IDR", name: "IDR - Indonesian Rupiah" },
+  { code: "IRR", name: "IRR - Iranian Rial" },
+  { code: "IQD", name: "IQD - Iraqi Dinar" },
+  { code: "ILS", name: "ILS - Israeli New Shekel" },
+  { code: "JMD", name: "JMD - Jamaican Dollar" },
+  { code: "JPY", name: "JPY - Japanese Yen" },
+  { code: "JOD", name: "JOD - Jordanian Dinar" },
+  { code: "KZT", name: "KZT - Kazakhstani Tenge" },
+  { code: "KES", name: "KES - Kenyan Shilling" },
+  { code: "KWD", name: "KWD - Kuwaiti Dinar" },
+  { code: "KGS", name: "KGS - Kyrgystani Som" },
+  { code: "LAK", name: "LAK - Laotian Kip" },
+  { code: "LBP", name: "LBP - Lebanese Pound" },
+  { code: "LSL", name: "LSL - Lesotho Loti" },
+  { code: "LRD", name: "LRD - Liberian Dollar" },
+  { code: "LYD", name: "LYD - Libyan Dinar" },
+  { code: "MOP", name: "MOP - Macanese Pataca" },
+  { code: "MKD", name: "MKD - Macedonian Denar" },
+  { code: "MGA", name: "MGA - Malagasy Ariary" },
+  { code: "MWK", name: "MWK - Malawian Kwacha" },
+  { code: "MYR", name: "MYR - Malaysian Ringgit" },
+  { code: "MVR", name: "MVR - Maldivian Rufiyaa" },
+  { code: "MRU", name: "MRU - Mauritanian Ouguiya" },
+  { code: "MUR", name: "MUR - Mauritian Rupee" },
+  { code: "MXN", name: "MXN - Mexican Peso" },
+  { code: "MDL", name: "MDL - Moldovan Leu" },
+  { code: "MNT", name: "MNT - Mongolian Tugrik" },
+  { code: "MAD", name: "MAD - Moroccan Dirham" },
+  { code: "MZN", name: "MZN - Mozambican Metical" },
+  { code: "MMK", name: "MMK - Myanmar Kyat" },
+  { code: "NAD", name: "NAD - Namibian Dollar" },
+  { code: "NPR", name: "NPR - Nepalese Rupee" },
+  { code: "ANG", name: "ANG - Netherlands Antillean Guilder" },
+  { code: "TWD", name: "TWD - New Taiwan Dollar" },
+  { code: "NZD", name: "NZD - New Zealand Dollar" },
+  { code: "NIO", name: "NIO - Nicaraguan Córdoba" },
+  { code: "NGN", name: "NGN - Nigerian Naira" },
+  { code: "KPW", name: "KPW - North Korean Won" },
+  { code: "NOK", name: "NOK - Norwegian Krone" },
+  { code: "OMR", name: "OMR - Omani Rial" },
   { code: "PKR", name: "PKR - Pakistani Rupee" },
-  { code: "BDT", name: "BDT - Bangladeshi Taka" }
+  { code: "PAB", name: "PAB - Panamanian Balboa" },
+  { code: "PGK", name: "PGK - Papua New Guinean Kina" },
+  { code: "PYG", name: "PYG - Paraguayan Guarani" },
+  { code: "PEN", name: "PEN - Peruvian Sol" },
+  { code: "PHP", name: "PHP - Philippine Peso" },
+  { code: "PLN", name: "PLN - Polish Złoty" },
+  { code: "QAR", name: "QAR - Qatari Riyal" },
+  { code: "RON", name: "RON - Romanian Leu" },
+  { code: "RUB", name: "RUB - Russian Ruble" },
+  { code: "RWF", name: "RWF - Rwandan Franc" },
+  { code: "WST", name: "WST - Samoan Tala" },
+  { code: "SAR", name: "SAR - Saudi Riyal" },
+  { code: "RSD", name: "RSD - Serbian Dinar" },
+  { code: "SCR", name: "SCR - Seychellois Rupee" },
+  { code: "SLL", name: "SLL - Sierra Leonean Leone" },
+  { code: "SGD", name: "SGD - Singapore Dollar" },
+  { code: "SBD", name: "SBD - Solomon Islands Dollar" },
+  { code: "SOS", name: "SOS - Somali Shilling" },
+  { code: "ZAR", name: "ZAR - South African Rand" },
+  { code: "KRW", name: "KRW - South Korean Won" },
+  { code: "SSP", name: "SSP - South Sudanese Pound" },
+  { code: "LKR", name: "LKR - Sri Lankan Rupee" },
+  { code: "SDG", name: "SDG - Sudanese Pound" },
+  { code: "SRD", name: "SRD - Surinamese Dollar" },
+  { code: "SEK", name: "SEK - Swedish Krona" },
+  { code: "CHF", name: "CHF - Swiss Franc" },
+  { code: "SYP", name: "SYP - Syrian Pound" },
+  { code: "STN", name: "STN - São Tomé and Príncipe Dobra" },
+  { code: "TJS", name: "TJS - Tajikistani Somoni" },
+  { code: "TZS", name: "TZS - Tanzanian Shilling" },
+  { code: "THB", name: "THB - Thai Baht" },
+  { code: "TOP", name: "TOP - Tongan Paʻanga" },
+  { code: "TTD", name: "TTD - Trinidad and Tobago Dollar" },
+  { code: "TND", name: "TND - Tunisian Dinar" },
+  { code: "TRY", name: "TRY - Turkish Lira" },
+  { code: "TMT", name: "TMT - Turkmenistani Manat" },
+  { code: "AED", name: "AED - UAE Dirham" },
+  { code: "UGX", name: "UGX - Ugandan Shilling" },
+  { code: "UAH", name: "UAH - Ukrainian Hryvnia" },
+  { code: "UYU", name: "UYU - Uruguayan Peso" },
+  { code: "USD", name: "USD - US Dollar" },
+  { code: "UZS", name: "UZS - Uzbekistani Som" },
+  { code: "VUV", name: "VUV - Vanuatu Vatu" },
+  { code: "VES", name: "VES - Venezuelan Bolívar" },
+  { code: "VND", name: "VND - Vietnamese Đồng" },
+  { code: "XOF", name: "XOF - West African CFA Franc" },
+  { code: "YER", name: "YER - Yemeni Rial" },
+  { code: "ZMW", name: "ZMW - Zambian Kwacha" }
 ];
 
 const WORLD_LANGUAGES = [
-  { code: "en", name: "English" },
-  { code: "si", name: "සිංහල (Sinhala)" },
-  { code: "singlish", name: "Singlish (Sinhala + English mix)" },
-  { code: "ta", name: "தமிழ் (Tamil)" },
-  { code: "ar", name: "العربية (Arabic)" },
-  { code: "es", name: "Español (Spanish)" },
-  { code: "fr", name: "Français (French)" },
-  { code: "de", name: "Deutsch (German)" },
-  { code: "zh", name: "中文 (Chinese)" },
-  { code: "hi", name: "हिन्दी (Hindi)" },
-  { code: "pt", name: "Português (Portuguese)" },
-  { code: "ru", name: "Русский (Russian)" },
-  { code: "ja", name: "日本語 (Japanese)" },
-  { code: "ko", name: "한국어 (Korean)" },
-  { code: "it", name: "Italiano (Italian)" },
-  { code: "nl", name: "Nederlands (Dutch)" },
-  { code: "tr", name: "Türkçe (Turkish)" },
-  { code: "ur", name: "اردو (Urdu)" },
-  { code: "bn", name: "বাংলা (Bengali)" },
-  { code: "id", name: "Bahasa Indonesia" },
-  { code: "ms", name: "Bahasa Melayu" },
-  { code: "vi", name: "Tiếng Việt (Vietnamese)" },
-  { code: "th", name: "ไทย (Thai)" },
-  { code: "fa", name: "فارسی (Persian/Farsi)" },
-  { code: "pl", name: "Polski (Polish)" },
-  { code: "uk", name: "Українська (Ukrainian)" },
-  { code: "ro", name: "Română (Romanian)" },
-  { code: "el", name: "Ελληνικά (Greek)" },
-  { code: "cs", name: "Čeština (Czech)" },
-  { code: "sv", name: "Svenska (Swedish)" },
-  { code: "no", name: "Norsk (Norwegian)" },
-  { code: "da", name: "Dansk (Danish)" },
-  { code: "fi", name: "Suomi (Finnish)" },
-  { code: "hu", name: "Magyar (Hungarian)" },
-  { code: "he", name: "עברית (Hebrew)" },
-  { code: "sw", name: "Kiswahili (Swahili)" },
-  { code: "am", name: "አማርኛ (Amharic)" },
-  { code: "ha", name: "Hausa" },
-  { code: "yo", name: "Yorùbá (Yoruba)" },
-  { code: "ig", name: "Igbo" },
-  { code: "zu", name: "isiZulu (Zulu)" },
-  { code: "xh", name: "isiXhosa (Xhosa)" },
   { code: "af", name: "Afrikaans" },
-  { code: "ne", name: "ਨੇपाली (Nepali)" },
-  { code: "pa", name: "ਪੰਜਾਬੀ (Punjabi)" },
-  { code: "gu", name: "ગુજરાતી (Gujarati)" },
-  { code: "mr", name: "मराठी (Marathi)" },
-  { code: "te", name: "తెలుగు (Telugu)" },
-  { code: "kn", name: "කන්නඩා (Kannada)" },
-  { code: "ml", name: "മലയാളം (Malayalam)" },
-  { code: "my", name: "မြန်မာ (Burmese)" },
-  { code: "km", name: "ខ្មែរ (Khmer)" },
-  { code: "lo", name: "ລາວ (Lao)" },
-  { code: "ka", name: "ქართული (Georgian)" },
+  { code: "sq", name: "Shqip (Albanian)" },
+  { code: "am", name: "አማርኛ (Amharic)" },
+  { code: "ar", name: "العربية (Arabic)" },
   { code: "hy", name: "Հայերեն (Armenian)" },
   { code: "az", name: "Azərbaycan dili (Azerbaijani)" },
-  { code: "kk", name: "Қазақ тілі (Kazakh)" },
-  { code: "uz", name: "O'zbek tili (Uzbek)" },
-  { code: "mn", name: "Монгол (Mongolian)" },
-  { code: "sr", name: "Српски (Serbian)" },
-  { code: "hr", name: "Hrvatski (Croatian)" },
+  { code: "bn", name: "বাংলা (Bengali)" },
+  { code: "bs", name: "Bosanski (Bosnian)" },
   { code: "bg", name: "Български (Bulgarian)" },
+  { code: "my", name: "မြန်မာ (Burmese)" },
+  { code: "zh", name: "中文 (Chinese)" },
+  { code: "hr", name: "Hrvatski (Croatian)" },
+  { code: "cs", name: "Čeština (Czech)" },
+  { code: "da", name: "Dansk (Danish)" },
+  { code: "nl", name: "Nederlands (Dutch)" },
+  { code: "en", name: "English" },
+  { code: "et", name: "Eesti (Estonian)" },
+  { code: "tl", name: "Tagalog (Filipino)" },
+  { code: "fi", name: "Suomi (Finnish)" },
+  { code: "fr", name: "Français (French)" },
+  { code: "ka", name: "ქართული (Georgian)" },
+  { code: "de", name: "Deutsch (German)" },
+  { code: "el", name: "Ελληνικά (Greek)" },
+  { code: "gu", name: "ગુજરાતી (Gujarati)" },
+  { code: "ha", name: "Hausa" },
+  { code: "he", name: "עברית (Hebrew)" },
+  { code: "hi", name: "हिन्दी (Hindi)" },
+  { code: "hu", name: "Magyar (Hungarian)" },
+  { code: "is", name: "Íslenska (Icelandic)" },
+  { code: "ig", name: "Igbo" },
+  { code: "id", name: "Bahasa Indonesia" },
+  { code: "ga", name: "Gaeilge (Irish)" },
+  { code: "it", name: "Italiano (Italian)" },
+  { code: "ja", name: "日本語 (Japanese)" },
+  { code: "kn", name: "කන්නඩා (Kannada)" },
+  { code: "kk", name: "Қазақ тілі (Kazakh)" },
+  { code: "km", name: "ខ្មែរ (Khmer)" },
+  { code: "ko", name: "한국어 (Korean)" },
+  { code: "ku", name: "Kurdî (Kurdish)" },
+  { code: "lo", name: "ລາວ (Lao)" },
+  { code: "lv", name: "Latviešu (Latvian)" },
+  { code: "lt", name: "Lietuvių (Lithuanian)" },
+  { code: "mk", name: "Македонски (Macedonian)" },
+  { code: "ms", name: "Bahasa Melayu" },
+  { code: "ml", name: "മലയാളം (Malayalam)" },
+  { code: "mr", name: "मराठी (Marathi)" },
+  { code: "mn", name: "Монгол (Mongolian)" },
+  { code: "ne", name: "ਨੇपाली (Nepali)" },
+  { code: "no", name: "Norsk (Norwegian)" },
+  { code: "ps", name: "پښتو (Pashto)" },
+  { code: "fa", name: "فارسی (Persian/Farsi)" },
+  { code: "pl", name: "Polski (Polish)" },
+  { code: "pt", name: "Português (Portuguese)" },
+  { code: "pa", name: "ਪੰਜਾਬੀ (Punjabi)" },
+  { code: "ro", name: "Română (Romanian)" },
+  { code: "ru", name: "Русский (Russian)" },
+  { code: "sr", name: "Српски (Serbian)" },
+  { code: "sd", name: "سنڌي (Sindhi)" },
+  { code: "singlish", name: "Singlish (Sinhala + English mix)" },
+  { code: "si", name: "සිංහල (Sinhala)" },
   { code: "sk", name: "Slovenčina (Slovak)" },
   { code: "sl", name: "Slovenščina (Slovenian)" },
-  { code: "lt", name: "Lietuvių (Lithuanian)" },
-  { code: "lv", name: "Latviešu (Latvian)" },
-  { code: "et", name: "Eesti (Estonian)" },
-  { code: "sq", name: "Shqip (Albanian)" },
-  { code: "mk", name: "Македонски (Macedonian)" },
-  { code: "bs", name: "Bosanski (Bosnian)" },
-  { code: "is", name: "Íslenska (Icelandic)" },
-  { code: "ga", name: "Gaeilge (Irish)" },
-  { code: "cy", name: "Cymraeg (Welsh)" },
-  { code: "tl", name: "Tagalog (Filipino)" },
   { code: "so", name: "Soomaali (Somali)" },
-  { code: "ps", name: "پښتو (Pashto)" },
-  { code: "ku", name: "Kurdî (Kurdish)" },
-  { code: "sd", name: "سنڌي (Sindhi)" }
-];
-
-const WORLD_TIMEZONES = [
-  { value: "Asia/Colombo", label: "(UTC+05:30) Sri Lanka, India" },
-  { value: "UTC", label: "(UTC+00:00) UTC / GMT" },
-  { value: "America/New_York", label: "(UTC-05:00) Eastern Time (US & Canada)" },
-  { value: "America/Chicago", label: "(UTC-06:00) Central Time (US & Canada)" },
-  { value: "America/Denver", label: "(UTC-07:00) Mountain Time (US & Canada)" },
-  { value: "America/Los_Angeles", label: "(UTC-08:00) Pacific Time (US & Canada)" },
-  { value: "Europe/London", label: "(UTC+00:00) London, Dublin, Edinburgh" },
-  { value: "Europe/Paris", label: "(UTC+01:00) Paris, Berlin, Rome, Madrid" },
-  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai, Abu Dhabi, Muscat" },
-  { value: "Asia/Riyadh", label: "(UTC+03:00) Riyadh, Qatar, Kuwait" },
-  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore, Kuala Lumpur" },
-  { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo, Osaka, Seoul" },
-  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney, Melbourne, Canberra" },
-  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland, Wellington" }
+  { code: "es", name: "Español (Spanish)" },
+  { code: "sw", name: "Kiswahili (Swahili)" },
+  { code: "sv", name: "Svenska (Swedish)" },
+  { code: "ta", name: "தமிழ் (Tamil)" },
+  { code: "te", name: "తెలుగు (Telugu)" },
+  { code: "th", name: "ไทย (Thai)" },
+  { code: "tr", name: "Türkçe (Turkish)" },
+  { code: "uk", name: "Українська (Ukrainian)" },
+  { code: "ur", name: "اردو (Urdu)" },
+  { code: "uz", name: "O'zbek tili (Uzbek)" },
+  { code: "vi", name: "Tiếng Việt (Vietnamese)" },
+  { code: "cy", name: "Cymraeg (Welsh)" },
+  { code: "xh", name: "isiXhosa (Xhosa)" },
+  { code: "yo", name: "Yorùbá (Yoruba)" },
+  { code: "zu", name: "isiZulu (Zulu)" }
 ];
 
 export default function BrooDashboard() {
@@ -186,7 +294,6 @@ export default function BrooDashboard() {
   const [appLanguage, setAppLanguage] = useState<string>("en");
   const [dateFormat, setDateFormat] = useState<string>("DD/MM/YYYY");
   const [weekStart, setWeekStart] = useState<string>("Monday");
-  const [timezone, setTimezone] = useState<string>("Asia/Colombo");
 
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
 
@@ -227,6 +334,10 @@ export default function BrooDashboard() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [otpStep, setOtpStep] = useState<"form" | "verify">("form");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
 
   // WhatsApp Notification helper function
   const sendWhatsAppNotification = async (message: string) => {
@@ -270,7 +381,6 @@ export default function BrooDashboard() {
     if (userData) {
       setCurrency(userData.currency || "USD");
       if (userData.language) setAppLanguage(userData.language);
-      if (userData.timezone) setTimezone(userData.timezone);
       
       const displayName = userData.nickname || userData.name || "Bro";
       setNickname(displayName);
@@ -352,6 +462,12 @@ export default function BrooDashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const timer = setTimeout(() => setOtpResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpResendCooldown]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -498,7 +614,6 @@ export default function BrooDashboard() {
           phone_number: profilePhone,
           currency: currency,
           language: appLanguage,
-          timezone: timezone,
           avatar_url: selectedAvatar
         })
         .eq("email", userEmail);
@@ -516,7 +631,8 @@ export default function BrooDashboard() {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  // Step 1: validate the new password, then email a one-time code to the account's address
+  const handleRequestPasswordOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMsg(null);
 
@@ -530,20 +646,90 @@ export default function BrooDashboard() {
       return;
     }
 
+    if (!userEmail) {
+      setPasswordMsg({ type: "error", text: "No account email found. Please re-login and try again." });
+      return;
+    }
+
     setPasswordLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      // Sends a 6-digit OTP code to the user's registered email (Supabase Auth email OTP)
+      const { error } = await supabase.auth.signInWithOtp({
+        email: userEmail,
+        options: { shouldCreateUser: false },
+      });
       if (error) throw error;
+
+      setOtpStep("verify");
+      setOtpCode("");
+      setOtpResendCooldown(30);
+      setPasswordMsg({ type: "success", text: `We've emailed a verification code to ${userEmail}.` });
+    } catch (err: any) {
+      setPasswordMsg({ type: "error", text: err.message || "Failed to send verification code." });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  // Step 2: verify the emailed OTP, then apply the new password
+  const handleVerifyOtpAndChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+
+    if (!otpCode || otpCode.trim().length < 6) {
+      setPasswordMsg({ type: "error", text: "Please enter the 6-digit code sent to your email." });
+      return;
+    }
+
+    setOtpLoading(true);
+
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: userEmail,
+        token: otpCode.trim(),
+        type: "email",
+      });
+      if (verifyError) throw verifyError;
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
 
       setPasswordMsg({ type: "success", text: "Password updated successfully!" });
       setNewPassword("");
       setConfirmPassword("");
+      setOtpCode("");
+      setOtpStep("form");
     } catch (err: any) {
-      setPasswordMsg({ type: "error", text: err.message || "Failed to update password." });
+      setPasswordMsg({ type: "error", text: err.message || "Invalid or expired code. Please try again." });
     } finally {
-      setPasswordLoading(false);
+      setOtpLoading(false);
     }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpResendCooldown > 0 || !userEmail) return;
+    setPasswordMsg(null);
+    setOtpLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: userEmail,
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      setOtpResendCooldown(30);
+      setPasswordMsg({ type: "success", text: "A new code has been sent to your email." });
+    } catch (err: any) {
+      setPasswordMsg({ type: "error", text: err.message || "Failed to resend code." });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleCancelOtp = () => {
+    setOtpStep("form");
+    setOtpCode("");
+    setPasswordMsg(null);
   };
 
   const rangeFilteredTransactions = useMemo(() => {
@@ -1483,23 +1669,6 @@ export default function BrooDashboard() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
-                      Timezone Select: World Timezones
-                    </label>
-                    <select 
-                      name="timezone"
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
-                    >
-                      {WORLD_TIMEZONES.map((tz) => (
-                        <option key={tz.value} value={tz.value} className="bg-slate-950 text-slate-100">
-                          {tz.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
                 <button 
@@ -1526,37 +1695,82 @@ export default function BrooDashboard() {
                 </div>
               )}
 
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
-                  />
-                </div>
+              {otpStep === "form" ? (
+                <form onSubmit={handleRequestPasswordOtp} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold block mb-1.5">New Password</label>
+                    <input 
+                      type="password" 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Confirm Password</label>
-                  <input 
-                    type="password" 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
-                  />
-                </div>
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold block mb-1.5">Confirm Password</label>
+                    <input 
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    />
+                  </div>
 
-                <button 
-                  type="submit" 
-                  disabled={passwordLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
-                >
-                  {passwordLoading ? <RefreshCw size={14} className="animate-spin" /> : "Update Password"}
-                </button>
-              </form>
+                  <button 
+                    type="submit" 
+                    disabled={passwordLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
+                  >
+                    {passwordLoading ? <RefreshCw size={14} className="animate-spin" /> : <><Mail size={14} /> Send Verification Code</>}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtpAndChangePassword} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold block mb-1.5">
+                      Enter the 6-digit code sent to {userEmail}
+                    </label>
+                    <input 
+                      type="text" 
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456"
+                      className="w-full bg-black/40 border border-white/10 text-sm tracking-[0.4em] text-center text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={otpLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
+                  >
+                    {otpLoading ? <RefreshCw size={14} className="animate-spin" /> : "Verify & Update Password"}
+                  </button>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <button 
+                      type="button" 
+                      onClick={handleCancelOtp}
+                      className="hover:text-slate-200 transition font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={handleResendOtp}
+                      disabled={otpResendCooldown > 0 || otpLoading}
+                      className="hover:text-emerald-300 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {otpResendCooldown > 0 ? `Resend code in ${otpResendCooldown}s` : "Resend code"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         )}
