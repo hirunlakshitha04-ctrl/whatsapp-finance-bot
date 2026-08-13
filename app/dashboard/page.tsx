@@ -296,6 +296,7 @@ export default function BrooDashboard() {
   const [weekStart, setWeekStart] = useState<string>("Monday");
 
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
+  const [portalLoading, setPortalLoading] = useState(false);
 
   // 🎯 BUDGET STATES LOADED FROM SUPABASE
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
@@ -472,6 +473,24 @@ export default function BrooDashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/portal-link");
+      const data = await res.json();
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        alert(data?.error || "No active subscription found.");
+      }
+    } catch (err) {
+      console.error("Portal link error:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   const handleSaveBudget = async () => {
@@ -987,14 +1006,19 @@ export default function BrooDashboard() {
               </button>
             )}
 
-            <a
-              href="https://app.lemonsqueezy.com/my-orders"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2"
+            <button
+              type="button"
+              onClick={handleManageSubscription}
+              disabled={portalLoading}
+              className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Ban size={13} className="text-rose-400" /> Manage / Cancel Subscription
-            </a>
+              {portalLoading ? (
+                <RefreshCw size={13} className="animate-spin" />
+              ) : (
+                <Ban size={13} className="text-rose-400" />
+              )}
+              {portalLoading ? "Opening..." : "Manage / Cancel Subscription"}
+            </button>
           </div>
         </div>
 

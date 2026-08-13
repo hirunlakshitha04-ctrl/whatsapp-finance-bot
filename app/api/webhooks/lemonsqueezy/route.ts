@@ -49,6 +49,10 @@ export async function POST(req: Request) {
       event.data?.relationships?.variant?.data?.id || ""
     ).trim();
 
+    // Subscription ID එක - Method 2 (pre-authenticated customer portal link) ekata one karana eka
+    // meka witharai save karanne, urls.customer_portal URL eka nemei (eka 24h eken expire wenawa)
+    const subscriptionId = event.data?.id || "";
+
     console.log(`⚡ Webhook Event: ${eventName} | Email: ${userEmail} | Variant ID: ${variantId}`);
 
     // Subscription Created / Updated / Order Created Events
@@ -70,12 +74,18 @@ export async function POST(req: Request) {
         console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match configured environment variables. Defaulting to LITE.`);
       }
 
-      const updateData = {
+      const updateData: Record<string, any> = {
         plan: planName,
         payment_status: "PAID",
         is_active: true,
         updated_at: new Date().toISOString(),
       };
+
+      // Subscription events walata witharai subscription_id eka save karanne
+      // order_created event ekata subscription_id ekak thiyenne nathi wela puluwan
+      if (subscriptionId) {
+        updateData.lemon_squeezy_subscription_id = subscriptionId;
+      }
 
       let query = supabaseAdmin.from("users").update(updateData);
 
