@@ -2,8 +2,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react";
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { useEffect, useState, Suspense } from "react";
+import { ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 
 declare global {
   interface Window {
@@ -37,42 +37,81 @@ function CheckoutContent() {
     : "";
   
   const separator = baseUrl.includes("?") ? "&" : "?";
+  // NOTE: redirect_url query-param on a static Buy Link is NOT officially
+  // supported by Lemon Squeezy (only the Checkout API honours it, and even
+  // then it just relabels the confirmation button — it doesn't auto-redirect).
+  // We keep it here as a best-effort hint, but we NEVER rely on it. The real
+  // redirect happens via the Checkout.Success event handler below, which
+  // works regardless of this param.
   const checkoutUrl = `${baseUrl}${separator}embed=1&checkout[custom][phone]=${encodeURIComponent(phone)}&checkout[product_options][redirect_url]=${encodeURIComponent(successUrl)}`;
+
+  const [scriptReady, setScriptReady] = useState(false);
+  const [scriptFailed, setScriptFailed] = useState(false);
 
   useEffect(() => {
     if (!successUrl) return;
 
-    const script = document.createElement("script");
-    script.src = "https://app.lemonsqueezy.com/js/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
+    // If the overlay script already exists on the page (e.g. fast re-render,
+    // back/forward nav), don't inject it twice — just wire up Setup again.
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src="https://app.lemonsqueezy.com/js/checkout.js"]'
+    );
 
-    script.onload = () => {
+    const wireUp = () => {
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Setup({
           eventHandler: (event) => {
             if (event.event === "Checkout.Success") {
+              // This is the ONLY reliable auto-redirect path — it fires from
+              // the overlay's postMessage event, independent of redirect_url.
               window.location.href = successUrl;
             }
           },
         });
+        setScriptReady(true);
       }
     };
 
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+    if (existing) {
+      // Script tag is there — LemonSqueezy global may already be set.
+      if (window.LemonSqueezy) {
+        wireUp();
+      } else {
+        existing.addEventListener("load", wireUp, { once: true });
       }
-    };
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://app.lemonsqueezy.com/js/checkout.js";
+    script.async = true;
+    script.onload = wireUp;
+    script.onerror = () => setScriptFailed(true);
+    document.body.appendChild(script);
+
+    // Safety timeout: if the overlay script hasn't loaded after 6s (slow
+    // network, blocked CDN, ad-blocker), stop showing "Loading..." and let
+    // the user fall back to a plain hosted-checkout redirect. That fallback
+    // will NOT auto-return to our success page, so we warn them.
+    const timeout = setTimeout(() => {
+      if (!window.LemonSqueezy) setScriptFailed(true);
+    }, 6000);
+
+    return () => clearTimeout(timeout);
   }, [successUrl]);
 
   const handleOpenCheckout = () => {
     if (window.LemonSqueezy) {
       window.LemonSqueezy.Url.Open(checkoutUrl);
     } else {
+      // Last-resort fallback only — Lemon Squeezy will NOT reliably auto
+      // redirect back from here, so this path should be rare (only when the
+      // overlay script truly failed to load).
       window.location.href = checkoutUrl;
     }
   };
+
+  const buttonDisabled = !scriptReady && !scriptFailed;
 
   return (
     <div className="relative min-h-screen bg-[#07090e] text-white flex items-center justify-center overflow-hidden px-4">
@@ -95,10 +134,26 @@ function CheckoutContent() {
 
         <button
           onClick={handleOpenCheckout}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 hover:scale-[1.01] transition-all mb-6 cursor-pointer"
+          disabled={buttonDisabled}
+          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 hover:scale-[1.01] transition-all mb-6 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
         >
-          Proceed to Payment 🚀
+          {buttonDisabled ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Preparing secure checkout…
+            </>
+          ) : (
+            "Proceed to Payment 🚀"
+          )}
         </button>
+
+        {scriptFailed && !scriptReady && (
+          <p className="text-amber-400 text-xs -mt-3 mb-4">
+            Secure checkout is taking longer than usual. You can still continue,
+            but after paying you may need to tap &quot;Continue&quot; on the
+            confirmation screen to return here.
+          </p>
+        )}
 
         <div className="w-full pt-4 border-t border-slate-800/60 flex items-center justify-center gap-4 text-xs text-slate-400">
           <span className="flex items-center gap-1.5">

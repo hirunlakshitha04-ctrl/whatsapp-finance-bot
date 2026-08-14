@@ -15,7 +15,10 @@ const RETRY_DELAY_MS = 2000;
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
-  const type = searchParams.get("type"); // register flow eken awada kiyala (direct = auto msg)
+  // Safety net: default to "direct" so a missing/stripped `type` param never
+  // silently kills the auto WhatsApp message. Only dashboard-upgrade links
+  // should explicitly pass type=upgrade (or anything other than "direct").
+  const type = searchParams.get("type") || "direct";
   const fallbackPlan = searchParams.get("plan") || "core"; // URL fail unoth witharai me eka use wenne
 
   const [plan, setPlan] = useState<string | null>(null);
