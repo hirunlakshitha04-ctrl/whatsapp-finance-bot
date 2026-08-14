@@ -714,9 +714,8 @@ export default function BroFInAiLandingPage() {
             <div className="md:col-span-4 space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-widest text-slate-300">Legal</h4>
               <ul className="space-y-3 text-sm text-slate-400">
-                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-                <li><Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link></li>
+                <li><Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

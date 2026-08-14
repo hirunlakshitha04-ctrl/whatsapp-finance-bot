@@ -1125,7 +1125,15 @@ function RegisterForm() {
                 className="w-4 h-4 accent-purple-500 rounded bg-slate-950 border-white/20 cursor-pointer"
               />
               <label htmlFor="privacy" className="text-xs text-slate-400 cursor-pointer select-none">
-                I agree to the <span className="text-purple-300 underline">Privacy Policy</span> & Terms.
+                I agree to the{" "}
+                <Link href="/privacy-policy" className="text-purple-300 underline hover:text-purple-200">
+                  Privacy Policy
+                </Link>{" "}
+                &{" "}
+                <Link href="/terms-of-service" className="text-purple-300 underline hover:text-purple-200">
+                  Terms
+                </Link>
+                .
               </label>
             </div>
 
