@@ -29,6 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 declare global {
   interface Window {
+    createLemonSqueezy?: () => void;
     LemonSqueezy?: {
       Setup: (options: { eventHandler: (event: { event?: string }) => void }) => void;
       Url: { Open: (url: string) => void };
@@ -637,6 +638,14 @@ function RegisterForm() {
     script.src = "https://app.lemonsqueezy.com/js/checkout.js";
     script.async = true;
     script.onload = () => {
+      // IMPORTANT: Lemon Squeezy's docs require calling window.createLemonSqueezy()
+      // yourself in SPA/React apps — the script does NOT auto-initialize
+      // window.LemonSqueezy on its own here. Without this call, window.LemonSqueezy
+      // stays undefined forever and every checkout silently falls back to a
+      // plain full-page redirect (which is what was happening before).
+      if (typeof window.createLemonSqueezy === "function") {
+        window.createLemonSqueezy();
+      }
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Setup({
           eventHandler: (event) => {
@@ -678,45 +687,49 @@ function RegisterForm() {
       return;
     }
 
-    let lemonBaseUrl = "";
+    // Ask our server route to create the checkout via Lemon Squeezy's official
+    // Checkout API. This is the ONLY way redirect_url + custom phone data are
+    // guaranteed to be honoured — building the buy-link URL by hand with query
+    // params (the old approach) is not reliably respected by Lemon Squeezy.
+    handleRedirectAsync(currentPlan, cleanedPhone);
+  };
 
-    if (currentPlan === "core") {
-      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56";
-    } else if (currentPlan === "max" || currentPlan === "pro" || currentPlan === "orbit") {
-      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15";
-    } else {
-      lemonBaseUrl = "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56";
-    }
+  const handleRedirectAsync = async (currentPlan: string, cleanedPhone: string) => {
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: currentPlan,
+          phone: cleanedPhone,
+          email: formData.email,
+          name: formData.name,
+        }),
+      });
+      const data = await res.json();
 
-    const queryParams = new URLSearchParams();
-    
-    // 422 Error එක වළක්වා ගැනීමට Phone එක හිස් නැත්නම් පමණක් එකතු කිරීම
-    if (cleanedPhone && cleanedPhone.trim() !== "") {
-      queryParams.append("checkout[custom][phone]", cleanedPhone);
-    }
-    if (formData.email) queryParams.append("checkout[email]", formData.email);
-    if (formData.name) queryParams.append("checkout[name]", formData.name);
+      if (!res.ok || !data.url) {
+        setErrorMsg("Could not start checkout. Please try again in a moment.");
+        return;
+      }
 
-    // Success URL එකට අදාළ plan එක (core හෝ max) රැගෙන යාමට redirect_url එකට plan parameter එක ඇතුළත් කිරීම
-    // type=direct සහ phone එක මෙතනින්ම pass කරන්නේ payment-success page එකට
-    // "මේක register->payment flow එකෙන් ආවේ" කියලා දැනගන්න පුළුවන් වෙන්න -
-    // නැත්නම් auto WhatsApp message එක එන්නේ නැහැ.
-    const successRedirectUrl = `${window.location.origin}/payment-success?plan=${currentPlan}&type=direct&phone=${encodeURIComponent(cleanedPhone || "")}`;
-    queryParams.append("checkout[product_options][redirect_url]", successRedirectUrl);
+      const checkoutUrl: string = data.url;
+      // Lets the Checkout.Success event handler auto-redirect immediately
+      // when the overlay is used, instead of waiting for the user to click
+      // the confirmation button.
+      lemonSuccessUrlRef.current = data.redirectUrl || "";
 
-    const queryString = queryParams.toString();
-    const fullCheckoutUrl = queryString ? `${lemonBaseUrl}?${queryString}` : lemonBaseUrl;
-
-    // Prefer the overlay + Checkout.Success event — this is what actually
-    // guarantees successRedirectUrl (with type=direct/phone/plan) is used,
-    // since Lemon Squeezy does not reliably honour redirect_url as a query
-    // param on static buy links for a plain full-page checkout.
-    lemonSuccessUrlRef.current = successRedirectUrl;
-    if (lemonReady.current && window.LemonSqueezy) {
-      window.LemonSqueezy.Url.Open(`${fullCheckoutUrl}${queryString ? "&" : "?"}embed=1`);
-    } else {
-      // Last-resort fallback if the overlay script hasn't loaded yet.
-      window.location.href = fullCheckoutUrl;
+      // Overlay is a nice-to-have here (keeps the user on-site) — but since
+      // the server already guarantees redirect_url is correct, the plain
+      // full-page fallback is now just as reliable, not a risk anymore.
+      if (lemonReady.current && window.LemonSqueezy) {
+        window.LemonSqueezy.Url.Open(checkoutUrl);
+      } else {
+        window.location.href = checkoutUrl;
+      }
+    } catch (err) {
+      console.error("Checkout start failed:", err);
+      setErrorMsg("Could not start checkout. Please try again in a moment.");
     }
   };
 

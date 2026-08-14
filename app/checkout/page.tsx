@@ -7,7 +7,7 @@ import { ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 
 declare global {
   interface Window {
-    createLemonSqueezy?: unknown;
+    createLemonSqueezy?: () => void;
     LemonSqueezy?: {
       Setup: (options: { eventHandler: (event: { event?: string }) => void }) => void;
       Url: {
