@@ -21,7 +21,12 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") || "core";
   const phone = searchParams.get("phone") || "";
-  const type = searchParams.get("type") || "direct";
+  // IMPORTANT: "direct" must be an EXPLICIT signal from the register flow,
+  // never a default. If we default this to "direct", any other flow that
+  // forgets to pass `type` (e.g. dashboard upgrade -> pricing -> checkout)
+  // silently gets treated as "direct" too, and wrongly gets the auto
+  // WhatsApp message. Default to "upgrade" (non-direct) instead.
+  const type = searchParams.get("type") || "upgrade";
 
   // Lemon Squeezy Buy Links
   const LEMONSQUEEZY_PLANS: Record<string, string> = {
