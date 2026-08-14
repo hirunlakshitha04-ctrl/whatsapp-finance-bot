@@ -657,7 +657,10 @@ function RegisterForm() {
     if (formData.name) queryParams.append("checkout[name]", formData.name);
 
     // Success URL එකට අදාළ plan එක (core හෝ max) රැගෙන යාමට redirect_url එකට plan parameter එක ඇතුළත් කිරීම
-    const successRedirectUrl = `${window.location.origin}/payment-success?plan=${currentPlan}`;
+    // type=direct සහ phone එක මෙතනින්ම pass කරන්නේ payment-success page එකට
+    // "මේක register->payment flow එකෙන් ආවේ" කියලා දැනගන්න පුළුවන් වෙන්න -
+    // නැත්නම් auto WhatsApp message එක එන්නේ නැහැ.
+    const successRedirectUrl = `${window.location.origin}/payment-success?plan=${currentPlan}&type=direct&phone=${encodeURIComponent(cleanedPhone || "")}`;
     queryParams.append("checkout[product_options][redirect_url]", successRedirectUrl);
 
     const queryString = queryParams.toString();
