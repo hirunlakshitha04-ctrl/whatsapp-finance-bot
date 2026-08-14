@@ -23,7 +23,7 @@ function CheckoutContent() {
   const phone = searchParams.get("phone") || "";
   const type = searchParams.get("type") || "direct";
 
-  // ඔබ ලබා දුන් නිවැරදි Lemon Squeezy Buy Links
+  // Lemon Squeezy Buy Links
   const LEMONSQUEEZY_PLANS: Record<string, string> = {
     core: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
     max: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
@@ -31,9 +31,9 @@ function CheckoutContent() {
 
   const baseUrl = LEMONSQUEEZY_PLANS[plan.toLowerCase()] || LEMONSQUEEZY_PLANS["core"];
   
-  // Success URL එක සැකසීම
+  // Phone parameter එක සමඟ Success URL එක සැකසීම
   const successUrl = typeof window !== "undefined" 
-    ? `${window.location.origin}/payment-success?type=${type}&plan=${plan}` 
+    ? `${window.location.origin}/payment-success?type=${type}&plan=${plan}&phone=${encodeURIComponent(phone)}` 
     : "";
   
   const separator = baseUrl.includes("?") ? "&" : "?";

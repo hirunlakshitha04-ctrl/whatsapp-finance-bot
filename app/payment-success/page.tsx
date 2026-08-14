@@ -2,32 +2,101 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
 
 const display = Space_Grotesk({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-display' });
 const body = Inter({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-body' });
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono' });
 
+const MAX_RETRIES = 6;       // ~12 seconds total (webhook eka process wenna time denna)
+const RETRY_DELAY_MS = 2000;
+
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
-  const type = searchParams.get("type"); // direct පේමන්ට් කළ අයෙක්දැයි බැලීමට[cite: 3]
-  const plan = searchParams.get("plan") || "core"; // plan එක (core, max හෝ වෙනත්)[cite: 3]
+  const phone = searchParams.get("phone");
+  const type = searchParams.get("type"); // register flow eken awada kiyala (direct = auto msg)
+  const fallbackPlan = searchParams.get("plan") || "core"; // URL fail unoth witharai me eka use wenne
 
-  // WhatsApp අංකය
+  const [plan, setPlan] = useState<string | null>(null);
+  const [status, setStatus] = useState<"loading" | "confirmed" | "pending" | "error">("loading");
+
+  useEffect(() => {
+    if (!phone) {
+      // Phone number ekak nathnam DB eken check karanna beri nisa
+      // URL param eka witharak trust karanna weii (best-effort fallback)
+      setPlan(fallbackPlan);
+      setStatus("confirmed");
+      return;
+    }
+
+    let attempts = 0;
+    let cancelled = false;
+
+    const checkPlan = async () => {
+      try {
+        const res = await fetch(`/api/get-user-plan?phone=${encodeURIComponent(phone)}`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data.found && data.payment_status === "PAID") {
+          setPlan(data.plan);
+          setStatus("confirmed");
+          return;
+        }
+
+        // Thawama webhook eka process wela nathinam retry karanna
+        attempts += 1;
+        if (attempts < MAX_RETRIES) {
+          setStatus("pending");
+          setTimeout(checkPlan, RETRY_DELAY_MS);
+        } else {
+          // Retries okkoma ivarai, DB eken confirm karanna baruna
+          // - URL param eken hari fallback ekak denna
+          setPlan(fallbackPlan);
+          setStatus("error");
+        }
+      } catch (err) {
+        console.error("Plan check failed:", err);
+        attempts += 1;
+        if (attempts < MAX_RETRIES && !cancelled) {
+          setTimeout(checkPlan, RETRY_DELAY_MS);
+        } else if (!cancelled) {
+          setPlan(fallbackPlan);
+          setStatus("error");
+        }
+      }
+    };
+
+    checkPlan();
+    return () => { cancelled = true; };
+  }, [phone, fallbackPlan]);
+
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
 
-  // Plan එකේ නම නිවැරදි කරගැනීම (Core, Max හෝ ලැබෙන අනෙකුත් සැලසුම්)[cite: 3]
-  const planName = plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase();
+  const planName = plan
+    ? plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase()
+    : "";
 
-  // Direct පේමන්ට් එකක් (type=direct) නම් විතරක් auto message එක සමඟ ලින්ක් එක සැකසීම.
-  // Pricing page එකෙන් / dashboard upgrade එකෙන් ආවා නම් (type != "direct") plain WhatsApp
-  // navigation එකක් විතරයි - auto message එකක් නෑ.
+  // type=direct kiyanne register flow eken (pricing -> register -> payment) awa kiyalayi.
+  // Dashboard upgrade flow eken awa nam (type != direct) plain link ekak witharai - design ekatama.
   const isDirect = type === "direct";
 
-  const whatsappLink = isDirect
+  const whatsappLink = isDirect && plan
     ? `https://wa.me/${whatsappNumber.replace("+", "")}?text=${encodeURIComponent(`Hi Broo, I just registered on the ${planName} plan!`)}`
     : `https://wa.me/${whatsappNumber.replace("+", "")}`;
+
+  if (status === "loading" || status === "pending") {
+    return (
+      <main className="min-h-screen bg-[#05060B] text-white flex items-center justify-center">
+        <div className="flex items-center gap-2.5 text-sm text-gray-400">
+          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          <span>Confirming your payment…</span>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
