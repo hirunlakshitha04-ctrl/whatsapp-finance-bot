@@ -27,6 +27,15 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+declare global {
+  interface Window {
+    LemonSqueezy?: {
+      Setup: (options: { eventHandler: (event: { event?: string }) => void }) => void;
+      Url: { Open: (url: string) => void };
+    };
+  }
+}
+
 const WORLD_COUNTRIES = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
   "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
@@ -610,6 +619,38 @@ function RegisterForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load Lemon Squeezy overlay script once, up front, so it's ready by the
+  // time the user finishes filling the form and hits submit. We rely on the
+  // Checkout.Success event to redirect (NOT the redirect_url query param,
+  // which Lemon Squeezy does not reliably honour on static buy links) —
+  // this is what guarantees type=direct/phone/plan survive to the WhatsApp
+  // auto-message step.
+  const lemonReady = React.useRef(false);
+  const lemonSuccessUrlRef = React.useRef<string>("");
+
+  useEffect(() => {
+    if (document.querySelector('script[src="https://app.lemonsqueezy.com/js/checkout.js"]')) {
+      if (window.LemonSqueezy) lemonReady.current = true;
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://app.lemonsqueezy.com/js/checkout.js";
+    script.async = true;
+    script.onload = () => {
+      if (window.LemonSqueezy) {
+        window.LemonSqueezy.Setup({
+          eventHandler: (event) => {
+            if (event.event === "Checkout.Success" && lemonSuccessUrlRef.current) {
+              window.location.href = lemonSuccessUrlRef.current;
+            }
+          },
+        });
+        lemonReady.current = true;
+      }
+    };
+    document.body.appendChild(script);
+  }, []);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -664,7 +705,19 @@ function RegisterForm() {
     queryParams.append("checkout[product_options][redirect_url]", successRedirectUrl);
 
     const queryString = queryParams.toString();
-    window.location.href = queryString ? `${lemonBaseUrl}?${queryString}` : lemonBaseUrl;
+    const fullCheckoutUrl = queryString ? `${lemonBaseUrl}?${queryString}` : lemonBaseUrl;
+
+    // Prefer the overlay + Checkout.Success event — this is what actually
+    // guarantees successRedirectUrl (with type=direct/phone/plan) is used,
+    // since Lemon Squeezy does not reliably honour redirect_url as a query
+    // param on static buy links for a plain full-page checkout.
+    lemonSuccessUrlRef.current = successRedirectUrl;
+    if (lemonReady.current && window.LemonSqueezy) {
+      window.LemonSqueezy.Url.Open(`${fullCheckoutUrl}${queryString ? "&" : "?"}embed=1`);
+    } else {
+      // Last-resort fallback if the overlay script hasn't loaded yet.
+      window.location.href = fullCheckoutUrl;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
