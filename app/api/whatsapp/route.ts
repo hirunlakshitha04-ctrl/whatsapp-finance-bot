@@ -39,6 +39,8 @@ interface LocalizedMessages {
   dailyTxLimitReached: string;
   dailyOcrLimitReached: string;
   dailyVoiceLimitReached: string;
+  // VOICE LANGUAGE VALIDATION
+  voiceLangMismatch: string;
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -54,58 +56,62 @@ async function getLocalizedMessages(
   nickname: string, 
   currency: string, 
   websiteUrl: string, 
-  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string } = {}
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string } = {}
 ): Promise<LocalizedMessages> {
   const targetLang = (lang || "English").trim();
   const key = targetLang.toLowerCase();
 
   // Base English Template with Placeholders
   const ENGLISH_TEMPLATE: LocalizedMessages = {
-    welcome: `👋 Welcome {NICKNAME}!\n\nI am your Personal Finance Assistant *Brofinai*! 🚀\n\nTo start, what is your current **Starting Balance / Capital** in your account?\n\n💡 Example: *"50000"* or *"25000"*`,
-    guidelines: `🎯 Awesome {NICKNAME}! Your **Starting Balance** is set to *{CURRENCY} {AMOUNT}*! 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Log Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Add Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set Monthly Budget:*\n| "Set budget 50000"\n\n🚀 *Send your first Expense or Income now!*`,
-    proFeatureImage: `🔒 *AI Receipt Scanning Limit Reached / Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max for more scans:\n👉 {WEBSITE}/#pricing`,
-    proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, upgrade to Broo Core or Max:\n👉 {WEBSITE}/#pricing`,
-    limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, upgrade to BROO MAX:\n👉 {WEBSITE}/#pricing`,
-    noPending: `⚠️ Hi {NICKNAME}, there is no pending transaction to confirm!`,
-    budgetSaved: `🎯 Awesome {NICKNAME}! Your monthly budget is set to *{CURRENCY} {AMOUNT}*! 🚀`,
-    savedMsg: `Awesome {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}*! 🚀`,
-    autoSavedMsg: `⚡ *Auto Saved!*\n\nAwesome {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}*! 🚀`,
-    dbError: `🚨 An error occurred while saving to database.`,
-    directError: `🚨 An error occurred during direct save.`,
-    editCancel: `No problem {NICKNAME}! Send the corrected details.`,
-    fallback: `Sorry {NICKNAME}, I couldn't understand that. Try sending "Spent 500 for lunch"! 🚀`,
-    preview: `📝 Description: *{ITEM}*\n🏷️ Type: *{TYPETAG}*\n🗂️ Category: *{CATEGORY}*\n💰 Amount: *{CURRENCY} {AMOUNT}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to change.`,
+    welcome: `👋 Welcome, {NICKNAME}!\n\nI'm *Brofinai*, your Personal Finance Assistant — here to help you track and manage your money with ease. 🚀\n\nTo get started, please share your current **Starting Balance / Capital**.\n\n💡 Example: *"50000"* or *"25000"*`,
+    guidelines: `🎯 Great, {NICKNAME}! Your **Starting Balance** has been set to *{CURRENCY} {AMOUNT}*. 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Log an Expense:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Log an Income:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Set a Monthly Budget:*\n| "Set budget 50000"\n\n🚀 You're all set — send your first expense or income to begin tracking!`,
+    proFeatureImage: `🔒 *Pro Feature: AI Receipt Scanning*\n\nHey {NICKNAME}, you've hit your scan limit for now. Upgrade to Broo Core or Max to unlock more scans:\n👉 {WEBSITE}/#pricing`,
+    proFeatureVoice: `🔒 *Pro Feature: Voice Notes*\n\nHey {NICKNAME}, voice tracking is available on Broo Core or Max. Upgrade to unlock it:\n👉 {WEBSITE}/#pricing`,
+    limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nHey {NICKNAME}, you've used up all your scans for this month. Upgrade to BROO MAX for unlimited scanning:\n👉 {WEBSITE}/#pricing`,
+    noPending: `⚠️ Hey {NICKNAME}, there's no pending transaction to confirm right now!`,
+    budgetSaved: `🎯 Nice one, {NICKNAME}! Your monthly budget is now set to *{CURRENCY} {AMOUNT}*. 🎉`,
+    savedMsg: `✅ Got it, {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}* under *{CATEGORY}*. 🚀`,
+    autoSavedMsg: `⚡ *Auto-Saved!*\n\nNice, {NICKNAME}! I've saved *{CURRENCY} {AMOUNT}* for *{ITEM}*. 🚀`,
+    dbError: `🚨 Oops, something went wrong while saving that. Please try again in a moment.`,
+    directError: `🚨 Something went wrong during the auto-save. Please try again.`,
+    editCancel: `No worries, {NICKNAME}! Go ahead and send the corrected details.`,
+    fallback: `Hmm, I couldn't quite catch that, {NICKNAME}. Try something like "Spent 500 for lunch"! 🚀`,
+    preview: `📝 Description: *{ITEM}*\n🏷️ Type: *{TYPETAG}*\n🗂️ Category: *{CATEGORY}*\n💰 Amount: *{CURRENCY} {AMOUNT}*\n\n-> Reply *Confirm* to save.\n-> Reply *Edit* to make changes.`,
     typeIncome: `🟢 Income`,
     typeExpense: `🔴 Expense`,
     // NEW LIMIT MESSAGES (ENGLISH)
-    dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\n{NICKNAME}, your plan daily transaction limit is reached.\n\n🚀 Upgrade to Broo Core or Max for unlimited tracking:\n👉 {WEBSITE}/#pricing`,
-    dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, upgrade to BROO CORE (30 scans/mo) or BROO MAX (Unlimited):\n👉 {WEBSITE}/#pricing`,
-    dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, upgrade to BROO MAX for unlimited voice tracking:\n👉 {WEBSITE}/#pricing`,
+    dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\nHey {NICKNAME}, you've hit your plan's daily transaction limit.\n\n🚀 Upgrade to Broo Core or Max for unlimited tracking:\n👉 {WEBSITE}/#pricing`,
+    dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\nHey {NICKNAME}, upgrade to BROO CORE (30 scans/mo) or BROO MAX (unlimited) for more scanning power:\n👉 {WEBSITE}/#pricing`,
+    dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\nHey {NICKNAME}, upgrade to BROO MAX for unlimited voice tracking:\n👉 {WEBSITE}/#pricing`,
+    // VOICE LANGUAGE VALIDATION (ENGLISH)
+    voiceLangMismatch: `🎤 *Language Not Recognized*\n\nHey {NICKNAME}, I couldn't clearly understand that voice note. Please speak in *{LANGUAGE}* or *English* so I can process it accurately. 🙏`,
   };
 
   // 1. SINGLISH FORMATTED TEMPLATE
   if (key === "singlish") {
     const SINGLISH_TEMPLATE: LocalizedMessages = {
-      welcome: `👋 සාදරයෙන් පිළිගන්නවා {NICKNAME}!\n\nමම ඔයාගේ Personal Finance Assistant *Brofinai*! 🚀\n\nවැඩේ ලස්සනට පටන් ගන්න, **දැනට ඔයා ගාව/Bank Account එකේ තියෙන ආරම්භක මුදල (Starting Capital)** කීයද කියන්න?\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
-      guidelines: `🎯 නියමයි {NICKNAME}! ඔයාගේ Starting Balance එක *{CURRENCY} {AMOUNT}* විදිහට Set කරගත්තා! 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Expense එකක් දාන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් එකතු කරන්න:*\n| "Salary labuna 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් set කරන්න:*\n| "Set budget 50000"\n\n🚀 *දැන් ඔයාගේ පළවෙනි Expense එක හරි Income එක හරි එවලා බලන්න!*`,
-      proFeatureImage: `🔒 *AI Receipt Scanning is a Pro Feature!*\n\n{NICKNAME}, **BROO LITE** plan එකෙන් දවසට Scan 1යි. Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
-      proFeatureVoice: `🔒 *Voice Notes is a Pro Feature!*\n\n{NICKNAME}, Voice Notes පහසුකම Broo Lite එකේ නෑ. Pro Plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
-      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙ Scans 30ම ඉවරයි. Unlimited Scans සඳහා **BROO MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
-      noPending: `⚠️ Hi {NICKNAME}, confirm කරන්න කිසිම pending transaction එකක් නෑනේ!`,
-      budgetSaved: `🎯 එළකිරි {NICKNAME}! ඔයාගේ මේ මාසෙ Budget එක *{CURRENCY} {AMOUNT}* විදිහට සේව් කරගත්තා! 🚀`,
-      savedMsg: `එළකිරි {NICKNAME}! *{ITEM}* එකට සේව් කරගත්තා *{CURRENCY} {AMOUNT}*! 🚀`,
-      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max feature)\n\nඑළකිරි {NICKNAME}! *{ITEM}* එකට ගිය *{CURRENCY} {AMOUNT}* සේව් කරගත්තා! 🚀`,
-      dbError: `🚨 Database එකට Save වෙද්දී අවුලක් වුණා මචං. ආයේ Try එකක් දෙමුද?`,
-      directError: `🚨 Direct save වෙද්දී අවුලක් වුණා මචං.`,
-      editCancel: `අවුලක් නෑ {NICKNAME}! නිවැරදි විස්තරේ ආයේ එවපන්.`,
-      fallback: `Sorry {NICKNAME}, මට ඒක පැහැදිලි වුණේ නෑ බං. "Spent 500 for lunch" වගේ text එකක් එවන්න! 🚀`,
-      preview: `📝 විස්තරය: *{ITEM}*\n🏷️ වර්ගය: *{TYPETAG}*\n🗂️ කාණ්ඩය: *{CATEGORY}*\n💰 ගාණ: *{CURRENCY} {AMOUNT}*\n\n-> හරිනම් *Confirm* කියලා reply කරපන්.\n-> වැරදියි නම් *Edit* කියලා reply කරපන්.`,
+      welcome: `👋 සාදරයෙන් පිළිගන්නවා, {NICKNAME}!\n\nමම ඔබේ Personal Finance Assistant *Brofinai*. ඔබේ මුදල් කළමනාකරණය පහසු කර දීමට මම මෙතන ඉන්නවා. 🚀\n\nපටන් ගැනීමට, ඔබේ ගිණුමේ දැනට ඇති **ආරම්භක මුදල (Starting Balance / Capital)** කීයද කියලා සඳහන් කරන්න.\n\n💡 උදාහරණ: *"50000"* හෝ *"25000"*`,
+      guidelines: `🎯 සුභ පැතුම්, {NICKNAME}! ඔබේ Starting Balance එක *{CURRENCY} {AMOUNT}* ලෙස සකසා ඇත. 🎉\n\n--- 💡 *Brofinai Quick Guide* ---\n\n💸 *Expense එකක් Log කරන්න:*\n| "Spent 500 for lunch" / "Bus fare 80"\n\n💰 *Income එකක් Log කරන්න:*\n| "Got salary 150000" / "Got bonus 10000"\n\n🎯 *Monthly Budget එකක් Set කරන්න:*\n| "Set budget 50000"\n\n🚀 ඔබේ පළමු Expense එක හෝ Income එක එවා Tracking ආරම්භ කරන්න!`,
+      proFeatureImage: `🔒 *AI Receipt Scanning - Pro Feature*\n\n{NICKNAME}, ඔබේ Scan Limit එක අවසන් වෙලා. තව Scans ලබාගන්න Broo Core හෝ Max plan එකකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      proFeatureVoice: `🔒 *Voice Notes - Pro Feature*\n\n{NICKNAME}, Voice Tracking පහසුකම තියෙන්නෙ Broo Core සහ Max Plan වල විතරයි. Upgrade වෙලා try කරන්න:\n👉 {WEBSITE}/#pricing`,
+      limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙට ඔබේ Scans ඔක්කොම භාවිත වෙලා ඉවරයි. Unlimited Scans සඳහා **BROO MAX** එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      noPending: `⚠️ {NICKNAME}, දැනට Confirm කරන්න පොරොත්තු Transaction එකක් නෑ!`,
+      budgetSaved: `🎯 සුභ පැතුම්, {NICKNAME}! ඔබේ මාසික Budget එක *{CURRENCY} {AMOUNT}* ලෙස සකසා ඇත. 🎉`,
+      savedMsg: `✅ හරි, {NICKNAME}! *{ITEM}* (*{CATEGORY}*) සඳහා *{CURRENCY} {AMOUNT}* Save කරගත්තා. 🚀`,
+      autoSavedMsg: `⚡ *Auto Saved!* (Broo Max Feature)\n\nහරි, {NICKNAME}! *{ITEM}* සඳහා *{CURRENCY} {AMOUNT}* Save කරගත්තා. 🚀`,
+      dbError: `🚨 Database එකට Save කරද්දී අවුලක් සිදුවුණා, {NICKNAME}. කරුණාකර ටිකකින් ආයෙත් Try කරන්න.`,
+      directError: `🚨 Auto-Save කරද්දී අවුලක් සිදුවුණා. කරුණාකර ආයෙත් Try කරන්න.`,
+      editCancel: `කමක් නෑ, {NICKNAME}! නිවැරදි විස්තර ආයෙත් එවන්න.`,
+      fallback: `Sorry, {NICKNAME}, ඒක මට හරියටම තේරුණේ නෑ. "Spent 500 for lunch" වගේ එකක් Try කරන්න! 🚀`,
+      preview: `📝 විස්තරය: *{ITEM}*\n🏷️ වර්ගය: *{TYPETAG}*\n🗂️ කාණ්ඩය: *{CATEGORY}*\n💰 ගාණ: *{CURRENCY} {AMOUNT}*\n\n-> Save කරන්න *Confirm* කියලා Reply කරන්න.\n-> වෙනස් කරන්න *Edit* කියලා Reply කරන්න.`,
       typeIncome: `🟢 ආදායම`,
       typeExpense: `🔴 වියදම`,
       // NEW LIMIT MESSAGES (SINGLISH)
-      dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\n{NICKNAME}, ඔයාගේ Plan එකේ අද දවසේ Limit එක ඉවරයි.\n\n🚀 Unlimited tracking සඳහා Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
-      dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, Broo Lite එකේ දවසට Scans 1යි. Unlimited සඳහා **BROO CORE / MAX** වලට Upgrade වෙන්න!\n👉 {WEBSITE}/#pricing`,
-      dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, Broo Core හි දවසට Voice 5 සීමාව අවසන්. Unlimited සඳහා **BROO MAX** ලබාගන්න!\n👉 {WEBSITE}/#pricing`,
+      dailyTxLimitReached: `⚠️ *Daily Transaction Limit Reached!*\n\n{NICKNAME}, ඔබේ Plan එකේ අද දවසේ Transaction Limit එක අවසන් වෙලා.\n\n🚀 Unlimited Tracking සඳහා Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, තව Scans ලබාගැනීමට **BROO CORE** (මාසෙට 30) හෝ **BROO MAX** (Unlimited) එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, Unlimited Voice Tracking සඳහා **BROO MAX** එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
+      // VOICE LANGUAGE VALIDATION (SINGLISH)
+      voiceLangMismatch: `🎤 *Language Not Recognized*\n\n{NICKNAME}, ඔබේ Voice Note එක මට හරියටම තේරෙන්නෙ නෑ. කරුණාකර *{LANGUAGE}* හෝ *English* භාෂාවෙන් Clear ලෙස කතා කරන්න. 🙏`,
     };
     return fillTemplate(SINGLISH_TEMPLATE, nickname, currency, websiteUrl, contextData);
   }
@@ -125,7 +131,7 @@ async function getLocalizedMessages(
 Rules:
 - Translate ONLY human-readable sentences into ${targetLang}.
 - CRITICAL: KEEP THE WORDS "Confirm" AND "Edit" IN ENGLISH IN THE PREVIEW INSTRUCTION (e.g., "Reply Confirm to save / Reply Edit to change"). DO NOT TRANSLATE "Confirm" AND "Edit" COMMAND WORDS!
-- NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}.
+- NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}, {LANGUAGE}.
 - Keep all formatting intact: *, _, |, ---, \\n, and emojis.
 - Translate "typeIncome" and "typeExpense" (keep emoji prefix).
 - Return pure JSON matching the template keys.
@@ -158,7 +164,7 @@ function fillTemplate(
   nickname: string,
   currency: string,
   websiteUrl: string,
-  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string }
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string }
 ): LocalizedMessages {
   const replacements: [string, string][] = [
     ["{NICKNAME}", nickname],
@@ -168,6 +174,7 @@ function fillTemplate(
     ["{WEBSITE}", websiteUrl],
     ["{TYPETAG}", contextData.typeTag || ""],
     ["{CATEGORY}", contextData.category || ""],
+    ["{LANGUAGE}", contextData.language || ""],
   ];
 
   const fill = (str: string) =>
@@ -193,11 +200,29 @@ function fillTemplate(
     dailyTxLimitReached: fill(template.dailyTxLimitReached),
     dailyOcrLimitReached: fill(template.dailyOcrLimitReached),
     dailyVoiceLimitReached: fill(template.dailyVoiceLimitReached),
+    voiceLangMismatch: fill(template.voiceLangMismatch),
   };
 }
 
+// Helper: Map user's registered language to Whisper ISO code + comparable name
+// Returns null for "Singlish" (mixed code-switched speech) so hinting/validation is skipped
+function getWhisperLanguageInfo(userLang: string): { isoCode: string; name: string } | null {
+  const key = (userLang || "").trim().toLowerCase();
+  const map: Record<string, { isoCode: string; name: string }> = {
+    english: { isoCode: "en", name: "english" },
+    tamil: { isoCode: "ta", name: "tamil" },
+    sinhala: { isoCode: "si", name: "sinhala" },
+  };
+  return map[key] || null;
+}
+
 // 1. 🎤 Voice to Text Transcriber
-async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken: string): Promise<string | null> {
+async function transcribeVoice(
+  mediaUrl: string,
+  twilioSid: string,
+  twilioToken: string,
+  languageHint?: string | null
+): Promise<{ text: string; detectedLanguage: string } | null> {
   try {
     const response = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
@@ -209,6 +234,10 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
     const formData = new FormFormat();
     formData.append("file", buffer, { filename: "voice.ogg", contentType: "audio/ogg" });
     formData.append("model", "whisper-1");
+    formData.append("response_format", "verbose_json");
+    if (languageHint) {
+      formData.append("language", languageHint);
+    }
 
     const transcription = await axios.post("https://api.openai.com/v1/audio/transcriptions", formData, {
       headers: {
@@ -217,7 +246,10 @@ async function transcribeVoice(mediaUrl: string, twilioSid: string, twilioToken:
       },
     });
 
-    return transcription.data.text || null;
+    return {
+      text: transcription.data.text || "",
+      detectedLanguage: (transcription.data.language || "").toLowerCase(),
+    };
   } catch (err) {
     console.error("❌ Voice Transcription Error:", err);
     return null;
@@ -345,32 +377,49 @@ Return pure JSON:
   }
 }
 
-// Helper: Save Direct Transaction
-async function saveTransactionDirect(phoneNumber: string, userProfile: any, tx: ExtractedData, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
-  const { error } = await supabase.from('transactions').insert([{
-    phone_number: phoneNumber,
-    type: tx.type,
-    item: tx.item,
-    category: tx.category,
-    amount: tx.amount,
-    person: tx.person,
-    currency: tx.currency || userProfile.currency
-  }]);
-
+// Helper: Save Extracted Transaction/Budget Directly (used for TEXT input — no Confirm/Edit step)
+async function saveExtractedDirect(phoneNumber: string, userProfile: any, tx: ExtractedData, userLang: string, nickname: string, currency: string, websiteUrl: string): Promise<string> {
   const formattedAmount = Number(tx.amount).toLocaleString();
-  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount });
+  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount, category: tx.category });
 
-  if (error) {
-    console.error("❌ Auto Save Error:", error);
-    return msgs.directError;
+  try {
+    // Handle Budget Set
+    if (tx.action === "set_budget") {
+      const { error: budgetErr } = await supabase
+        .from('budgets')
+        .insert([{
+          phone_number: phoneNumber,
+          category: tx.category || 'General',
+          amount_limit: tx.amount
+        }]);
+
+      if (budgetErr) throw budgetErr;
+      return msgs.budgetSaved;
+    }
+
+    // Save Transaction to Supabase
+    const { error: insErr } = await supabase.from('transactions').insert([{
+      phone_number: phoneNumber,
+      type: tx.type,
+      item: tx.item,
+      category: tx.category,
+      amount: tx.amount,
+      person: tx.person,
+      currency: tx.currency || userProfile.currency
+    }]);
+
+    if (insErr) throw insErr;
+
+    // Increment Daily Transaction Count
+    await supabase.from('users').update({
+      daily_tx_count: (userProfile.daily_tx_count || 0) + 1
+    }).eq('phone_number', phoneNumber);
+
+    return msgs.savedMsg;
+  } catch (err) {
+    console.error("❌ Direct Save Error:", err);
+    return msgs.dbError;
   }
-
-  // Increment Transaction Count
-  await supabase.from('users').update({
-    daily_tx_count: (userProfile.daily_tx_count || 0) + 1
-  }).eq('phone_number', phoneNumber);
-
-  return msgs.autoSavedMsg;
 }
 
 // 4. 💾 DB Handler: Multi-language Confirmation Response
@@ -395,7 +444,8 @@ async function handleConfirmTransaction(phoneNumber: string, userProfile: any, u
     const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { 
       item: tx.item, 
       amount: formattedAmount, 
-      isIncome 
+      isIncome,
+      category: tx.category
     });
 
     // Handle Budget Set
@@ -472,7 +522,7 @@ export async function POST(req: NextRequest) {
     // UNREGISTERED USER
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-      const registerMsg = `👋 Welcome to Brofinai!\n\nPlease complete your registration first:\n👉 ${websiteUrl}/register`;
+      const registerMsg = `👋 Hey there, welcome to Brofinai!\n\nLet's get you set up — please complete your quick registration here:\n👉 ${websiteUrl}/register`;
       
       await twilioClient.messages.create({
         from: TWILIO_WHATSAPP_NUMBER,
@@ -496,13 +546,24 @@ export async function POST(req: NextRequest) {
     await checkAndResetDailyLimits(userProfile);
     // ---------------------------------------------------
 
+    // ---------------- LINK / LOGIN COMMAND CHECK ----------------
+    if (["LINK", "LOGIN", "DASHBOARD", "WEBSITE"].includes(body.toUpperCase())) {
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${from}`,
+        body: `🔗 Hey ${nickname}, here's your Brofinai login link:\n👉 ${websiteUrl}/login`,
+      });
+      return new NextResponse("OK", { status: 200 });
+    }
+    // -------------------------------------------------------------
+
     // ---------------- EXCEL / BUDGET COMMAND CHECK ----------------
     if (body.toUpperCase() === "EXCEL" || body.toUpperCase() === "BUDGET") {
       if (userPlan === "lite") {
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
           to: `whatsapp:${from}`,
-          body: `📊 *Excel Exports & Budget Handling are Locked!*\n\nExcel spreadsheets instant download කිරීම සහ Monthly Budget Limits set කිරීම Broo LITE හි ලබාගත නොහැක.\n\n🔓 *Unlock Core Features for $2.55/mo:*\n• One-click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Unlock Features: https://brofinai/register?plan=core`,
+          body: `📊 *Excel Exports & Budget Handling - Locked*\n\n${nickname}, Excel Export එක Instant Download කිරීමයි, Monthly Budget Limits සකසීමයි Broo LITE Plan එකේ ලබාගත නොහැක.\n\n🔓 *Unlock Core Features - $2.55/mo:*\n• One-Click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Upgrade Now: https://brofinai/register?plan=core`,
         });
         return new NextResponse("OK", { status: 200 });
       }
@@ -668,27 +729,42 @@ export async function POST(req: NextRequest) {
       if (isImage) {
         extractedTx = await extractFromImage(mediaUrl, mediaContentType, TWILIO_SID, TWILIO_TOKEN, userCurrency, userLang, nickname);
       } else if (isAudio) {
-        const transcribedText = await transcribeVoice(mediaUrl, TWILIO_SID, TWILIO_TOKEN);
-        if (transcribedText) {
-          extractedTx = await extractTransaction(transcribedText, userCurrency, userLang, nickname);
+        const langInfo = getWhisperLanguageInfo(userLang);
+        const transcriptionResult = await transcribeVoice(mediaUrl, TWILIO_SID, TWILIO_TOKEN, langInfo?.isoCode || null);
+
+        if (!transcriptionResult || !transcriptionResult.text) {
+          await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: baseMsgs.fallback });
+          return new NextResponse("OK", { status: 200 });
         }
+
+        // Validate detected language matches the user's registered language.
+        // Skipped for "Singlish" (langInfo is null) since it's code-switched mixed speech.
+        if (langInfo && transcriptionResult.detectedLanguage && transcriptionResult.detectedLanguage !== langInfo.name) {
+          const mismatchMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { language: langInfo.name });
+          await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: mismatchMsgs.voiceLangMismatch });
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        extractedTx = await extractTransaction(transcriptionResult.text, userCurrency, userLang, nickname);
       }
     } else if (body) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
-    // 8️⃣ SEND PREVIEW OR AUTO-SAVE
+    // 8️⃣ TEXT -> SAVE DIRECTLY | VOICE / IMAGE -> SEND PREVIEW FOR CONFIRM/EDIT
     if (extractedTx && extractedTx.amount) {
-      if (userPlan === "max" && isImage) {
-        const autoSaveMsg = await saveTransactionDirect(from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
+      if (!mediaUrl) {
+        // TEXT input: correct/certain enough — save straight to the database, no Confirm/Edit step
+        const directMsg = await saveExtractedDirect(from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
         await twilioClient.messages.create({
           from: TWILIO_WHATSAPP_NUMBER,
           to: `whatsapp:${from}`,
-          body: autoSaveMsg,
+          body: directMsg,
         });
         return new NextResponse("OK", { status: 200 });
       }
 
+      // VOICE / IMAGE input: always show a preview and require Confirm/Edit (applies to every plan, including Max)
       await supabase.from('user_sessions').update({ pending_transaction: extractedTx }).eq('phone_number', from);
       
       const formattedNumber = Number(extractedTx.amount).toLocaleString();

@@ -20,7 +20,6 @@ import {
   Activity,
   Mail,
   Phone,
-  MapPin,
   Send
 } from "lucide-react";
 
@@ -571,7 +570,7 @@ export default function BroFInAiLandingPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm mb-1">Email Us</h3>
-                  <a href="mailto:hello@brofinai" className="text-slate-400 text-xs hover:text-emerald-300 transition-colors">hello@brofinai</a>
+                  <a href="mailto:support@brofinai.com" className="text-slate-400 text-xs hover:text-emerald-300 transition-colors">support@brofinai.com</a>
                 </div>
               </div>
 
@@ -581,17 +580,7 @@ export default function BroFInAiLandingPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm mb-1">WhatsApp Support</h3>
-                  <span className="text-slate-400 text-xs">+1 (555) 010-2024</span>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 transition-all flex items-start gap-4">
-                <div className="w-11 h-11 shrink-0 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm mb-1">Headquarters</h3>
-                  <span className="text-slate-400 text-xs">Remote-first · Serving 40+ countries</span>
+                  <span className="text-slate-400 text-xs">+94 729 367 157</span>
                 </div>
               </div>
             </motion.div>
