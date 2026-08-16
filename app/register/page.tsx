@@ -599,6 +599,7 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
     phone_number: "",
+    channel: "whatsapp" as "whatsapp" | "telegram",
     country: "Sri Lanka",
     language: "en",
     currency: "USD",
@@ -660,6 +661,10 @@ function RegisterForm() {
     document.body.appendChild(script);
   }, []);
 
+  const handleChannelSelect = (channel: "whatsapp" | "telegram") => {
+    setFormData((prev) => ({ ...prev, channel }));
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -676,11 +681,20 @@ function RegisterForm() {
     }
   };
 
-  const handleRedirect = (cleanedPhone: string) => {
+  const handleRedirect = (cleanedPhone: string, linkToken: string) => {
     const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const currentPlan = (urlParams?.get("plan") || planParam || "free").toLowerCase().trim();
 
     if (currentPlan === "free" || currentPlan === "lite") {
+      if (formData.channel === "telegram") {
+        // Telegram has no phone number to match on, so the chat_id is only
+        // discoverable once the user hits /start — the link_token embedded
+        // here is how telegram/route.ts resolves that first message back to
+        // this exact user row.
+        const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "your_bot_username";
+        window.location.href = `https://t.me/${botUsername}?start=${linkToken}`;
+        return;
+      }
       const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
       const defaultText = encodeURIComponent("Hi BroFinAi, I just registered on the Free plan!");
       window.location.href = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
@@ -691,10 +705,10 @@ function RegisterForm() {
     // Checkout API. This is the ONLY way redirect_url + custom phone data are
     // guaranteed to be honoured — building the buy-link URL by hand with query
     // params (the old approach) is not reliably respected by Lemon Squeezy.
-    handleRedirectAsync(currentPlan, cleanedPhone);
+    handleRedirectAsync(currentPlan, cleanedPhone, linkToken);
   };
 
-  const handleRedirectAsync = async (currentPlan: string, cleanedPhone: string) => {
+  const handleRedirectAsync = async (currentPlan: string, cleanedPhone: string, linkToken: string) => {
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
@@ -704,6 +718,8 @@ function RegisterForm() {
           phone: cleanedPhone,
           email: formData.email,
           name: formData.name,
+          channel: formData.channel,
+          link_token: linkToken,
         }),
       });
       const data = await res.json();
@@ -756,19 +772,31 @@ function RegisterForm() {
       return;
     }
 
-    if (!formData.phone_number.trim()) {
+    if (formData.channel === "whatsapp" && !formData.phone_number.trim()) {
       setErrorMsg("Please enter a valid WhatsApp phone number.");
       setLoading(false);
       return;
     }
 
-    // Phone number sanitization
-    let cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
-    if (cleanedPhone.startsWith("0")) {
-      cleanedPhone = "+94" + cleanedPhone.slice(1);
-    } else if (!cleanedPhone.startsWith("+")) {
-      cleanedPhone = `+${cleanedPhone}`;
+    // Phone number sanitization — only relevant for the WhatsApp channel.
+    // Telegram users are identified later by chat_id (via link_token), so
+    // there's nothing to collect or clean here.
+    let cleanedPhone = "";
+    if (formData.channel === "whatsapp") {
+      cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
+      if (cleanedPhone.startsWith("0")) {
+        cleanedPhone = "+94" + cleanedPhone.slice(1);
+      } else if (!cleanedPhone.startsWith("+")) {
+        cleanedPhone = `+${cleanedPhone}`;
+      }
     }
+
+    // One-time token used only to link a Telegram chat_id back to this user
+    // row on their first /start message — see telegram/route.ts.
+    const linkToken =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const resolvedLanguage = LANGUAGE_NAME_MAP[formData.language] || "English";
     const isFreePlan = planParam.toLowerCase() === "free" || planParam.toLowerCase() === "lite";
@@ -778,7 +806,7 @@ function RegisterForm() {
         "check_duplicate_contact",
         {
           p_email: formData.email.trim().toLowerCase(),
-          p_phone: cleanedPhone,
+          p_phone: formData.channel === "whatsapp" ? cleanedPhone : null,
         }
       );
 
@@ -796,7 +824,7 @@ function RegisterForm() {
         options: {
           data: {
             full_name: formData.name,
-            phone_number: cleanedPhone,
+            phone_number: cleanedPhone || null,
           }
         }
       });
@@ -851,7 +879,8 @@ function RegisterForm() {
           .upsert([
             {
               id: userId,
-              phone_number: cleanedPhone,
+              phone_number: cleanedPhone || null,
+              link_token: linkToken,
               email: formData.email.trim().toLowerCase(),
               name: formData.name,
               nickname: formData.nickname || formData.name,
@@ -877,7 +906,7 @@ function RegisterForm() {
         }
       }
 
-      handleRedirect(cleanedPhone);
+      handleRedirect(cleanedPhone, linkToken);
 
     } catch (err: any) {
       console.error("Registration Error:", err);
@@ -957,9 +986,40 @@ function RegisterForm() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-            
-            {/* Row 1: Name & WhatsApp Phone */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+
+            {/* Row 0: Channel Selector */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1.5 font-medium flex items-center gap-1.5">
+                <Bot className="w-3.5 h-3.5 text-emerald-400"/> Where do you want to chat with BroFinAi? *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleChannelSelect("whatsapp")}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                    formData.channel === "whatsapp"
+                      ? "bg-emerald-500/15 border-emerald-400 text-emerald-300"
+                      : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}
+                >
+                  <Phone className="w-4 h-4"/> WhatsApp
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChannelSelect("telegram")}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                    formData.channel === "telegram"
+                      ? "bg-sky-500/15 border-sky-400 text-sky-300"
+                      : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}
+                >
+                  <Bot className="w-4 h-4"/> Telegram
+                </button>
+              </div>
+            </div>
+
+            {/* Row 1: Name & (WhatsApp Phone — only when WhatsApp is selected) */}
+            <div className={`grid grid-cols-1 ${formData.channel === "whatsapp" ? "md:grid-cols-2" : ""} gap-3.5`}>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-cyan-400"/> Full Name *
@@ -975,21 +1035,29 @@ function RegisterForm() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-400"/> WhatsApp Number *
-                </label>
-                <input
-                  type="text"
-                  name="phone_number"
-                  required
-                  value={formData.phone_number}
-                  onChange={handleChange}
-                  placeholder="+94771234567"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-                />
-              </div>
+              {formData.channel === "whatsapp" && (
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400"/> WhatsApp Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="phone_number"
+                    required
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    placeholder="+94771234567"
+                    className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  />
+                </div>
+              )}
             </div>
+
+            {formData.channel === "telegram" && (
+              <p className="text-xs text-sky-300/80 bg-sky-500/10 border border-sky-500/20 rounded-xl px-3.5 py-2.5">
+                No phone number needed — after you submit, we'll open Telegram and link your account automatically.
+              </p>
+            )}
 
             {/* Row 2: Password & Confirm Password */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1150,7 +1218,7 @@ function RegisterForm() {
                 </>
               ) : planParam.toLowerCase() === "free" ? (
                 <>
-                  <span>START ON WHATSAPP 🚀</span>
+                  <span>{formData.channel === "telegram" ? "START ON TELEGRAM 🚀" : "START ON WHATSAPP 🚀"}</span>
                   <ArrowRight className="w-4 h-4"/>
                 </>
               ) : (
