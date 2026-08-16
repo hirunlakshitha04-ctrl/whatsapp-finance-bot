@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
-import twilio from "twilio";
 import { supabase } from "@/lib/supabase";
 import { checkAndResetDailyLimits } from "@/lib/resetLimits";
 import {
@@ -17,29 +15,119 @@ import {
   getExcelLockedMessage,
 } from "@/lib/finance-logic";
 
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+const TELEGRAM_FILE_API = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}`;
 
-// WhatsApp rows are keyed by phone_number
-const ID_COLUMN = "phone_number" as const;
+// Telegram rows are keyed by telegram_chat_id (add this column to
+// users / user_sessions / transactions / budgets / monthly_usage —
+// same tables the WhatsApp route already uses, just a different key column)
+const ID_COLUMN = "telegram_chat_id" as const;
 
-// MAIN WEBHOOK ROUTER — WhatsApp (Twilio)
+// ---------------------- Telegram-specific send/receive helpers ----------------------
+
+async function sendTelegramMessage(chatId: string | number, text: string) {
+  await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "Markdown", // Telegram legacy Markdown — *bold* matches the WhatsApp templates as-is
+    }),
+  });
+}
+
+// Resolve a Telegram file_id -> a downloadable Buffer
+async function downloadTelegramFile(fileId: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  try {
+    const fileInfoRes = await fetch(`${TELEGRAM_API}/getFile?file_id=${fileId}`);
+    const fileInfo = await fileInfoRes.json();
+    const filePath = fileInfo?.result?.file_path;
+    if (!filePath) return null;
+
+    const fileRes = await fetch(`${TELEGRAM_FILE_API}/${filePath}`);
+    const arrayBuffer = await fileRes.arrayBuffer();
+
+    const ext = filePath.split(".").pop()?.toLowerCase() || "";
+    const mimeType =
+      ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "png" ? "image/png" : ext === "oga" || ext === "ogg" ? "audio/ogg" : "application/octet-stream";
+
+    return { buffer: Buffer.from(arrayBuffer), mimeType };
+  } catch (err) {
+    console.error("❌ Telegram File Download Error:", err);
+    return null;
+  }
+}
+
+// MAIN WEBHOOK ROUTER — Telegram
 export async function POST(req: NextRequest) {
   try {
-    const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID!;
-    const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
+    const update = await req.json();
+    const message = update?.message;
+    if (!message) {
+      // Ignore non-message updates (edited_message, callback_query, etc.)
+      return new NextResponse("OK", { status: 200 });
+    }
 
-    const formData = await req.formData();
-    const rawFrom = formData.get("From") as string;
-    const mediaUrl = formData.get("MediaUrl0") as string | null;
-    const mediaContentType = (formData.get("MediaContentType0") as string) || "";
-    const body = ((formData.get("Body") as string) || "").trim();
-
-    const from = rawFrom.replace("whatsapp:", "");
+    const chatId: number = message.chat.id;
+    const from = String(chatId);
+    const body = (message.text || message.caption || "").trim();
     const normalizedBody = body.toLowerCase();
 
-    const send = (text: string) =>
-      twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: text });
+    // Telegram gives an array of PhotoSize thumbnails — largest is last
+    const photoSizes = message.photo as Array<{ file_id: string }> | undefined;
+    const photoFileId = photoSizes && photoSizes.length > 0 ? photoSizes[photoSizes.length - 1].file_id : null;
+    const voiceFileId: string | null = message.voice?.file_id || null;
+
+    const isImage = !!photoFileId;
+    const isAudio = !!voiceFileId;
+
+    const send = (text: string) => sendTelegramMessage(chatId, text);
+
+    // 0️⃣ ACCOUNT LINKING — "/start <token>" deep link from the website
+    // (Free register page's "Start on Telegram" button AND the Telegram
+    // payment-success page both link to https://t.me/<bot>?start=<token>.
+    // Telegram turns that into a "/start <token>" message automatically.)
+    if (normalizedBody.startsWith("/start")) {
+      const linkToken = body.split(" ")[1]?.trim();
+
+      if (!linkToken) {
+        // Plain "/start" with no token — user opened the bot directly, not via a link
+        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+        await send(getRegisterMessage(websiteUrl));
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Find the pending row created at registration/payment time
+      const { data: pendingUser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("link_token", linkToken)
+        .is(ID_COLUMN, null)
+        .maybeSingle();
+
+      if (!pendingUser) {
+        // Token already used, expired, or never existed
+        await send(`⚠️ *Link Invalid or Expired*\n\nThis link isn't valid anymore. Please go back to the website and tap "Start on Telegram" again to get a fresh link.`);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      const { error: linkErr } = await supabase
+        .from("users")
+        .update({ [ID_COLUMN]: from, link_token: null })
+        .eq("id", pendingUser.id);
+
+      if (linkErr) {
+        console.error("❌ Telegram Account Link Error:", linkErr);
+        await send(`🚨 Something went wrong linking your account. Please try tapping the link again.`);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      const linkNickname = pendingUser.how_to_call_you || pendingUser.nickname || pendingUser.name || "Bro";
+      await send(`✅ *Connected!*\n\nHey ${linkNickname}, your Telegram is now linked to Brofinai. 🚀\n\nSend your **Starting Balance** to begin tracking — e.g. *"50000"*`);
+      return new NextResponse("OK", { status: 200 });
+    }
 
     // 1️⃣ Fetch User Profile
     let { data: userProfile } = await supabase.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
@@ -74,9 +162,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 2️⃣ PLAN CHECKS & FEATURE LIMITATIONS
-    const isImage = !!mediaUrl && mediaContentType.startsWith("image/");
-    const isAudio = !!mediaUrl && mediaContentType.startsWith("audio/");
-
     const baseMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl);
 
     // 🛑 1. DAILY TRANSACTION LIMIT CHECK (TEXT ONLY — image/voice have their own checks below)
@@ -203,47 +288,43 @@ export async function POST(req: NextRequest) {
     // 7️⃣ EXTRACTION ENGINE (IMAGE / VOICE / TEXT)
     let extractedTx: ExtractedData | null = null;
 
-    if (mediaUrl) {
-      if (isImage) {
-        const mediaRes = await axios.get(mediaUrl, {
-          responseType: "arraybuffer",
-          auth: { username: TWILIO_SID, password: TWILIO_TOKEN },
-          timeout: 15000,
-        });
-        const base64Image = Buffer.from(mediaRes.data).toString("base64");
-        extractedTx = await extractFromImageBuffer(base64Image, mediaContentType, userCurrency, userLang, nickname);
-      } else if (isAudio) {
-        const langInfo = getWhisperLanguageInfo(userLang);
-
-        const mediaRes = await axios.get(mediaUrl, {
-          responseType: "arraybuffer",
-          auth: { username: TWILIO_SID, password: TWILIO_TOKEN },
-          timeout: 15000,
-        });
-        const audioBuffer = Buffer.from(mediaRes.data);
-        const transcriptionResult = await transcribeVoiceBuffer(audioBuffer, "voice.ogg", "audio/ogg", langInfo?.isoCode || null);
-
-        if (!transcriptionResult || !transcriptionResult.text) {
-          await send(baseMsgs.fallback);
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        // Skipped for "Singlish" (langInfo is null) since it's code-switched mixed speech.
-        if (langInfo && transcriptionResult.detectedLanguage && transcriptionResult.detectedLanguage !== langInfo.name) {
-          const mismatchMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { language: langInfo.name });
-          await send(mismatchMsgs.voiceLangMismatch);
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        extractedTx = await extractTransaction(transcriptionResult.text, userCurrency, userLang, nickname);
+    if (isImage && photoFileId) {
+      const file = await downloadTelegramFile(photoFileId);
+      if (file) {
+        const base64Image = file.buffer.toString("base64");
+        extractedTx = await extractFromImageBuffer(base64Image, file.mimeType, userCurrency, userLang, nickname);
       }
+    } else if (isAudio && voiceFileId) {
+      const langInfo = getWhisperLanguageInfo(userLang);
+      const file = await downloadTelegramFile(voiceFileId);
+
+      if (!file) {
+        await send(baseMsgs.fallback);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      const transcriptionResult = await transcribeVoiceBuffer(file.buffer, "voice.ogg", file.mimeType, langInfo?.isoCode || null);
+
+      if (!transcriptionResult || !transcriptionResult.text) {
+        await send(baseMsgs.fallback);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Skipped for "Singlish" (langInfo is null) since it's code-switched mixed speech.
+      if (langInfo && transcriptionResult.detectedLanguage && transcriptionResult.detectedLanguage !== langInfo.name) {
+        const mismatchMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { language: langInfo.name });
+        await send(mismatchMsgs.voiceLangMismatch);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      extractedTx = await extractTransaction(transcriptionResult.text, userCurrency, userLang, nickname);
     } else if (body) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
     // 8️⃣ TEXT -> SAVE DIRECTLY | VOICE / IMAGE -> SEND PREVIEW FOR CONFIRM/EDIT
     if (extractedTx && extractedTx.amount) {
-      if (!mediaUrl) {
+      if (!isImage && !isAudio) {
         const directMsg = await saveExtractedDirect(ID_COLUMN, from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
         await send(directMsg);
         return new NextResponse("OK", { status: 200 });
@@ -269,7 +350,12 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse("OK", { status: 200 });
   } catch (error) {
-    console.error("❌ Fatal WhatsApp Webhook Error:", error);
+    console.error("❌ Fatal Telegram Webhook Error:", error);
     return new NextResponse("OK", { status: 200 });
   }
 }
+
+// Telegram calls setWebhook once to point at this URL — no console config like Twilio.
+// Run once (locally or via a script) after deploying:
+//
+// curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://yoursite.com/api/telegram"

@@ -1,7 +1,12 @@
 import { supabase } from "@/lib/supabase";
 
+// NOTE: keyed by Supabase `id` (primary key) instead of `phone_number` —
+// dashboard login already resolves a user via WhatsApp number OR email,
+// so `user.id` is the one identifier guaranteed to exist no matter which
+// channel the user registered/logged in with (WhatsApp, email, or later Telegram).
+
 export async function checkUserLimits(
-  phoneNumber: string,
+  userId: string,
   type: "expense_income" | "ocr" | "voice"
 ): Promise<{ allowed: boolean; message?: string }> {
 
@@ -9,7 +14,7 @@ export async function checkUserLimits(
   const { data: user, error } = await supabase
     .from("users")
     .select("*")
-    .eq("phone_number", phoneNumber)
+    .eq("id", userId)
     .single();
 
   if (error || !user) {
@@ -32,7 +37,7 @@ export async function checkUserLimits(
       daily_ocr_count: 0,
       daily_voice_count: 0,
       last_activity_date: today,
-    }).eq("phone_number", phoneNumber);
+    }).eq("id", userId);
   }
 
   const plan = user.plan || "lite";
@@ -89,18 +94,18 @@ export async function checkUserLimits(
 }
 
 // 3. Increment Usage Function
-export async function incrementUsage(phoneNumber: string, type: "expense_income" | "ocr" | "voice") {
-  const { data: user } = await supabase.from("users").select("*").eq("phone_number", phoneNumber).single();
+export async function incrementUsage(userId: string, type: "expense_income" | "ocr" | "voice") {
+  const { data: user } = await supabase.from("users").select("*").eq("id", userId).single();
   if (!user) return;
 
   if (type === "expense_income") {
-    await supabase.from("users").update({ daily_tx_count: (user.daily_tx_count || 0) + 1 }).eq("phone_number", phoneNumber);
+    await supabase.from("users").update({ daily_tx_count: (user.daily_tx_count || 0) + 1 }).eq("id", userId);
   } else if (type === "ocr") {
-    await supabase.from("users").update({ 
+    await supabase.from("users").update({
       daily_ocr_count: (user.daily_ocr_count || 0) + 1,
-      monthly_ocr_count: (user.monthly_ocr_count || 0) + 1 
-    }).eq("phone_number", phoneNumber);
+      monthly_ocr_count: (user.monthly_ocr_count || 0) + 1
+    }).eq("id", userId);
   } else if (type === "voice") {
-    await supabase.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("phone_number", phoneNumber);
+    await supabase.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("id", userId);
   }
 }
