@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     // 🛑 1. DAILY TRANSACTION LIMIT CHECK (TEXT ONLY — image/voice have their own checks below)
     const currentDailyTx = userProfile.daily_tx_count || 0;
-    if (!isImage && !isAudio && !normalizedBody.includes("registered") && normalizedBody !== "confirm" && normalizedBody !== "edit") {
+    if (!isImage && !isAudio && !normalizedBody.includes("registered") && !normalizedBody.includes("upgraded") && normalizedBody !== "confirm" && normalizedBody !== "edit") {
       if (userPlan === "lite" && currentDailyTx >= 3) {
         await send(baseMsgs.dailyTxLimitReached);
         return new NextResponse("OK", { status: 200 });
@@ -237,6 +237,17 @@ export async function POST(req: NextRequest) {
     if (normalizedBody.includes("registered") || normalizedBody.includes("hi broo")) {
       await supabase.from("user_sessions").update({ step: "AWAITING_STARTING_BALANCE" }).eq(ID_COLUMN, from);
       await send(baseMsgs.welcome);
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // 4️⃣.5 UPGRADE CONFIRMATION REDIRECT MESSAGE — safety net for the
+    // payment-success page's "Open WhatsApp chat" link text (only used as a
+    // fallback there; the normal already-linked path opens the chat with no
+    // pre-filled text at all, see /payment-success page.tsx). This user is
+    // already active, so just acknowledge — no onboarding/session change.
+    if (normalizedBody.includes("upgraded")) {
+      const planLabel = userPlan.toUpperCase();
+      await send(`🎉 Nice one, ${nickname}! Your *${planLabel}* upgrade is already active here — just keep logging as usual.`);
       return new NextResponse("OK", { status: 200 });
     }
 

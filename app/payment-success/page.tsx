@@ -41,13 +41,6 @@ function PaymentSuccessContent() {
   // just needs to confirm, not redirect/link them anywhere.
   const alreadyLinked = searchParams.get("already_linked") === "true";
 
-  // Set by /api/create-checkout: true when this checkout was an existing
-  // (already-registered) user upgrading their plan, false/absent for a
-  // brand-new registration. Only affects the WhatsApp fallback message
-  // below (the link_token branch always sends "START-<token>" regardless,
-  // since the backend greps for that exact string).
-  const isUpgrade = searchParams.get("is_upgrade") === "true";
-
   const planLabel = PLAN_LABELS[plan] || "BroFinAi";
   const isTelegram = channel === "telegram";
 
@@ -61,19 +54,29 @@ function PaymentSuccessContent() {
     // "whatsapp:+14155238886", so strip both the "whatsapp:" prefix and the
     // "+" before building the wa.me link, which wants bare digits.
     const rawBotNumber =
-      process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+94764775963";
+      process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
     const botPhoneNumber = rawBotNumber.replace("whatsapp:", "");
-    // When there's a link_token (new registration OR a Telegram user
-    // upgrading/adding WhatsApp), the message body must start with
-    // "START-<token>" — the WhatsApp route greps the incoming Twilio
-    // webhook body for this exact pattern to resolve the token and attach
-    // phone_number to the existing user_id row (same idea as Telegram's
-    // ?start= deep link, since wa.me has no equivalent param).
-    const text = linkToken
-      ? `START-${linkToken}`
-      : isUpgrade
-        ? `Hi BroFinAi, I just upgraded to the ${planLabel} plan!`
-        : `Hi BroFinAi, I just registered to the ${planLabel} plan!`;
+
+    if (linkToken) {
+      // New registration OR a different-channel upgrade that still needs
+      // linking — the WhatsApp route greps the body for this exact
+      // "START-<token>" pattern to resolve it.
+      return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${encodeURIComponent(`START-${linkToken}`)}`;
+    }
+
+    if (alreadyLinked) {
+      // Already-linked upgrade: the webhook already pushed the "🎉
+      // Upgraded!" confirmation into this chat directly, so there's nothing
+      // for the user to send — open the chat with no pre-filled text at
+      // all. (A pre-filled message would get sent as a real incoming
+      // message and run through the bot's transaction-extraction pipeline,
+      // which doesn't know what to do with it.)
+      return `https://wa.me/${botPhoneNumber.replace("+", "")}`;
+    }
+
+    // Fallback: no token, not already linked (shouldn't normally happen,
+    // but keep a harmless greeting rather than nothing).
+    const text = `Hi BroFinAi, I just registered to the ${planLabel} plan!`;
     return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${encodeURIComponent(text)}`;
   })();
 
