@@ -56,7 +56,13 @@ function PaymentSuccessContent() {
       const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "your_bot_username";
       return `https://t.me/${botUsername}${linkToken ? `?start=${linkToken}` : ""}`;
     }
-    const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
+    // Same env var the Twilio client/webhook route already use
+    // (NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER) — its value looks like
+    // "whatsapp:+14155238886", so strip both the "whatsapp:" prefix and the
+    // "+" before building the wa.me link, which wants bare digits.
+    const rawBotNumber =
+      process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+94764775963";
+    const botPhoneNumber = rawBotNumber.replace("whatsapp:", "");
     // When there's a link_token (new registration OR a Telegram user
     // upgrading/adding WhatsApp), the message body must start with
     // "START-<token>" — the WhatsApp route greps the incoming Twilio
