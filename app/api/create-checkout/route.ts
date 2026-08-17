@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
         plan: planKey,
         channel: channelKey,
         already_linked: String(alreadyLinked),
+        is_upgrade: "true",
       });
       if (upgradeLinkToken) redirectParams.set("link_token", upgradeLinkToken);
       redirectUrl = `${appUrl}/payment-success?${redirectParams.toString()}`;
