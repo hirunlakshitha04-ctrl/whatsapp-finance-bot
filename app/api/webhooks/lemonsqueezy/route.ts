@@ -159,24 +159,6 @@ export async function POST(req: Request) {
 
       const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
 
-      // Idempotency guard: Lemon Squeezy commonly fires subscription_created
-      // AND subscription_updated (sometimes more, plus retries) for the same
-      // purchase. Fetch the user's CURRENT plan before writing, so we can
-      // tell a real plan change apart from a duplicate delivery of the same
-      // outcome — only a real change should trigger the chat confirmation.
-      let lookupQuery = supabaseAdmin.from("users").select("id, plan");
-      if (userId) {
-        lookupQuery = lookupQuery.eq("id", userId);
-      } else if (userPhone) {
-        lookupQuery = lookupQuery.eq("phone_number", userPhone);
-      } else if (userEmail) {
-        lookupQuery = lookupQuery.eq("email", userEmail);
-      }
-      const { data: beforeRows } = userId || userPhone || userEmail
-        ? await lookupQuery.maybeSingle()
-        : { data: null };
-      const previousPlan = (beforeRows as any)?.plan || null;
-
       const updateData: Record<string, any> = {
         plan: planName,
         payment_status: "PAID",
@@ -193,20 +175,44 @@ export async function POST(req: Request) {
         updateData.lemon_squeezy_customer_id = customerId;
       }
 
-      let query = supabaseAdmin.from("users").update(updateData);
+      // Build the identity filter once, reused by both update attempts below.
+      const applyIdentityFilter = (q: any) => {
+        if (userId) return q.eq("id", userId);
+        if (userPhone) return q.eq("phone_number", userPhone);
+        if (userEmail) return q.eq("email", userEmail);
+        return null;
+      };
 
-      if (userId) {
-        query = query.eq("id", userId);
-      } else if (userPhone) {
-        query = query.eq("phone_number", userPhone);
-      } else if (userEmail) {
-        query = query.eq("email", userEmail);
-      } else {
+      if (!userId && !userPhone && !userEmail) {
         console.error("❌ No user identifier found in webhook payload");
         return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
       }
 
-      const { data, error } = await query.select();
+      // Idempotency guard against duplicate/concurrent webhook deliveries
+      // (Lemon Squeezy commonly fires subscription_created AND
+      // subscription_updated for the same purchase, sometimes almost
+      // simultaneously). Filtering this UPDATE on plan != planName makes it
+      // race-safe: Postgres serializes concurrent UPDATEs to the same row
+      // via row-level locking and re-checks the WHERE clause against the
+      // just-committed value, so only ONE of several concurrent requests
+      // actually matches and updates the row — the rest match zero rows.
+      // Only the request that wins this race sends the chat confirmation.
+      const atomicQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!.neq("plan", planName);
+      let { data, error } = await atomicQuery.select();
+      let planActuallyChanged = !error && !!data && data.length > 0;
+
+      if (!error && (!data || data.length === 0)) {
+        // Zero rows matched — either a duplicate delivery (plan already
+        // planName, expected and fine) or a genuine same-plan renewal that
+        // still needs payment_status/subscription_id/customer_id refreshed.
+        // Do a plain update (no neq filter, no confirmation) to cover the
+        // renewal case; harmless no-op write for the duplicate case.
+        const fallbackQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!;
+        const fallbackResult = await fallbackQuery.select();
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+        console.log(`ℹ️ Plan already "${planName}" or renewal — skipping duplicate upgrade confirmation (event: ${eventName}).`);
+      }
 
       if (error) {
         console.error("Supabase Update Error:", error);
@@ -221,15 +227,10 @@ export async function POST(req: Request) {
       // Same-channel upgrade (e.g. WhatsApp Lite -> WhatsApp Core): the user
       // never leaves the chat, so push the confirmation directly instead of
       // relying on the payment-success page to redirect them anywhere.
-      // Gated on an actual plan change so duplicate/retried webhook events
-      // for the same purchase don't spam the same message repeatedly.
-      const planActuallyChanged = previousPlan !== planName;
-      if (isUpgrade && alreadyLinked && upgradeChannel && data && data[0]) {
-        if (planActuallyChanged) {
-          await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
-        } else {
-          console.log(`ℹ️ Skipping duplicate upgrade confirmation — plan already "${planName}" (event: ${eventName}).`);
-        }
+      // Gated on the atomic race check above so duplicate/concurrent
+      // webhook events for the same purchase don't spam the same message.
+      if (isUpgrade && alreadyLinked && upgradeChannel && planActuallyChanged && data && data[0]) {
+        await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
       }
     }
 
