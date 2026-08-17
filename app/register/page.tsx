@@ -735,7 +735,12 @@ function RegisterForm() {
       const data = await res.json();
 
       if (!res.ok || !data.url) {
-        setErrorMsg("Could not start checkout. Please try again in a moment.");
+        console.error("Checkout API error:", data);
+        setErrorMsg(
+          data?.error
+            ? `Could not start checkout: ${data.error}`
+            : "Could not start checkout. Please try again in a moment."
+        );
         return;
       }
 
@@ -802,8 +807,10 @@ function RegisterForm() {
     }
 
     // One-time token used only to link a Telegram chat_id back to this user
-    // row on their first /start message — see telegram/route.ts.
-    const linkToken =
+    // row on their first /start message — see telegram/route.ts. Generated
+    // here as a fallback; reused-vs-fresh decision happens once we know the
+    // user id (see below) so retries don't invalidate a link already sent.
+    const generateLinkToken = () =>
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -840,6 +847,7 @@ function RegisterForm() {
       });
 
       let userId = authData?.user?.id;
+      let linkToken = generateLinkToken();
 
       if (authError) {
         const message = typeof authError === 'object' && authError !== null
@@ -875,7 +883,36 @@ function RegisterForm() {
             return;
           }
 
-          userId = signInData.user?.id;
+          const existingUserId = signInData.user?.id;
+
+          // One account, one channel. Check whether this row has already
+          // committed to a channel (phone_number set = WhatsApp, or
+          // telegram_chat_id set = Telegram already linked) — if so, block
+          // switching to a different channel on this same email so users
+          // don't end up half-linked to two channels on one account.
+          const { data: existingChannelRow } = await supabase
+            .from("users")
+            .select("phone_number, telegram_chat_id")
+            .eq("id", existingUserId)
+            .maybeSingle();
+
+          const existingChannel: "whatsapp" | "telegram" | null = existingChannelRow?.telegram_chat_id
+            ? "telegram"
+            : existingChannelRow?.phone_number
+            ? "whatsapp"
+            : null;
+
+          if (existingChannel && existingChannel !== formData.channel) {
+            const existingLabel = existingChannel === "whatsapp" ? "WhatsApp" : "Telegram";
+            const requestedLabel = formData.channel === "whatsapp" ? "WhatsApp" : "Telegram";
+            setErrorMsg(
+              `This email is already registered on ${existingLabel}. An account can only be linked to one channel — continue on ${existingLabel}, or use a different email to register on ${requestedLabel}.`
+            );
+            setLoading(false);
+            return;
+          }
+
+          userId = existingUserId;
         } else {
           setErrorMsg(message);
           setLoading(false);
@@ -884,6 +921,25 @@ function RegisterForm() {
       }
 
       if (userId) {
+        // If this user already has a pending (not-yet-linked) token from an
+        // earlier attempt — e.g. a prior submit whose checkout failed —
+        // reuse it instead of overwriting it. Otherwise any Telegram
+        // "Start on Telegram" link they already opened (or a Lemon Squeezy
+        // checkout tab left open with the old token baked into its
+        // redirect_url) would report "Link Invalid or Expired" once this
+        // upsert replaces link_token with a new value.
+        if (formData.channel === "telegram") {
+          const { data: existingRow } = await supabase
+            .from("users")
+            .select("link_token, telegram_chat_id")
+            .eq("id", userId)
+            .maybeSingle();
+
+          if (existingRow?.link_token && !existingRow.telegram_chat_id) {
+            linkToken = existingRow.link_token;
+          }
+        }
+
         const { error: dbError } = await supabase
           .from("users")
           .upsert([
