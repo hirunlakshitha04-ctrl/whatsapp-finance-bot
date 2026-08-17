@@ -308,8 +308,10 @@ export default function BrooDashboard() {
   const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({});
 
   const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const todayDate = now.toISOString().slice(0, 10);
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const firstDayOfMonth = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const todayDate = toLocalDateStr(now);
 
   const [summaryFromDate, setSummaryFromDate] = useState<string>(firstDayOfMonth);
   const [summaryToDate, setSummaryToDate] = useState<string>(todayDate);
