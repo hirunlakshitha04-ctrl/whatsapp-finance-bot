@@ -41,6 +41,85 @@ export async function POST(req: NextRequest) {
     const send = (text: string) =>
       twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${from}`, body: text });
 
+    // 0️⃣ ACCOUNT LINKING — "START-<token>" arrives from a paid-checkout
+    // success redirect, OR from an existing user (e.g. already registered on
+    // Telegram) who is adding WhatsApp as a second channel via the dashboard's
+    // "Connect WhatsApp" button. Either way, this attaches `from` to an
+    // EXISTING user row instead of treating them as brand new.
+    if (body.toUpperCase().startsWith("START-")) {
+      const linkToken = body.split("-").slice(1).join("-").trim();
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+
+      if (!linkToken) {
+        await send(getRegisterMessage(websiteUrl));
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      const { data: tokenUser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("link_token", linkToken)
+        .maybeSingle();
+
+      if (!tokenUser) {
+        // Token doesn't exist / already used / expired
+        await send(`⚠️ This link has expired or was already used. Please go back to the website and try again:\n👉 ${websiteUrl}/register`);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      // Was this account already active on another channel (e.g. registered
+      // via Telegram)? If so, they already went through onboarding — don't
+      // ask for a starting balance again, just confirm the link.
+      //
+      // Two signals count as "already active": an actual transaction history
+      // on the other channel, OR a paid plan already set (covers the case
+      // where a Core/Max user links a second channel before logging their
+      // first transaction there — they've still been through onboarding).
+      const isPaidPlan = !!tokenUser.plan && tokenUser.plan.toLowerCase() !== "lite";
+
+      let hasTransactionHistory = false;
+      if (tokenUser.telegram_chat_id) {
+        const { count } = await supabase
+          .from("transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("telegram_chat_id", tokenUser.telegram_chat_id);
+        hasTransactionHistory = (count || 0) > 0;
+      }
+
+      const hasHistory = isPaidPlan || hasTransactionHistory;
+
+      // Attach this WhatsApp number to the existing user row and burn the token.
+      await supabase.from("users").update({ phone_number: from, link_token: null }).eq("id", tokenUser.id);
+
+      const linkedLang = tokenUser.language || tokenUser.preferred_language || "English";
+      const linkedNickname = tokenUser.how_to_call_you || tokenUser.nickname || tokenUser.name || "Bro";
+      const linkedCurrency = tokenUser.base_currency || tokenUser.currency || "LKR";
+
+      if (hasHistory) {
+        const planLabel = (tokenUser.plan || "lite").toUpperCase();
+        // Skip the AWAITING_STARTING_BALANCE step entirely — this user is
+        // already active elsewhere, so their very next message should be
+        // treated as a normal transaction, not captured as starting capital.
+        await supabase
+          .from("user_sessions")
+          .upsert({ phone_number: from, step: "ACTIVE" }, { onConflict: "phone_number" });
+        await send(
+          `🎉 Connected! Hey ${linkedNickname}, WhatsApp is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
+        );
+      } else {
+        // NOTE: requires a UNIQUE constraint on user_sessions.phone_number
+        // for onConflict to work (see migration note below).
+        await supabase
+          .from("user_sessions")
+          .upsert({ phone_number: from, step: "AWAITING_STARTING_BALANCE" }, { onConflict: "phone_number" });
+
+        const welcomeMsgs = await getLocalizedMessages(linkedLang, linkedNickname, linkedCurrency, websiteUrl);
+        await send(welcomeMsgs.welcome);
+      }
+
+      return new NextResponse("OK", { status: 200 });
+    }
+
     // 1️⃣ Fetch User Profile
     let { data: userProfile } = await supabase.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
 

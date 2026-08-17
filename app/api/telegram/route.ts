@@ -125,7 +125,39 @@ export async function POST(req: NextRequest) {
       }
 
       const linkNickname = pendingUser.how_to_call_you || pendingUser.nickname || pendingUser.name || "Bro";
-      await send(`✅ *Connected!*\n\nHey ${linkNickname}, your Telegram is now linked to Brofinai. 🚀\n\nSend your **Starting Balance** to begin tracking — e.g. *"50000"*`);
+
+      // Was this account already active on another channel (e.g. registered
+      // via WhatsApp)? If so, they already went through onboarding — don't
+      // ask for a starting balance again, just confirm the link. Mirrors the
+      // WhatsApp route's same check, keyed on phone_number instead.
+      const isPaidPlan = !!pendingUser.plan && pendingUser.plan.toLowerCase() !== "lite";
+
+      let hasTransactionHistory = false;
+      if (pendingUser.phone_number) {
+        const { count } = await supabase
+          .from("transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("phone_number", pendingUser.phone_number);
+        hasTransactionHistory = (count || 0) > 0;
+      }
+
+      const hasHistory = isPaidPlan || hasTransactionHistory;
+
+      if (hasHistory) {
+        const planLabel = (pendingUser.plan || "lite").toUpperCase();
+        // Skip the AWAITING_STARTING_BALANCE step entirely — this user is
+        // already active elsewhere, so their very next message should be
+        // treated as a normal transaction, not captured as starting capital.
+        await supabase
+          .from("user_sessions")
+          .upsert({ [ID_COLUMN]: from, step: "ACTIVE" }, { onConflict: ID_COLUMN });
+        await send(
+          `✅ *Connected!*\n\nHey ${linkNickname}, Telegram is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
+        );
+      } else {
+        await send(`✅ *Connected!*\n\nHey ${linkNickname}, your Telegram is now linked to Brofinai. 🚀\n\nSend your **Starting Balance** to begin tracking — e.g. *"50000"*`);
+      }
+
       return new NextResponse("OK", { status: 200 });
     }
 

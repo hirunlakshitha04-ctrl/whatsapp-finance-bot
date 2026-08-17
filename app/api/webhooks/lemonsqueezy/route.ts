@@ -1,6 +1,41 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import twilio from "twilio";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { sendTelegramMessage } from "@/lib/telegram-client";
+
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+
+const PLAN_FEATURE_BLURB: Record<string, string> = {
+  CORE: "10 daily logs, 30 monthly scans, 5 daily voice notes, budgets & Excel export",
+  MAX: "unlimited logs, scans & voice notes, plus budgets & Excel export",
+};
+
+// Sends the "🎉 upgraded!" message directly on whichever channel the user
+// was already chatting on — used for the already_linked=true case where no
+// redirect/token step is needed (see /api/create-checkout upgrade branch).
+async function sendUpgradeConfirmation(user: any, planName: string, channelKey: string) {
+  const nickname = user.how_to_call_you || user.nickname || user.name || "Bro";
+  const featureBlurb = PLAN_FEATURE_BLURB[planName] || "your new plan features";
+  const text = `🎉 Upgraded! Hey ${nickname}, you're now on *${planName}* — ${featureBlurb} are unlocked. Enjoy! 🚀`;
+
+  try {
+    if (channelKey === "telegram" && user.telegram_chat_id) {
+      await sendTelegramMessage(user.telegram_chat_id, text);
+    } else if (channelKey === "whatsapp" && user.phone_number) {
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${user.phone_number}`,
+        body: text,
+      });
+    }
+  } catch (err) {
+    // Never let a notification failure affect the webhook's success response —
+    // the plan is already updated in the DB either way.
+    console.error("❌ Upgrade confirmation push failed:", err);
+  }
+}
 
 // Every variant ID that should map to a paid plan — channel-specific ones
 // first (see /api/create-checkout), then the old channel-agnostic fallback
@@ -66,6 +101,15 @@ export async function POST(req: Request) {
       customData?.email || customData?.user_email || attributes?.user_email || attributes?.customer_email;
     const userPhone = customData?.phone;
 
+    // Upgrade-flow fields — set by /api/create-checkout when mode=upgrade.
+    // user_id is the most reliable lookup key (works even when phone/telegram
+    // aren't linked yet), and already_linked tells us whether to push a
+    // direct chat confirmation or leave it to the payment-success redirect.
+    const userId = customData?.user_id;
+    const isUpgrade = customData?.mode === "upgrade";
+    const alreadyLinked = customData?.already_linked === "true";
+    const upgradeChannel = customData?.channel;
+
     // Variant ID එක Lemon Squeezy payloads වල එන විවිධ තැන්වලින් ලබා ගැනීමට
     const variantId = String(
       attributes?.first_subscription_item?.variant_id || 
@@ -110,12 +154,14 @@ export async function POST(req: Request) {
 
       let query = supabaseAdmin.from("users").update(updateData);
 
-      if (userPhone) {
+      if (userId) {
+        query = query.eq("id", userId);
+      } else if (userPhone) {
         query = query.eq("phone_number", userPhone);
       } else if (userEmail) {
         query = query.eq("email", userEmail);
       } else {
-        console.error("❌ No user email or phone found in webhook payload");
+        console.error("❌ No user identifier found in webhook payload");
         return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
       }
 
@@ -130,6 +176,13 @@ export async function POST(req: Request) {
       }
 
       console.log(`✅ Successfully updated user to plan: ${planName}`, data);
+
+      // Same-channel upgrade (e.g. WhatsApp Lite -> WhatsApp Core): the user
+      // never leaves the chat, so push the confirmation directly instead of
+      // relying on the payment-success page to redirect them anywhere.
+      if (isUpgrade && alreadyLinked && upgradeChannel && data && data[0]) {
+        await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
+      }
     }
 
     // Subscription Cancelled / Expired Events
@@ -145,7 +198,9 @@ export async function POST(req: Request) {
 
       let query = supabaseAdmin.from("users").update(updateData);
 
-      if (userPhone) {
+      if (userId) {
+        query = query.eq("id", userId);
+      } else if (userPhone) {
         query = query.eq("phone_number", userPhone);
       } else if (userEmail) {
         query = query.eq("email", userEmail);

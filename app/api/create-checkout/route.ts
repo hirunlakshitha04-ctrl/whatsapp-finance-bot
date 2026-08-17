@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lemonSqueezySetup, createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
+import { randomUUID } from "crypto";
+import { supabase } from "@/lib/supabase";
 
 // Plan + channel -> Lemon Squeezy variant ID env var name.
 // WhatsApp and Telegram are priced differently (see pricing page), so each
@@ -46,6 +48,8 @@ export async function POST(req: NextRequest) {
       channel,
       link_token: linkToken,
       variantId: explicitVariantId,
+      user_id: userId,
+      mode,
     } = body;
 
     const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
@@ -90,28 +94,88 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const isUpgrade = mode === "upgrade" && !!userId;
+
     // Prepare Custom Metadata — carried through to the order/webhook payload
     // so fulfillment can match the order back to this user + channel.
     const customData: Record<string, string> = {};
-    if (phone) customData.phone = String(phone);
-    if (email) customData.email = String(email);
-    if (name) customData.name = String(name);
-    if (channelKey) customData.channel = channelKey;
-    if (planKey) customData.plan = planKey;
-    if (linkToken) customData.link_token = String(linkToken);
+    let redirectUrl: string;
+    let checkoutEmail: string | undefined = email ? String(email) : undefined;
 
-    // Build the post-payment redirect URL — this is what the payment-success
-    // page reads to know which channel to auto-redirect the user into
-    // (wa.me for WhatsApp, t.me/<bot>?start=<link_token> for Telegram).
-    const redirectParams = new URLSearchParams({ plan: planKey, channel: channelKey });
-    if (channelKey === "whatsapp" && phone) redirectParams.set("phone", String(phone));
-    if (channelKey === "telegram" && linkToken) redirectParams.set("link_token", String(linkToken));
-    const redirectUrl = `${appUrl}/payment-success?${redirectParams.toString()}`;
+    if (isUpgrade) {
+      // ---------------- UPGRADE FLOW (existing dashboard user) ----------------
+      const { data: existingUser, error: userFetchErr } = await supabase
+        .from("users")
+        .select("id, email, phone_number, telegram_chat_id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (userFetchErr || !existingUser) {
+        return NextResponse.json({ error: "User not found for upgrade" }, { status: 404 });
+      }
+
+      checkoutEmail = existingUser.email || checkoutEmail;
+
+      // Is the channel they're upgrading on the same one already linked to
+      // their account? If so, no redirect/token is needed at all — the
+      // webhook can just flip their plan and the bot can message them
+      // directly on the chat it already knows. A DIFFERENT channel (e.g. a
+      // Telegram user upgrading and choosing WhatsApp) still needs the
+      // token-linking flow since that channel's identifier is unknown yet.
+      const alreadyLinked =
+        (channelKey === "whatsapp" && !!existingUser.phone_number) ||
+        (channelKey === "telegram" && !!existingUser.telegram_chat_id);
+
+      let upgradeLinkToken: string | null = null;
+      if (!alreadyLinked) {
+        upgradeLinkToken = randomUUID();
+        const { error: tokenSaveErr } = await supabase
+          .from("users")
+          .update({ link_token: upgradeLinkToken })
+          .eq("id", userId);
+        if (tokenSaveErr) {
+          console.error("❌ Failed to save upgrade link_token:", tokenSaveErr);
+          return NextResponse.json({ error: "Failed to prepare channel link" }, { status: 500 });
+        }
+      }
+
+      customData.user_id = String(userId);
+      customData.mode = "upgrade";
+      customData.plan = planKey;
+      customData.channel = channelKey;
+      customData.already_linked = String(alreadyLinked);
+      if (upgradeLinkToken) customData.link_token = upgradeLinkToken;
+
+      const redirectParams = new URLSearchParams({
+        mode: "upgrade",
+        plan: planKey,
+        channel: channelKey,
+        already_linked: String(alreadyLinked),
+      });
+      if (upgradeLinkToken) redirectParams.set("link_token", upgradeLinkToken);
+      redirectUrl = `${appUrl}/payment-success?${redirectParams.toString()}`;
+    } else {
+      // ---------------- FRESH REGISTRATION FLOW (unchanged) ----------------
+      if (phone) customData.phone = String(phone);
+      if (email) customData.email = String(email);
+      if (name) customData.name = String(name);
+      if (channelKey) customData.channel = channelKey;
+      if (planKey) customData.plan = planKey;
+      if (linkToken) customData.link_token = String(linkToken);
+
+      // Build the post-payment redirect URL — this is what the payment-success
+      // page reads to know which channel to auto-redirect the user into
+      // (wa.me for WhatsApp, t.me/<bot>?start=<link_token> for Telegram).
+      const redirectParams = new URLSearchParams({ plan: planKey, channel: channelKey });
+      if (channelKey === "whatsapp" && phone) redirectParams.set("phone", String(phone));
+      if (channelKey === "telegram" && linkToken) redirectParams.set("link_token", String(linkToken));
+      redirectUrl = `${appUrl}/payment-success?${redirectParams.toString()}`;
+    }
 
     // Create Checkout Session
     const checkout = await createCheckout(formattedStoreId, formattedVariantId, {
       checkoutData: {
-        email: email ? String(email) : undefined,
+        email: checkoutEmail,
         custom: customData,
       },
       productOptions: {

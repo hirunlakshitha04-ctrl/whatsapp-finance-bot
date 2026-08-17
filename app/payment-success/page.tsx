@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Loader2,
   ShieldCheck,
+  MessageCircle,
 } from "lucide-react";
 
 // Same plan-id -> display-name mapping used on the pricing/register pages.
@@ -20,22 +21,27 @@ const PLAN_LABELS: Record<string, string> = {
   max: "BRO MAX",
 };
 
-const AUTO_REDIRECT_SECONDS = 3;
-
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
 
   // These come from the redirect_url we handed Lemon Squeezy at checkout
   // time (see /api/create-checkout), which echoes back the same channel,
-  // plan, phone and link_token the user submitted on the register page.
+  // plan, phone, link_token and already_linked flag the user submitted /
+  // that create-checkout resolved on the register page.
   const channel = (searchParams.get("channel") === "telegram" ? "telegram" : "whatsapp") as
     | "whatsapp"
     | "telegram";
   const plan = (searchParams.get("plan") || "core").toLowerCase();
-  const phone = searchParams.get("phone") || "";
   const linkToken = searchParams.get("link_token") || searchParams.get("token") || "";
-  const planLabel = PLAN_LABELS[plan] || "BroFinAi";
 
+  // Set by /api/create-checkout for the upgrade flow: true when this user's
+  // channel was already linked before checkout. In that case the webhook
+  // (see sendUpgradeConfirmation in /api/lemon-webhook) already pushed the
+  // "🎉 Upgraded!" message straight into their existing chat — so this page
+  // just needs to confirm, not redirect/link them anywhere.
+  const alreadyLinked = searchParams.get("already_linked") === "true";
+
+  const planLabel = PLAN_LABELS[plan] || "BroFinAi";
   const isTelegram = channel === "telegram";
 
   const destinationUrl = (() => {
@@ -44,25 +50,17 @@ function PaymentSuccessContent() {
       return `https://t.me/${botUsername}${linkToken ? `?start=${linkToken}` : ""}`;
     }
     const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
-    const defaultText = encodeURIComponent(
-      `Hi BroFinAi, I just registered to the ${planLabel} plan!`
-    );
-    return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
+    // When there's a link_token (new registration OR a Telegram user
+    // upgrading/adding WhatsApp), the message body must start with
+    // "START-<token>" — the WhatsApp route greps the incoming Twilio
+    // webhook body for this exact pattern to resolve the token and attach
+    // phone_number to the existing user_id row (same idea as Telegram's
+    // ?start= deep link, since wa.me has no equivalent param).
+    const text = linkToken
+      ? `START-${linkToken}`
+      : `Hi BroFinAi, I just registered to the ${planLabel} plan!`;
+    return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${encodeURIComponent(text)}`;
   })();
-
-  const [secondsLeft, setSecondsLeft] = useState(AUTO_REDIRECT_SECONDS);
-  const [redirected, setRedirected] = useState(false);
-
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      setRedirected(true);
-      window.location.href = destinationUrl;
-      return;
-    }
-    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secondsLeft]);
 
   const theme = isTelegram
     ? {
@@ -110,26 +108,43 @@ function PaymentSuccessContent() {
         You're on {planLabel}
       </div>
 
-      <p className="text-slate-400 text-sm leading-relaxed mb-8">
-        {redirected ? (
-          <>Opening {theme.channelName}…</>
-        ) : (
-          <>
-            Taking you to {theme.channelName} in{" "}
-            <span className="text-white font-semibold">{secondsLeft}s</span> to start
-            chatting with BroFinAi. Didn't move? Tap below.
-          </>
-        )}
-      </p>
+      {alreadyLinked ? (
+        // already_linked=true: no redirect step needed — the webhook already
+        // sent the upgrade confirmation into this user's existing chat.
+        <>
+          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+            You're all set. We've sent a confirmation straight to your{" "}
+            {theme.channelName} chat — nothing else to do here.
+          </p>
 
-      <a
-        href={destinationUrl}
-        className={`w-full py-3.5 px-4 rounded-xl text-center text-sm tracking-wide font-bold transition flex items-center justify-center gap-2 ${theme.buttonClass}`}
-      >
-        {theme.icon}
-        <span>Start on {theme.channelName}</span>
-        <ArrowRight className="w-4 h-4" />
-      </a>
+          <a
+            href={destinationUrl}
+            className="w-full py-3 px-4 rounded-xl text-center text-sm tracking-wide font-semibold transition flex items-center justify-center gap-2 border border-white/10 text-slate-300 hover:bg-white/5"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>Open {theme.channelName} chat</span>
+          </a>
+        </>
+      ) : (
+        // already_linked=false (new user / unlinked channel): needs the
+        // link_token round-trip, so require an explicit tap instead of an
+        // auto-redirect.
+        <>
+          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+            One last step — tap below to open {theme.channelName} and start
+            chatting with BroFinAi.
+          </p>
+
+          <a
+            href={destinationUrl}
+            className={`w-full py-3.5 px-4 rounded-xl text-center text-sm tracking-wide font-bold transition flex items-center justify-center gap-2 ${theme.buttonClass}`}
+          >
+            {theme.icon}
+            <span>Continue on {theme.channelName}</span>
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </>
+      )}
 
       <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />

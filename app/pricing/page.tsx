@@ -1,260 +1,383 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { 
-  Check, 
-  X, 
-  Sparkles, 
-  ArrowRight, 
-  ShieldCheck, 
-  Bot 
+import { useSearchParams } from "next/navigation";
+import {
+  Bot,
+  Phone,
+  Sparkles,
+  Check,
+  X,
+  Zap,
+  Mic,
+  ScanLine,
+  Target,
+  FileSpreadsheet,
+  HandCoins,
+  Languages,
+  LayoutDashboard,
+  ArrowRight,
+  Tag,
+  Loader2,
 } from "lucide-react";
 
-const PRICING_PLANS = [
-  {
-    id: "free",
-    name: "BRO LITE",
-    price: "$0.00",
-    period: "/ month",
-    badge: "Free Forever",
-    description: "Ideal for basic daily expense tracking on WhatsApp.",
-    highlight: false,
-    buttonText: "Get Started Free",
-    buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
-    features: [
-      { text: "3 Daily Expense & Income Logs", included: true },
-      { text: "Real-time Web Dashboard Access", included: true },
-      { text: "1 Daily AI Receipt OCR Scan", included: true },
-      { text: "Voice Note Tracking", included: false },
-      { text: "One-Click Excel (.xlsx) Export", included: false },
-      { text: "Smart Budget Handling & Alerts", included: false },
-    ],
-  },
-  {
-    id: "core",
-    name: "BRO CORE",
-    price: "$2.55",
-    period: "/ month",
-    badge: "MOST POPULAR",
-    description: "Ideal for active spenders & daily users.",
-    highlight: true,
-    buttonText: "Upgrade to Bro Core",
-    // 💡 Lemon Squeezy Checkout Test / Live Links can be embedded or handled via state
-    lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/a54c9cf8-5ad7-416e-bfb2-dc503f724b56",
-    buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
-    features: [
-      { text: "10 Daily Expense & Income Logs", included: true },
-      { text: "Real-time Web Dashboard Access", included: true },
-      { text: "30 Monthly AI Receipt OCR Scans", included: true },
-      { text: "5 Daily Voice Note Trackings", included: true },
-      { text: "One-Click Excel (.xlsx) Export", included: true },
-      { text: "Smart Budget Handling & Alerts", included: true },
-    ],
-  },
-  {
-    id: "max",
-    name: "BRO MAX",
-    price: "$5.99",
-    period: "/ month",
-    badge: "POWER USERS",
-    description: "For freelancers, business owners & power users.",
-    highlight: false,
-    buttonText: "Get Bro Max",
-    lemonUrl: "https://brooai.lemonsqueezy.com/checkout/buy/8263b48a-6d77-492d-a951-4d239bb57a15",
-    buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
-    features: [
-      { text: "Unlimited Daily Expense & Income Logs", included: true },
-      { text: "Real-time Web Dashboard Access", included: true },
-      { text: "Unlimited Monthly AI Receipt OCR Scans", included: true },
-      { text: "Unlimited Voice Note Trackings", included: true },
-      { text: "One-Click Excel (.xlsx) Export", included: true },
-      { text: "Smart Budget Handling & Alerts", included: true },
-    ],
-  },
+type Channel = "whatsapp" | "telegram";
+type PlanKey = "lite" | "core" | "max";
+
+interface PlanDef {
+  key: PlanKey;
+  name: string;
+  tagline: string;
+  waPrice: number;
+  tgPrice: number;
+  highlight?: boolean;
+}
+
+const PLANS: PlanDef[] = [
+  { key: "lite", name: "Lite", tagline: "Just getting started", waPrice: 0, tgPrice: 0 },
+  { key: "core", name: "Core", tagline: "For daily tracking", waPrice: 3.5, tgPrice: 2.5, highlight: true },
+  { key: "max", name: "Max", tagline: "Unlimited everything", waPrice: 6.99, tgPrice: 4.0 },
 ];
 
-export default function PricingPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [userEmail, setUserEmail] = useState<string>("");
+interface FeatureRow {
+  label: string;
+  icon: React.ElementType;
+  lite: string;
+  core: string;
+  max: string;
+}
 
+const FEATURES: FeatureRow[] = [
+  { label: "Text transaction logging", icon: Zap, lite: "3/day", core: "10/day", max: "Unlimited" },
+  { label: "Receipt scan (AI vision)", icon: ScanLine, lite: "1/day", core: "30/month", max: "Unlimited" },
+  { label: "Voice note logging", icon: Mic, lite: "—", core: "5/day", max: "Unlimited" },
+  { label: "Budget setting", icon: Target, lite: "—", core: "✓", max: "✓" },
+  { label: "Excel export", icon: FileSpreadsheet, lite: "—", core: "✓", max: "✓" },
+  { label: "Loan tracking", icon: HandCoins, lite: "✓", core: "✓", max: "✓" },
+  { label: "Multi-language (Sinhala/Singlish/auto)", icon: Languages, lite: "✓", core: "✓", max: "✓" },
+  { label: "Web dashboard access", icon: LayoutDashboard, lite: "✓", core: "✓", max: "✓" },
+];
+
+const PLAN_RANK: Record<PlanKey, number> = { lite: 0, core: 1, max: 2 };
+
+function pct(from: number, to: number) {
+  if (from <= 0) return 0;
+  return Math.round(((from - to) / from) * 100);
+}
+
+function FeatureCell({ value }: { value: string }) {
+  if (value === "✓") return <Check className="w-4 h-4 text-emerald-400 mx-auto" />;
+  if (value === "—") return <X className="w-4 h-4 text-slate-600 mx-auto" />;
+  return <span className="text-xs text-slate-300">{value}</span>;
+}
+
+function PricingContent() {
+  const searchParams = useSearchParams();
+
+  const isUpgrade = searchParams.get("mode") === "upgrade";
+  const userId = searchParams.get("user_id") || "";
+  const currentPlan = (searchParams.get("current_plan") || "lite").toLowerCase() as PlanKey;
+  const paramChannel = searchParams.get("current_channel") as Channel | null;
+  const highlightPlanParam = searchParams.get("plan") as PlanKey | null;
+
+  const [channel, setChannel] = useState<Channel>(
+    paramChannel === "telegram" || paramChannel === "whatsapp" ? paramChannel : "whatsapp"
+  );
+  const [checkoutLoading, setCheckoutLoading] = useState<PlanKey | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string>("");
+
+  // If the dashboard tells us which channel is already linked, that's the
+  // only sensible default in upgrade mode — no point showing them a channel
+  // they haven't connected yet as the pre-selected one.
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email || "");
-      }
+    if (isUpgrade && (paramChannel === "telegram" || paramChannel === "whatsapp")) {
+      setChannel(paramChannel);
     }
-    checkAuth();
-  }, []);
+  }, [isUpgrade, paramChannel]);
 
-  const handlePlanClick = (e: React.MouseEvent, planId: string, lemonUrl?: string) => {
-    if (planId === "free") {
-      // Free plan goes to register/dashboard depending on login state
+  const handleUpgradeCheckout = async (planKey: PlanKey) => {
+    if (!userId) {
+      setCheckoutError("Missing user session — please go back to your dashboard and try again.");
       return;
     }
-
-    if (isLoggedIn && lemonUrl) {
-      e.preventDefault();
-      // Append user email and ensure direct checkout type / parameters
-      const checkoutUrl = `${lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`;
-      window.location.href = checkoutUrl;
+    setCheckoutError("");
+    setCheckoutLoading(planKey);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: planKey,
+          channel,
+          user_id: userId,
+          mode: "upgrade",
+        }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        setCheckoutError("Couldn't start checkout — please try again in a moment.");
+        setCheckoutLoading(null);
+      }
+    } catch (err) {
+      setCheckoutError("Couldn't start checkout — please try again in a moment.");
+      setCheckoutLoading(null);
     }
-    // If not logged in, the Link component will route them to /register?plan=core/max normally.
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#07090e] text-white flex flex-col justify-between relative overflow-hidden font-sans py-12 px-4 md:px-8">
-      
-      {/* Background Glows */}
-      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-purple-600/15 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute top-1/3 -left-32 w-80 h-80 bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-10 -right-32 w-80 h-80 bg-pink-500/10 rounded-full blur-[140px] pointer-events-none" />
+    <main className="min-h-screen relative bg-[#07090e] overflow-hidden font-sans text-white py-16 px-4">
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto w-full z-10">
-        
-        {/* Navigation Bar */}
-        <div className="flex justify-between items-center mb-12">
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Bro<span className="text-purple-400">FinAi</span>
-            </span>
-          </Link>
-
-          {isLoggedIn ? (
-            <Link 
-              href="/"
-              className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition backdrop-blur-md"
-            >
-              Back to Dashboard
-            </Link>
-          ) : (
-            <Link 
-              href="/register?plan=free"
-              className="text-xs font-semibold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition"
-            >
-              Dashboard Login
-            </Link>
-          )}
+      <div className="relative z-10 max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            {isUpgrade ? "Upgrade your plan" : "Simple, transparent pricing"}
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">
+            {isUpgrade ? (
+              <>
+                Unlock more with <br className="hidden md:block" />
+                <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+                  Core or Max.
+                </span>
+              </>
+            ) : (
+              <>
+                Track money where <br className="hidden md:block" />
+                <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+                  you already chat.
+                </span>
+              </>
+            )}
+          </h1>
+          <p className="text-slate-400 text-sm mt-4 max-w-md mx-auto">
+            {isUpgrade
+              ? "Your plan updates instantly — same chat, same history, just unlocked."
+              : "Same BroFinAi, same features — pick the app you live in."}
+          </p>
         </div>
 
-        {/* Section Header */}
-        <div className="text-center space-y-3 mb-12">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            Flexible Plans
+        {/* Channel Toggle */}
+        <div className="flex flex-col items-center mb-12">
+          <div className="relative inline-flex p-1 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-xl">
+            <button
+              onClick={() => setChannel("whatsapp")}
+              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                channel === "whatsapp" ? "text-white" : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              <Phone className="w-4 h-4" /> WhatsApp
+            </button>
+            <button
+              onClick={() => setChannel("telegram")}
+              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                channel === "telegram" ? "text-white" : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              <Bot className="w-4 h-4" /> Telegram
+            </button>
+            <div
+              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-gradient-to-r transition-all duration-300 ease-out ${
+                channel === "whatsapp" ? "left-1 from-emerald-500 to-teal-500" : "left-[calc(50%+3px)] from-sky-500 to-blue-500"
+              }`}
+            />
           </div>
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
-            Pick the perfect plan for your budgeting and tracking needs.
-          </p>
-          {isLoggedIn && (
-            <p className="text-xs text-emerald-400 font-bold pt-2">
-              ✨ Logged in as {userEmail}. Clicking Core/Max will direct you straight to checkout!
+
+          {isUpgrade && paramChannel && (
+            <p className="text-[11px] text-slate-500 mt-2.5">
+              You're currently connected on <span className="text-slate-300 font-medium">{paramChannel === "telegram" ? "Telegram" : "WhatsApp"}</span> — switching here will link a new channel too.
             </p>
           )}
+
+          <div
+            className={`mt-3 overflow-hidden transition-all duration-300 ease-out ${
+              channel === "telegram" ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 text-xs font-medium text-sky-300 bg-sky-500/10 border border-sky-500/25 rounded-full px-3.5 py-1.5">
+              <Tag className="w-3.5 h-3.5" /> Telegram has zero messaging fees — up to 43% cheaper, passed on to you
+            </div>
+          </div>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-          {PRICING_PLANS.map((plan) => {
-            // If logged in and paid plan, destination links directly to Lemon Squeezy checkout with prefilled parameters
-            const destinationHref = isLoggedIn && plan.id !== "free" && plan.lemonUrl
-              ? `${plan.lemonUrl}?checkout[email]=${encodeURIComponent(userEmail)}`
-              : plan.id === "free" && isLoggedIn
-              ? "/"
-              : `/register?plan=${plan.id}`;
+        {checkoutError && (
+          <div className="max-w-md mx-auto mb-8 text-xs text-red-300 bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3 text-center">
+            {checkoutError}
+          </div>
+        )}
+
+        {/* Pricing Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-16">
+          {PLANS.map((plan) => {
+            const price = channel === "whatsapp" ? plan.waPrice : plan.tgPrice;
+            const discount = pct(plan.waPrice, plan.tgPrice);
+            const showDiscountBadge = channel === "telegram" && discount > 0;
+            const showTelegramNudge = channel === "whatsapp" && discount > 0;
+
+            const isCurrentPlan = isUpgrade && plan.key === currentPlan;
+            const isDowngrade = isUpgrade && PLAN_RANK[plan.key] < PLAN_RANK[currentPlan];
+            const isRecommended = !isUpgrade ? plan.highlight : plan.key === highlightPlanParam || (plan.highlight && !highlightPlanParam);
 
             return (
               <div
-                key={plan.id}
-                className={`relative rounded-3xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-xl ${
-                  plan.highlight
-                    ? "bg-slate-900/90 border-2 border-emerald-400/80 shadow-[0_0_40px_0_rgba(52,211,153,0.15)] scale-[1.02]"
-                    : "bg-slate-900/50 border border-white/10 hover:border-white/20"
-                }`}
+                key={plan.key}
+                className={`relative flex flex-col rounded-3xl p-6 border backdrop-blur-2xl transition-all duration-300 ${
+                  isRecommended
+                    ? "bg-slate-900/90 border-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.15)] scale-[1.02]"
+                    : "bg-slate-900/70 border-white/10"
+                } ${isDowngrade ? "opacity-50" : ""}`}
               >
-                {/* Highlight Badge */}
-                {plan.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                    <Sparkles className="w-3 h-3" />
-                    {plan.badge}
+                {isRecommended && !isCurrentPlan && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg">
+                    Most Popular
                   </div>
                 )}
 
-                <div>
-                  {/* Header */}
-                  <div className="mb-6">
-                    <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
-                      {plan.name}
-                    </span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                        {plan.price}
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        {plan.period}
-                      </span>
-                    </div>
-                    {!plan.highlight && (
-                      <p className="text-[11px] text-purple-300 font-medium mt-1">
-                        {plan.badge}
-                      </p>
-                    )}
-                    <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                      {plan.description}
-                    </p>
+                {showDiscountBadge && !isCurrentPlan && (
+                  <div className="absolute -top-3 -right-3 flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/30 animate-pulse">
+                    -{discount}%
                   </div>
+                )}
 
-                  <div className="w-full h-[1px] bg-white/10 my-6" />
+                <h3 className="text-lg font-bold">{plan.name}</h3>
+                <p className="text-xs text-slate-400 mb-5">{plan.tagline}</p>
 
-                  {/* Features List */}
-                  <ul className="space-y-3.5 mb-8">
-                    {plan.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-center gap-3 text-xs">
-                        {feat.included ? (
-                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                        ) : (
-                          <X className="w-4 h-4 text-slate-600 shrink-0" />
-                        )}
-                        <span className={feat.included ? "text-slate-200" : "text-slate-500 line-through"}>
-                          {feat.text}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="mb-1 flex items-end gap-2">
+                  {showDiscountBadge && plan.waPrice > 0 && (
+                    <span className="text-sm text-slate-500 line-through mb-1">${plan.waPrice.toFixed(2)}</span>
+                  )}
+                  <span className="text-4xl font-black tracking-tight">{price === 0 ? "$0" : `$${price.toFixed(2)}`}</span>
+                  {price > 0 && <span className="text-slate-400 text-sm mb-1">/mo</span>}
                 </div>
 
-                {/* Action Button */}
-                <Link
-                  href={destinationHref}
-                  onClick={(e) => handlePlanClick(e, plan.id, plan.lemonUrl)}
-                  className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
-                >
-                  <span>{plan.buttonText}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                {plan.key === "lite" && !isUpgrade && (
+                  <p className="text-[11px] text-slate-500 mb-4">{channel === "whatsapp" ? "7-day free trial" : "Free, forever"}</p>
+                )}
+                {(plan.key !== "lite" || isUpgrade) && <div className="mb-4" />}
+
+                {showTelegramNudge && !isCurrentPlan && (
+                  <button
+                    onClick={() => setChannel("telegram")}
+                    className="mb-4 -mt-3 text-left text-[11px] text-sky-400 hover:text-sky-300 underline underline-offset-2 transition"
+                  >
+                    Save {discount}% on Telegram →
+                  </button>
+                )}
+
+                <ul className="space-y-2 mb-6 flex-1">
+                  {FEATURES.map((f) => {
+                    const val = plan.key === "lite" ? f.lite : plan.key === "core" ? f.core : f.max;
+                    if (val === "—") return null;
+                    return (
+                      <li key={f.label} className="flex items-center gap-2 text-xs text-slate-300">
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>
+                          {f.label} {val !== "✓" && <span className="text-slate-500">({val})</span>}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* CTA — behavior differs by mode */}
+                {isUpgrade ? (
+                  isCurrentPlan ? (
+                    <div className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-slate-400">
+                      Current Plan
+                    </div>
+                  ) : isDowngrade ? (
+                    <div className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-slate-500">
+                      Included
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleUpgradeCheckout(plan.key)}
+                      disabled={checkoutLoading !== null}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition transform active:scale-[0.98] disabled:opacity-60 ${
+                        isRecommended
+                          ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 hover:opacity-90"
+                          : "bg-white/5 border border-white/15 text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {checkoutLoading === plan.key ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          Upgrade Now <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  )
+                ) : (
+                  <Link
+                    href={`/register?plan=${plan.key}&channel=${channel}`}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition transform active:scale-[0.98] ${
+                      isRecommended
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 hover:opacity-90"
+                        : "bg-white/5 border border-white/15 text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {plan.key === "lite" ? "Start Free" : "Get Started"}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Security / Trust Footer */}
-        <div className="mt-16 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Encrypted payment processing via LemonSqueezy. Cancel anytime.</span>
+        {/* Full Feature Comparison Table */}
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-white/10">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">Full feature comparison</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+                  <th className="px-6 py-3 font-medium">Feature</th>
+                  <th className="px-4 py-3 font-medium text-center">Lite</th>
+                  <th className="px-4 py-3 font-medium text-center">Core</th>
+                  <th className="px-4 py-3 font-medium text-center">Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURES.map((f, i) => (
+                  <tr key={f.label} className={i % 2 === 0 ? "bg-white/[0.02]" : ""}>
+                    <td className="px-6 py-3 text-xs text-slate-300 flex items-center gap-2">
+                      <f.icon className="w-3.5 h-3.5 text-purple-400 shrink-0" /> {f.label}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <FeatureCell value={f.lite} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <FeatureCell value={f.core} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <FeatureCell value={f.max} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-
       </div>
-
-      <div className="pt-8" />
     </main>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={null}>
+      <PricingContent />
+    </Suspense>
   );
 }
