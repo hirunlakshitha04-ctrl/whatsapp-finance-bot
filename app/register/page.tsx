@@ -592,6 +592,16 @@ function RegisterForm() {
   const [isMounted, setIsMounted] = useState(false);
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") || "free";
+  // Channel chosen on the pricing page carries through via ?channel=...
+  // so the register page can pre-select it instead of asking again.
+  const channelParam = searchParams.get("channel");
+  const hasChannelParam = channelParam === "whatsapp" || channelParam === "telegram";
+  const initialChannel = (hasChannelParam ? channelParam : "whatsapp") as "whatsapp" | "telegram";
+
+  // Compact confirmation chip is shown when we already know the channel
+  // (came from pricing page); full toggle shows only if they tap "Switch
+  // channel" or if there was no channel param to begin with.
+  const [showChannelToggle, setShowChannelToggle] = useState(!hasChannelParam);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -599,7 +609,7 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
     phone_number: "",
-    channel: "whatsapp" as "whatsapp" | "telegram",
+    channel: initialChannel,
     country: "Sri Lanka",
     language: "en",
     currency: "USD",
@@ -992,30 +1002,56 @@ function RegisterForm() {
               <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1.5 font-medium flex items-center gap-1.5">
                 <Bot className="w-3.5 h-3.5 text-emerald-400"/> Where do you want to chat with BroFinAi? *
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleChannelSelect("whatsapp")}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+              {showChannelToggle ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleChannelSelect("whatsapp")}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                      formData.channel === "whatsapp"
+                        ? "bg-emerald-500/15 border-emerald-400 text-emerald-300"
+                        : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    <Phone className="w-4 h-4"/> WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleChannelSelect("telegram")}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                      formData.channel === "telegram"
+                        ? "bg-sky-500/15 border-sky-400 text-sky-300"
+                        : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    <Bot className="w-4 h-4"/> Telegram
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className={`flex items-center justify-between gap-3 py-2.5 px-3.5 rounded-xl border text-sm font-semibold ${
                     formData.channel === "whatsapp"
                       ? "bg-emerald-500/15 border-emerald-400 text-emerald-300"
-                      : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
+                      : "bg-sky-500/15 border-sky-400 text-sky-300"
                   }`}
                 >
-                  <Phone className="w-4 h-4"/> WhatsApp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleChannelSelect("telegram")}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
-                    formData.channel === "telegram"
-                      ? "bg-sky-500/15 border-sky-400 text-sky-300"
-                      : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
-                  }`}
-                >
-                  <Bot className="w-4 h-4"/> Telegram
-                </button>
-              </div>
+                  <span className="flex items-center gap-2">
+                    {formData.channel === "whatsapp" ? (
+                      <Phone className="w-4 h-4"/>
+                    ) : (
+                      <Bot className="w-4 h-4"/>
+                    )}
+                    Registering via {formData.channel === "whatsapp" ? "WhatsApp" : "Telegram"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowChannelToggle(true)}
+                    className="text-[11px] font-medium text-slate-400 hover:text-white underline underline-offset-2 transition"
+                  >
+                    Switch channel
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Row 1: Name & (WhatsApp Phone — only when WhatsApp is selected) */}

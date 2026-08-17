@@ -55,19 +55,28 @@ const FacebookIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Pricing Plans Data (Updated to include type=direct for automatic message flow)
+// Pricing Plans Data — 3 plans × 2 channels (WhatsApp / Telegram).
+// Prices are channel-specific; everything else (features, badge, copy) stays
+// constant across channels, so the cards only need to swap the price on toggle.
+type Channel = "whatsapp" | "telegram";
+
+const CHANNELS: { id: Channel; label: string }[] = [
+  { id: "whatsapp", label: "WhatsApp" },
+  { id: "telegram", label: "Telegram" },
+];
+
 const PRICING_PLANS = [
   {
     id: "free",
     name: "BRO LITE",
-    price: "$0.00",
+    prices: { whatsapp: "$0.00", telegram: "$0.00" },
     period: "/ month",
     badge: "Free Forever",
-    description: "Ideal for basic daily expense tracking on WhatsApp.",
+    description: "Ideal for basic daily expense tracking.",
     highlight: false,
     buttonText: "GET STARTED FREE",
     buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
-    link: "/register?plan=free&type=direct",
+    trialNote: { whatsapp: "7-day free trial", telegram: "Permanent free tier" },
     features: [
       { text: "3 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -80,14 +89,14 @@ const PRICING_PLANS = [
   {
     id: "core",
     name: "BRO CORE",
-    price: "$2.55",
+    prices: { whatsapp: "$3.50", telegram: "$2.50" },
     period: "/ month",
     badge: "MOST POPULAR",
     description: "Ideal for active spenders & daily users.",
     highlight: true,
     buttonText: "UPGRADE TO BRO CORE",
     buttonClass: "bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black shadow-lg shadow-emerald-500/20",
-    link: "/register?plan=core&type=direct",
+    trialNote: null,
     features: [
       { text: "10 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -100,14 +109,14 @@ const PRICING_PLANS = [
   {
     id: "max",
     name: "BRO MAX",
-    price: "$5.99",
+    prices: { whatsapp: "$6.99", telegram: "$4.00" },
     period: "/ month",
     badge: "POWER USERS",
     description: "For freelancers, business owners & power users.",
     highlight: false,
     buttonText: "GET BRO MAX",
     buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
-    link: "/register?plan=max&type=direct",
+    trialNote: null,
     features: [
       { text: "Unlimited Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -119,10 +128,30 @@ const PRICING_PLANS = [
   },
 ];
 
+// Full row-by-row feature comparison (collapsible table under the cards).
+// Values are either a string (shown as-is) or a boolean (rendered as check/x).
+const FEATURE_COMPARISON: {
+  label: string;
+  free: string | boolean;
+  core: string | boolean;
+  max: string | boolean;
+}[] = [
+  { label: "Text transaction logging", free: "3/day", core: "10/day", max: "Unlimited" },
+  { label: "Receipt scan (AI vision)", free: "1/day", core: "30/month", max: "Unlimited" },
+  { label: "Voice note logging", free: false, core: "5/day", max: "Unlimited" },
+  { label: "Budget setting", free: false, core: true, max: true },
+  { label: "Excel export", free: false, core: true, max: true },
+  { label: "Loan tracking (given/taken/settled)", free: true, core: true, max: true },
+  { label: "Multi-language (Sinhala/Singlish/auto-translate)", free: true, core: true, max: true },
+  { label: "Web dashboard access", free: true, core: true, max: true },
+];
+
 export default function BroFInAiLandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
   const [contactSent, setContactSent] = useState(false);
+  const [pricingChannel, setPricingChannel] = useState<Channel>("whatsapp");
+  const [showComparison, setShowComparison] = useState(false);
   const { scrollYProgress } = useScroll();
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
@@ -397,6 +426,34 @@ export default function BroFInAiLandingPage() {
             </p>
           </div>
 
+          {/* Channel Toggle — WhatsApp / Telegram. Selecting a channel here
+              swaps the price shown on all 3 cards and carries through to the
+              register link, so users never get asked again at signup. */}
+          <div className="flex items-center justify-center mb-10">
+            <div className="relative inline-flex p-1 rounded-full bg-slate-900/70 border border-white/10">
+              {CHANNELS.map((ch) => (
+                <button
+                  key={ch.id}
+                  type="button"
+                  onClick={() => setPricingChannel(ch.id)}
+                  className="relative z-10 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors"
+                >
+                  {pricingChannel === ch.id && (
+                    <motion.div
+                      layoutId="pricing-channel-pill"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                    />
+                  )}
+                  <span className={`relative flex items-center gap-1.5 ${pricingChannel === ch.id ? "text-slate-950" : "text-slate-400"}`}>
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {ch.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-6xl mx-auto">
             {PRICING_PLANS.map((plan) => (
               <div
@@ -421,14 +478,50 @@ export default function BroFInAiLandingPage() {
                     <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
                       {plan.name}
                     </span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                        {plan.price}
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        {plan.period}
-                      </span>
+                    <div className="relative h-11 md:h-14 mt-2">
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={`${plan.id}-${pricingChannel}`}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          className="absolute inset-0 flex items-baseline gap-1"
+                        >
+                          <span className="text-4xl md:text-5xl font-black tracking-tight text-white whitespace-nowrap">
+                            {plan.prices[pricingChannel]}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">
+                            {plan.period}
+                          </span>
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
+                    {plan.prices.telegram !== plan.prices.whatsapp && (
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.p
+                          key={`save-${plan.id}-${pricingChannel}`}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-[11px] font-semibold mt-0.5"
+                        >
+                          {pricingChannel === "telegram" ? (
+                            <span className="text-emerald-400">
+                              Save ${(
+                                parseFloat(plan.prices.whatsapp.replace("$", "")) -
+                                parseFloat(plan.prices.telegram.replace("$", ""))
+                              ).toFixed(2)}/mo vs WhatsApp
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">
+                              Cheaper on Telegram — from {plan.prices.telegram}/mo
+                            </span>
+                          )}
+                        </motion.p>
+                      </AnimatePresence>
+                    )}
                     {!plan.highlight && (
                       <p className="text-[11px] text-purple-300 font-medium mt-1">
                         {plan.badge}
@@ -437,6 +530,11 @@ export default function BroFInAiLandingPage() {
                     <p className="text-xs text-slate-400 mt-2 leading-relaxed">
                       {plan.description}
                     </p>
+                    {plan.trialNote && (
+                      <p className="text-[11px] text-emerald-400 font-medium mt-1">
+                        {plan.trialNote[pricingChannel]}
+                      </p>
+                    )}
                   </div>
 
                   <div className="w-full h-[1px] bg-white/10 my-6" />
@@ -458,9 +556,9 @@ export default function BroFInAiLandingPage() {
                   </ul>
                 </div>
 
-                {/* Action Button */}
+                {/* Action Button — plan + channel both carry through to register */}
                 <Link
-                  href={plan.link}
+                  href={`/register?plan=${plan.id}&channel=${pricingChannel}&type=direct`}
                   className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
                 >
                   <span>{plan.buttonText}</span>
@@ -470,7 +568,64 @@ export default function BroFInAiLandingPage() {
             ))}
           </div>
 
-          <div className="mt-16 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+          {/* Full Feature Comparison — collapsible row-by-row table below the cards */}
+          <div className="max-w-6xl mx-auto mt-10">
+            <button
+              type="button"
+              onClick={() => setShowComparison((v) => !v)}
+              className="w-full flex items-center justify-center gap-2 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+            >
+              <span>Compare all features</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showComparison ? "rotate-180" : ""}`} />
+            </button>
+
+            <AnimatePresence initial={false}>
+              {showComparison && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-2xl border border-white/10 overflow-x-auto">
+                    <table className="w-full text-xs min-w-[520px]">
+                      <thead>
+                        <tr className="border-b border-white/10 bg-white/[0.03]">
+                          <th className="text-left font-semibold text-slate-300 uppercase tracking-wider px-5 py-3">Feature</th>
+                          <th className="text-center font-semibold text-slate-300 uppercase tracking-wider px-5 py-3">Lite</th>
+                          <th className="text-center font-semibold text-emerald-400 uppercase tracking-wider px-5 py-3">Core</th>
+                          <th className="text-center font-semibold text-purple-300 uppercase tracking-wider px-5 py-3">Max</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {FEATURE_COMPARISON.map((row, idx) => (
+                          <tr key={idx} className="border-b border-white/5 last:border-b-0 odd:bg-white/[0.015]">
+                            <td className="px-5 py-3 text-slate-300">{row.label}</td>
+                            {[row.free, row.core, row.max].map((val, i) => (
+                              <td key={i} className="px-5 py-3 text-center">
+                                {typeof val === "boolean" ? (
+                                  val ? (
+                                    <Check className="w-4 h-4 text-emerald-400 mx-auto" />
+                                  ) : (
+                                    <X className="w-4 h-4 text-slate-600 mx-auto" />
+                                  )
+                                ) : (
+                                  <span className="text-slate-200">{val}</span>
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="mt-10 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Encrypted payment processing via LemonSqueezy. Cancel anytime.</span>
           </div>
