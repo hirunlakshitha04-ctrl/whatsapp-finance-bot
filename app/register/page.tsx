@@ -706,8 +706,9 @@ function RegisterForm() {
         return;
       }
       const botPhoneNumber = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "+94764775963";
+      const cleanNumber = botPhoneNumber.replace("whatsapp:", "").replace("+", "");
       const defaultText = encodeURIComponent("Hi BroFinAi, I just registered on the Free plan!");
-      window.location.href = `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
+      window.location.href = `https://wa.me/${cleanNumber}?text=${defaultText}`;
       return;
     }
 

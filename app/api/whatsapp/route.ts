@@ -18,7 +18,7 @@ import {
 } from "@/lib/finance-logic";
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:94764775963";
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+94764775963";
 
 // WhatsApp rows are keyed by phone_number
 const ID_COLUMN = "phone_number" as const;
