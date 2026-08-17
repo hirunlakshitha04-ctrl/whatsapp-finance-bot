@@ -296,6 +296,7 @@ export default function BrooDashboard() {
   const [weekStart, setWeekStart] = useState<string>("Monday");
 
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
+  const [linkedChannel, setLinkedChannel] = useState<"whatsapp" | "telegram" | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
   // 🎯 BUDGET STATES LOADED FROM SUPABASE
@@ -397,6 +398,17 @@ export default function BrooDashboard() {
 
       const plan = (userData.plan || "lite").toLowerCase();
       setSubscriptionPlan(plan);
+
+      // Which channel this account is linked to — phone_number set means
+      // WhatsApp, telegram_chat_id set means Telegram is linked. Shown as a
+      // badge so it's clear at a glance which chat the bot replies come from.
+      if (userData.telegram_chat_id) {
+        setLinkedChannel("telegram");
+      } else if (userData.phone_number) {
+        setLinkedChannel("whatsapp");
+      } else {
+        setLinkedChannel(null);
+      }
     }
 
     // 🎯 1. Fetch Budgets safely
@@ -945,6 +957,15 @@ export default function BrooDashboard() {
                 }`}>
                   <Sparkles size={11} /> {subscriptionPlan.toUpperCase()} PACKAGE
                 </span>
+                {linkedChannel && (
+                  <span className={`text-[11px] font-extrabold px-3 py-0.5 rounded-full border flex items-center gap-1.5 uppercase backdrop-blur-md shadow-sm ${
+                    linkedChannel === "telegram"
+                      ? "bg-sky-500/20 border-sky-400/40 text-sky-300"
+                      : "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                  }`}>
+                    {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"}
+                  </span>
+                )}
                 <span className="text-[10px] text-slate-300 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10 backdrop-blur-md">
                   User: <strong className="text-white">{nickname}</strong>
                 </span>
@@ -1226,7 +1247,7 @@ export default function BrooDashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                      <BarChart3 size={18} className="text-emerald-400" /> WhatsApp Budget & Remaining
+                      <BarChart3 size={18} className="text-emerald-400" /> {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"} Budget & Remaining
                     </h3>
 
                     {subscriptionPlan !== "lite" && (

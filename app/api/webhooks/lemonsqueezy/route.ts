@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
+// Every variant ID that should map to a paid plan — channel-specific ones
+// first (see /api/create-checkout), then the old channel-agnostic fallback
+// env vars for stores that haven't split WhatsApp/Telegram into separate
+// variants yet. Whichever one actually has a value set gets checked.
+const PLAN_VARIANT_ENV_VARS: { plan: "CORE" | "MAX"; env: string }[] = [
+  { plan: "CORE", env: "NEXT_PUBLIC_LEMON_CORE_WHATSAPP_MONTHLY_VARIANT_ID" },
+  { plan: "CORE", env: "NEXT_PUBLIC_LEMON_CORE_TELEGRAM_MONTHLY_VARIANT_ID" },
+  { plan: "CORE", env: "NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID" }, // fallback
+  { plan: "MAX", env: "NEXT_PUBLIC_LEMON_MAX_WHATSAPP_MONTHLY_VARIANT_ID" },
+  { plan: "MAX", env: "NEXT_PUBLIC_LEMON_MAX_TELEGRAM_MONTHLY_VARIANT_ID" },
+  { plan: "MAX", env: "NEXT_PUBLIC_LEMON_MAX_MONTHLY_VARIANT_ID" }, // fallback
+];
+
+function resolvePlanFromVariant(variantId: string): string {
+  if (!variantId) return "LITE";
+  for (const { plan, env } of PLAN_VARIANT_ENV_VARS) {
+    const envValue = String(process.env[env] || "").trim();
+    if (envValue && envValue === variantId) return plan;
+  }
+  return "LITE";
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
@@ -37,9 +59,11 @@ export async function POST(req: Request) {
     const customData = event.meta?.custom_data;
     const attributes = event.data?.attributes;
 
-    // User Email සහ Phone Number ලබා ගැනීම
+    // User Email සහ Phone Number ලබා ගැනීම — "email" is the key our
+    // /api/create-checkout route actually sets in checkoutData.custom;
+    // user_email/customer_email are kept as fallbacks for other payload shapes.
     const userEmail =
-      customData?.user_email || attributes?.user_email || attributes?.customer_email;
+      customData?.email || customData?.user_email || attributes?.user_email || attributes?.customer_email;
     const userPhone = customData?.phone;
 
     // Variant ID එක Lemon Squeezy payloads වල එන විවිධ තැන්වලින් ලබා ගැනීමට
@@ -61,18 +85,12 @@ export async function POST(req: Request) {
       eventName === "subscription_updated" ||
       eventName === "order_created"
     ) {
-      let planName = "LITE"; // Default
-
-      const coreVariantId = String(process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID || "").trim();
-      const maxVariantId = String(process.env.NEXT_PUBLIC_LEMON_MAX_MONTHLY_VARIANT_ID || "").trim();
-
-      if (variantId && variantId === maxVariantId) {
-        planName = "MAX";
-      } else if (variantId && variantId === coreVariantId) {
-        planName = "CORE";
-      } else {
-        console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match configured environment variables. Defaulting to LITE.`);
+      const planName = resolvePlanFromVariant(variantId);
+      if (planName === "LITE") {
+        console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match any configured environment variable. Defaulting to LITE.`);
       }
+
+      const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
 
       const updateData: Record<string, any> = {
         plan: planName,
@@ -85,6 +103,9 @@ export async function POST(req: Request) {
       // order_created event ekata subscription_id ekak thiyenne nathi wela puluwan
       if (subscriptionId) {
         updateData.lemon_squeezy_subscription_id = subscriptionId;
+      }
+      if (customerId) {
+        updateData.lemon_squeezy_customer_id = customerId;
       }
 
       let query = supabaseAdmin.from("users").update(updateData);
