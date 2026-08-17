@@ -45,7 +45,7 @@ function PaymentSuccessContent() {
     }
     const botPhoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "+14155238886";
     const defaultText = encodeURIComponent(
-      `Hi BroFinAi, I just upgraded to the ${planLabel} plan!`
+      `Hi BroFinAi, I just registered to the ${planLabel} plan!`
     );
     return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${defaultText}`;
   })();
