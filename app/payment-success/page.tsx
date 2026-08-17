@@ -41,6 +41,13 @@ function PaymentSuccessContent() {
   // just needs to confirm, not redirect/link them anywhere.
   const alreadyLinked = searchParams.get("already_linked") === "true";
 
+  // Set by /api/create-checkout: true when this checkout was an existing
+  // (already-registered) user upgrading their plan, false/absent for a
+  // brand-new registration. Only affects the WhatsApp fallback message
+  // below (the link_token branch always sends "START-<token>" regardless,
+  // since the backend greps for that exact string).
+  const isUpgrade = searchParams.get("is_upgrade") === "true";
+
   const planLabel = PLAN_LABELS[plan] || "BroFinAi";
   const isTelegram = channel === "telegram";
 
@@ -58,7 +65,9 @@ function PaymentSuccessContent() {
     // ?start= deep link, since wa.me has no equivalent param).
     const text = linkToken
       ? `START-${linkToken}`
-      : `Hi BroFinAi, I just registered to the ${planLabel} plan!`;
+      : isUpgrade
+        ? `Hi BroFinAi, I just upgraded to the ${planLabel} plan!`
+        : `Hi BroFinAi, I just registered to the ${planLabel} plan!`;
     return `https://wa.me/${botPhoneNumber.replace("+", "")}?text=${encodeURIComponent(text)}`;
   })();
 
