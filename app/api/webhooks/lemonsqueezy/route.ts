@@ -159,6 +159,24 @@ export async function POST(req: Request) {
 
       const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
 
+      // Idempotency guard: Lemon Squeezy commonly fires subscription_created
+      // AND subscription_updated (sometimes more, plus retries) for the same
+      // purchase. Fetch the user's CURRENT plan before writing, so we can
+      // tell a real plan change apart from a duplicate delivery of the same
+      // outcome — only a real change should trigger the chat confirmation.
+      let lookupQuery = supabaseAdmin.from("users").select("id, plan");
+      if (userId) {
+        lookupQuery = lookupQuery.eq("id", userId);
+      } else if (userPhone) {
+        lookupQuery = lookupQuery.eq("phone_number", userPhone);
+      } else if (userEmail) {
+        lookupQuery = lookupQuery.eq("email", userEmail);
+      }
+      const { data: beforeRows } = userId || userPhone || userEmail
+        ? await lookupQuery.maybeSingle()
+        : { data: null };
+      const previousPlan = (beforeRows as any)?.plan || null;
+
       const updateData: Record<string, any> = {
         plan: planName,
         payment_status: "PAID",
@@ -203,8 +221,15 @@ export async function POST(req: Request) {
       // Same-channel upgrade (e.g. WhatsApp Lite -> WhatsApp Core): the user
       // never leaves the chat, so push the confirmation directly instead of
       // relying on the payment-success page to redirect them anywhere.
+      // Gated on an actual plan change so duplicate/retried webhook events
+      // for the same purchase don't spam the same message repeatedly.
+      const planActuallyChanged = previousPlan !== planName;
       if (isUpgrade && alreadyLinked && upgradeChannel && data && data[0]) {
-        await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
+        if (planActuallyChanged) {
+          await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
+        } else {
+          console.log(`ℹ️ Skipping duplicate upgrade confirmation — plan already "${planName}" (event: ${eventName}).`);
+        }
       }
     }
 
