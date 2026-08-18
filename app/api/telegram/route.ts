@@ -127,11 +127,16 @@ export async function POST(req: NextRequest) {
       const linkNickname = pendingUser.how_to_call_you || pendingUser.nickname || pendingUser.name || "Bro";
 
       // Was this account already active on another channel (e.g. registered
-      // via WhatsApp)? If so, they already went through onboarding — don't
-      // ask for a starting balance again, just confirm the link. Mirrors the
-      // WhatsApp route's same check, keyed on phone_number instead.
-      const isPaidPlan = !!pendingUser.plan && pendingUser.plan.toLowerCase() !== "lite";
-
+      // via WhatsApp, with real transaction history)? If so, they already
+      // went through onboarding — don't ask for a starting balance again,
+      // just confirm the link. Mirrors the WhatsApp route's same check,
+      // keyed on phone_number instead.
+      //
+      // NOTE: plan alone (CORE/MAX) must NOT be used as a signal here — plan
+      // is set at registration time, before payment even completes, so a
+      // brand-new Telegram signup on a paid plan would otherwise be wrongly
+      // treated as "already active" and get the carry-over message instead
+      // of the welcome + starting-balance prompt on their actual first link.
       let hasTransactionHistory = false;
       if (pendingUser.phone_number) {
         const { count } = await supabase
@@ -141,7 +146,7 @@ export async function POST(req: NextRequest) {
         hasTransactionHistory = (count || 0) > 0;
       }
 
-      const hasHistory = isPaidPlan || hasTransactionHistory;
+      const hasHistory = hasTransactionHistory;
 
       if (hasHistory) {
         const planLabel = (pendingUser.plan || "lite").toUpperCase();
