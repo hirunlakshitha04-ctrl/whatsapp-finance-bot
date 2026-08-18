@@ -24,6 +24,11 @@ const TELEGRAM_FILE_API = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN
 // same tables the WhatsApp route already uses, just a different key column)
 const ID_COLUMN = "telegram_chat_id" as const;
 
+// NOTE: Telegram intentionally does NOT track limit_hits_this_week —
+// that counter drives the paid-upgrade nudge cron, and Telegram users
+// are being given free/unnudged usage by design. WhatsApp route.ts is
+// the only place recordLimitHit() should be called.
+
 // ---------------------- Telegram-specific send/receive helpers ----------------------
 
 async function sendTelegramMessage(chatId: string | number, text: string) {

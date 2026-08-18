@@ -23,6 +23,17 @@ const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER ||
 // WhatsApp rows are keyed by phone_number
 const ID_COLUMN = "phone_number" as const;
 
+// Increments users.limit_hits_this_week — call this at every point a user
+// gets blocked by hitting a plan limit (daily tx, OCR, voice, etc).
+// `currentCount` is passed in from the already-fetched userProfile so this
+// doesn't need its own extra SELECT before the UPDATE.
+async function recordLimitHit(identifier: string, currentCount: number) {
+  await supabase
+    .from("users")
+    .update({ limit_hits_this_week: currentCount + 1 })
+    .eq(ID_COLUMN, identifier);
+}
+
 // MAIN WEBHOOK ROUTER — WhatsApp (Twilio)
 export async function POST(req: NextRequest) {
   try {
@@ -180,10 +191,12 @@ export async function POST(req: NextRequest) {
     const currentDailyTx = userProfile.daily_tx_count || 0;
     if (!isImage && !isAudio && !normalizedBody.includes("registered") && !normalizedBody.includes("upgraded") && normalizedBody !== "confirm" && normalizedBody !== "edit") {
       if (userPlan === "lite" && currentDailyTx >= 3) {
+        await recordLimitHit(from, userProfile.limit_hits_this_week || 0);
         await send(baseMsgs.dailyTxLimitReached);
         return new NextResponse("OK", { status: 200 });
       }
       if (userPlan === "core" && currentDailyTx >= 10) {
+        await recordLimitHit(from, userProfile.limit_hits_this_week || 0);
         await send(baseMsgs.dailyTxLimitReached);
         return new NextResponse("OK", { status: 200 });
       }
@@ -194,6 +207,7 @@ export async function POST(req: NextRequest) {
       const dailyOcr = userProfile.daily_ocr_count || 0;
 
       if (userPlan === "lite" && dailyOcr >= 1) {
+        await recordLimitHit(from, userProfile.limit_hits_this_week || 0);
         await send(baseMsgs.dailyOcrLimitReached);
         return new NextResponse("OK", { status: 200 });
       }
@@ -210,6 +224,7 @@ export async function POST(req: NextRequest) {
         const currentScanCount = usage?.scan_count || 0;
 
         if (currentScanCount >= 30) {
+          await recordLimitHit(from, userProfile.limit_hits_this_week || 0);
           await send(baseMsgs.limitReached);
           return new NextResponse("OK", { status: 200 });
         }
@@ -232,6 +247,7 @@ export async function POST(req: NextRequest) {
       if (userPlan === "core") {
         const dailyVoice = userProfile.daily_voice_count || 0;
         if (dailyVoice >= 5) {
+          await recordLimitHit(from, userProfile.limit_hits_this_week || 0);
           await send(baseMsgs.dailyVoiceLimitReached);
           return new NextResponse("OK", { status: 200 });
         }

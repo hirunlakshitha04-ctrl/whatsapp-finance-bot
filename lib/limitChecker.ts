@@ -1,13 +1,32 @@
 import { supabase } from "@/lib/supabase";
 
+// ⚠️ NOT CURRENTLY CALLED FROM ANY LIVE ROUTE (as of 2026-08-18).
+// app/api/whatsapp/route.ts has its own inline limit-check logic
+// (see recordLimitHit() there) which is what's actually live in
+// production. This file is kept as a channel-agnostic reference /
+// future refactor target — before wiring it in, note it differs from
+// the live inline logic in 3 ways that need reconciling:
+//   1. Keyed by user.id here vs phone_number in route.ts
+//   2. Hardcoded messages here vs finance-logic.ts's localized templates
+//   3. Would also need to be wired into app/api/telegram/route.ts —
+//      BUT DON'T, at least not as-is: Telegram is intentionally free
+//      and does NOT track limit_hits_this_week (business decision,
+//      2026-08-18). This file's recordLimitHit() below fires purely on
+//      `plan`, with no channel awareness — wiring it into the Telegram
+//      route unmodified would silently start tracking Telegram users
+//      again. Any future refactor must keep that channel check.
+// Also confirm the `limit_hits_this_week` column migration (bottom of
+// this file) has actually been run before relying on this counter.
+//
 // NOTE: keyed by Supabase `id` (primary key) instead of `phone_number` —
 // dashboard login already resolves a user via WhatsApp number OR email,
 // so `user.id` is the one identifier guaranteed to exist no matter which
 // channel the user registered/logged in with (WhatsApp, email, or later Telegram).
 //
-// This also means it's already CHANNEL-AGNOSTIC — the weekly limit-hit
-// counter added below works the same for WhatsApp and Telegram users
-// without any extra plumbing.
+// This also means it's channel-agnostic BY DEFAULT — but per the note
+// above, Telegram must NOT actually get the weekly limit-hit counter.
+// Any caller wiring this in for Telegram needs to skip recordLimitHit()
+// there (e.g. pass a channel flag, or just not call it from that route).
 
 export async function checkUserLimits(
   userId: string,
