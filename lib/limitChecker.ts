@@ -4,6 +4,10 @@ import { supabase } from "@/lib/supabase";
 // dashboard login already resolves a user via WhatsApp number OR email,
 // so `user.id` is the one identifier guaranteed to exist no matter which
 // channel the user registered/logged in with (WhatsApp, email, or later Telegram).
+//
+// This also means it's already CHANNEL-AGNOSTIC — the weekly limit-hit
+// counter added below works the same for WhatsApp and Telegram users
+// without any extra plumbing.
 
 export async function checkUserLimits(
   userId: string,
@@ -42,15 +46,27 @@ export async function checkUserLimits(
 
   const plan = user.plan || "lite";
 
+  // Helper: every time we're about to block a user, that's a strong
+  // "wants to upgrade" signal. Track it so the weekly upgrade-nudge cron
+  // can target the users who hit walls the MOST, not just once.
+  const recordLimitHit = async () => {
+    await supabase
+      .from("users")
+      .update({ limit_hits_this_week: (user.limit_hits_this_week || 0) + 1 })
+      .eq("id", userId);
+  };
+
   // --- 1. EXPENSE & INCOME TRACKING LIMIT ---
   if (type === "expense_income") {
     if (plan === "lite" && dailyTx >= 3) {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `⚠️ *Daily Limit Reached!* (3/3 Expenses)\n\nBroo Lite එකේ දවසකට ඇතුලත් කළ හැක්කේ Transactions 3ක් පමණි.\n\n🚀 Unlimited tracking සඳහා **Broo Core ($2.55/mo)** හෝ **Broo Max ($5.99/mo)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
       };
     }
     if (plan === "core" && dailyTx >= 10) {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `⚠️ *Daily Limit Reached!* (10/10 Expenses)\n\nBroo Core එකේ දවසකට Max Transactions 10යි.\n\n🚀 Unlimited tracking සඳහා **Broo Max ($5.99/mo)** එකට Upgrade වන්න:\n🔗 https://brofinai/upgrade`
@@ -61,12 +77,14 @@ export async function checkUserLimits(
   // --- 2. AI RECEIPT OCR PHOTO SCANNING LIMIT ---
   if (type === "ocr") {
     if (plan === "lite" && dailyOcr >= 1) {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `⚠️ *Daily OCR Scan Limit Reached!* (1/1 Scan)\n\nBroo Lite එකේ දවසකට Receipt Scans 1යි.\n\n📸 මාසෙට Scans 30ක් සඳහා **Broo Core ($2.55)** හෝ Unlimited Scans සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
       };
     }
     if (plan === "core" && monthlyOcr >= 30) {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `⚠️ *Monthly OCR Limit Reached!* (30/30 Scans)\n\nBroo Core හි මෙම මාසයේ Scans 30 සීමාව අවසන්.\n\n🚀 Unlimited Scans සඳහා **Broo Max ($5.99)** එකට Upgrade වන්න:\n🔗 https://brofinai/upgrade`
@@ -77,12 +95,14 @@ export async function checkUserLimits(
   // --- 3. VOICE TRACKING LIMIT ---
   if (type === "voice") {
     if (plan === "lite") {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `🎙️ *Voice Tracking is Locked!*\n\nBroo Lite එකේ Voice Notes මඟින් Expenses ඇතුලත් කළ නොහැක.\n\n🚀 Voice Notes 5ක්/දිනකට සඳහා **Broo Core ($2.55)** හෝ Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
       };
     }
     if (plan === "core" && dailyVoice >= 5) {
+      await recordLimitHit();
       return {
         allowed: false,
         message: `⚠️ *Daily Voice Limit Reached!* (5/5 Voice Notes)\n\nBroo Core හි දිනකට Voice Notes 5 සීමාව අවසන්.\n\n🚀 Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
@@ -109,3 +129,12 @@ export async function incrementUsage(userId: string, type: "expense_income" | "o
     await supabase.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("id", userId);
   }
 }
+
+/*
+  ⚠️ MIGRATION NEEDED before this works:
+  ALTER TABLE users ADD COLUMN limit_hits_this_week integer DEFAULT 0;
+
+  This counter gets reset to 0 by the weekly upgrade-nudge cron
+  (see cron-upgrade-nudge/route.ts) AFTER it sends the targeted message —
+  so it always reflects "since the last nudge", not an all-time total.
+*/
