@@ -164,6 +164,24 @@ export async function POST(req: NextRequest) {
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
     const userPlan = (userProfile.plan || "lite").toLowerCase();
 
+    // ---------------- 7-DAY FREE TRIAL EXPIRY ENFORCEMENT (WhatsApp only) ----------------
+    // Free/Lite WhatsApp signups get a 7-day trial (see app/api/cron/reminder/route.ts,
+    // which nudges on day 1/4/6 via trial_ends_at). Once trial_ends_at has passed and
+    // the user hasn't upgraded (still "lite"), block every message with a pay-to-continue
+    // notice instead of processing it. Telegram is unaffected — that channel is
+    // permanently free by design, see telegram route.ts.
+    if (
+      userPlan === "lite" &&
+      userProfile.trial_ends_at &&
+      new Date(userProfile.trial_ends_at) < new Date()
+    ) {
+      const checkoutUrl = `https://brofinai/checkout?phone=${encodeURIComponent(from)}`;
+      await send(
+        `⏳ *Trial Ended*\n\nHey ${nickname}, your 7-day free trial on Brofinai WhatsApp has ended.\n\n🚀 Upgrade to Broo Core or Max to keep tracking:\n👉 ${checkoutUrl}`
+      );
+      return new NextResponse("OK", { status: 200 });
+    }
+
     await checkAndResetDailyLimits(userProfile);
 
     // ---------------- LINK / LOGIN COMMAND CHECK ----------------
