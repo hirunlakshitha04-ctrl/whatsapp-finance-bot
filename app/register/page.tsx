@@ -621,6 +621,14 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // If the visitor already has an active Supabase session, they're not a
+  // brand-new signup — they're an existing user who landed here from
+  // /pricing (e.g. "Upgrade to MAX"). We detect that up front so the submit
+  // handler can skip signUp/duplicate-check entirely and go straight to
+  // checkout with mode: "upgrade" + user_id, instead of re-registering them.
+  const [sessionUser, setSessionUser] = useState<{ id: string; email: string } | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
   useEffect(() => {
     setIsMounted(true);
     // Timezone is derived automatically from the selected country (no user prompt needed).
@@ -629,6 +637,21 @@ function RegisterForm() {
       setFormData((prev) => ({ ...prev, timezone: initialTz }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.user) {
+        setSessionUser({ id: session.user.id, email: session.user.email || "" });
+        setFormData((prev) => ({ ...prev, email: session.user.email || prev.email }));
+      }
+      setCheckingSession(false);
+    };
+    checkSession();
+    return () => { cancelled = true; };
   }, []);
 
   // Load Lemon Squeezy overlay script once, up front, so it's ready by the
@@ -719,7 +742,13 @@ function RegisterForm() {
     handleRedirectAsync(currentPlan, cleanedPhone, linkToken);
   };
 
-  const handleRedirectAsync = async (currentPlan: string, cleanedPhone: string, linkToken: string) => {
+  const handleRedirectAsync = async (
+    currentPlan: string,
+    cleanedPhone: string,
+    linkToken: string,
+    isUpgrade: boolean = false,
+    upgradeUserId?: string
+  ) => {
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
@@ -731,6 +760,11 @@ function RegisterForm() {
           name: formData.name,
           channel: formData.channel,
           link_token: linkToken,
+          // Already-logged-in user changing plans from /pricing: tells
+          // create-checkout to treat this as an upgrade on the existing
+          // account (no new link_token/registration flow, no /start needed)
+          // instead of a fresh registration.
+          ...(isUpgrade ? { mode: "upgrade", user_id: upgradeUserId } : {}),
         }),
       });
       const data = await res.json();
@@ -773,6 +807,48 @@ function RegisterForm() {
     if (!formData.privacy_accepted) {
       setErrorMsg("Please accept the Privacy Policy & Terms to proceed.");
       setLoading(false);
+      return;
+    }
+
+    // Already-logged-in user (came from /pricing → "Upgrade") — this is a
+    // plan change on an existing account, not a new registration. Skip
+    // password/signUp/duplicate-check entirely and go straight to checkout
+    // with mode: "upgrade" so telegram/whatsapp linking, /start, etc. are
+    // never re-triggered.
+    if (sessionUser) {
+      try {
+        const currentPlan = planParam.toLowerCase().trim();
+        const isFreePlan = currentPlan === "free" || currentPlan === "lite";
+
+        const { error: planUpdateError } = await supabase
+          .from("users")
+          .update({
+            plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
+            payment_status: isFreePlan ? "PAID" : "PENDING",
+          })
+          .eq("id", sessionUser.id);
+
+        if (planUpdateError) {
+          console.error("Plan update error:", planUpdateError);
+          setErrorMsg("Failed to start upgrade: " + planUpdateError.message);
+          setLoading(false);
+          return;
+        }
+
+        if (isFreePlan) {
+          // No payment needed — nothing further to do here; existing
+          // account is already linked to its channel.
+          setLoading(false);
+          return;
+        }
+
+        await handleRedirectAsync(currentPlan, "", "", true, sessionUser.id);
+      } catch (err: any) {
+        console.error("Upgrade checkout failed:", err);
+        setErrorMsg(err?.message || "Could not start checkout. Please try again in a moment.");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -909,6 +985,31 @@ function RegisterForm() {
             setErrorMsg(
               `This email is already registered on ${existingLabel}. An account can only be linked to one channel — continue on ${existingLabel}, or use a different email to register on ${requestedLabel}.`
             );
+            setLoading(false);
+            return;
+          }
+
+          // Same email AND same channel as an existing, already-linked
+          // account = this is a plan upgrade on an account that's already
+          // connected (e.g. Telegram user going pricing → register → pay
+          // for a higher plan while not signed in on the web). Route
+          // straight to checkout with mode: "upgrade" so the existing
+          // chat_id gets the "🎉 Upgraded!" message directly — skip the
+          // link_token/upsert path below entirely, since that path is only
+          // for linking a brand-new or not-yet-linked channel and would
+          // otherwise force this already-connected user through /start
+          // again.
+          if (existingChannel && existingChannel === formData.channel) {
+            const currentPlan = planParam.toLowerCase().trim();
+            const isFreePlanUpgrade = currentPlan === "free" || currentPlan === "lite";
+
+            if (isFreePlanUpgrade) {
+              setErrorMsg("You're already connected on this plan or a higher one.");
+              setLoading(false);
+              return;
+            }
+
+            await handleRedirectAsync(currentPlan, cleanedPhone, "", true, existingUserId);
             setLoading(false);
             return;
           }
@@ -1054,8 +1155,18 @@ function RegisterForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
 
+            {sessionUser && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 p-3.5 rounded-xl text-xs mb-2 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>
+                <span>
+                  Logged in as <b>{sessionUser.email}</b>. You're upgrading your existing account to the{" "}
+                  <b>{planParam}</b> plan — no need to register again.
+                </span>
+              </div>
+            )}
+
             {/* Row 0: Channel Selector */}
-            <div>
+            <div className={sessionUser ? "hidden" : ""}>
               <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1.5 font-medium flex items-center gap-1.5">
                 <Bot className="w-3.5 h-3.5 text-emerald-400"/> Where do you want to chat with BroFinAi? *
               </label>
@@ -1111,6 +1222,7 @@ function RegisterForm() {
               )}
             </div>
 
+            <div className={sessionUser ? "hidden" : ""}>
             {/* Row 1: Name & (WhatsApp Phone — only when WhatsApp is selected) */}
             <div className={`grid grid-cols-1 ${formData.channel === "whatsapp" ? "md:grid-cols-2" : ""} gap-3.5`}>
               <div>
@@ -1275,6 +1387,7 @@ function RegisterForm() {
               </div>
             </div>
 
+            </div>
             {/* Privacy Checkbox */}
             <div className="flex items-center space-x-2 pt-2">
               <input
@@ -1301,13 +1414,18 @@ function RegisterForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingSession}
               className="w-full mt-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-90 transition transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-slate-950"/>
-                  <span>CREATING ACCOUNT...</span>
+                  <span>{sessionUser ? "STARTING UPGRADE..." : "CREATING ACCOUNT..."}</span>
+                </>
+              ) : sessionUser ? (
+                <>
+                  <span>CONFIRM & UPGRADE 💳</span>
+                  <ArrowRight className="w-4 h-4"/>
                 </>
               ) : planParam.toLowerCase() === "free" ? (
                 <>
@@ -1323,14 +1441,16 @@ function RegisterForm() {
             </button>
 
             {/* Login Link Added Here */}
-            <div className="text-center pt-3">
-              <p className="text-xs text-slate-400">
-                Already have an account?{" "}
-                <Link href="/login" className="text-purple-400 hover:text-purple-300 font-semibold underline transition">
-                  Login here
-                </Link>
-              </p>
-            </div>
+            {!sessionUser && (
+              <div className="text-center pt-3">
+                <p className="text-xs text-slate-400">
+                  Already have an account?{" "}
+                  <Link href="/login" className="text-purple-400 hover:text-purple-300 font-semibold underline transition">
+                    Login here
+                  </Link>
+                </p>
+              </div>
+            )}
 
           </form>
         </div>
