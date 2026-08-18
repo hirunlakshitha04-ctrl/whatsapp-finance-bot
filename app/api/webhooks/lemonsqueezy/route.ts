@@ -113,74 +113,82 @@ export async function POST(req: Request) {
     const variantId = extractVariantId(attributes, event.data);
     const subscriptionId = event.data?.id || "";
 
-    console.log(`⚡ Webhook Event: ${eventName} | Email: ${userEmail} | Variant ID: ${variantId}`);
+    // Subscription status එක ලබා ගැනීම (active, on_trial, expired, cancelled ආදී වශයෙන්)
+    const subscriptionStatus = attributes?.status;
+
+    console.log(`⚡ Webhook Event: ${eventName} | Status: ${subscriptionStatus} | Email: ${userEmail} | Variant ID: ${variantId}`);
 
     if (
       eventName === "subscription_created" ||
       eventName === "subscription_updated" ||
       eventName === "order_created"
     ) {
-      const planName = resolvePlanFromVariant(variantId);
-      if (planName === "LITE") {
-        console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match any configured environment variable. Defaulting to LITE.`);
-      }
+      // 🔧 FIX: subscription_updated එකේදී status එක expired හෝ cancelled නම් CORE/MAX වලට update වීම වළක්වයි
+      if (eventName === "subscription_updated" && subscriptionStatus && subscriptionStatus !== "active" && subscriptionStatus !== "on_trial") {
+        console.log(`ℹ️ Skipping subscription_updated because subscription status is "${subscriptionStatus}".`);
+      } else {
+        const planName = resolvePlanFromVariant(variantId);
+        if (planName === "LITE") {
+          console.warn(`⚠️ Warning: Received Variant ID (${variantId}) did not match any configured environment variable. Defaulting to LITE.`);
+        }
 
-      const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
-      const paymentChannel = customData?.channel === "telegram" ? "telegram" : customData?.channel === "whatsapp" ? "whatsapp" : null;
+        const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
+        const paymentChannel = customData?.channel === "telegram" ? "telegram" : customData?.channel === "whatsapp" ? "whatsapp" : null;
 
-      const updateData: Record<string, any> = {
-        plan: planName,
-        payment_status: "PAID",
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      };
-      if (paymentChannel) {
-        updateData.active_channel = paymentChannel;
-      }
+        const updateData: Record<string, any> = {
+          plan: planName,
+          payment_status: "PAID",
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        };
+        if (paymentChannel) {
+          updateData.active_channel = paymentChannel;
+        }
 
-      if (subscriptionId) {
-        updateData.lemon_squeezy_subscription_id = subscriptionId;
-      }
-      if (customerId) {
-        updateData.lemon_squeezy_customer_id = customerId;
-      }
+        if (subscriptionId) {
+          updateData.lemon_squeezy_subscription_id = subscriptionId;
+        }
+        if (customerId) {
+          updateData.lemon_squeezy_customer_id = customerId;
+        }
 
-      const applyIdentityFilter = (q: any) => {
-        if (userId) return q.eq("id", userId);
-        if (userPhone) return q.eq("phone_number", userPhone);
-        if (userEmail) return q.eq("email", userEmail);
-        return null;
-      };
+        const applyIdentityFilter = (q: any) => {
+          if (userId) return q.eq("id", userId);
+          if (userPhone) return q.eq("phone_number", userPhone);
+          if (userEmail) return q.eq("email", userEmail);
+          return null;
+        };
 
-      if (!userId && !userPhone && !userEmail) {
-        console.error("❌ No user identifier found in webhook payload");
-        return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
-      }
+        if (!userId && !userPhone && !userEmail) {
+          console.error("❌ No user identifier found in webhook payload");
+          return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
+        }
 
-      const atomicQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!.neq("plan", planName);
-      let { data, error } = await atomicQuery.select();
-      let planActuallyChanged = !error && !!data && data.length > 0;
+        const atomicQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!.neq("plan", planName);
+        let { data, error } = await atomicQuery.select();
+        let planActuallyChanged = !error && !!data && data.length > 0;
 
-      if (!error && (!data || data.length === 0)) {
-        const fallbackQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!;
-        const fallbackResult = await fallbackQuery.select();
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-        console.log(`ℹ️ Plan already "${planName}" or renewal — skipping duplicate upgrade confirmation (event: ${eventName}).`);
-      }
+        if (!error && (!data || data.length === 0)) {
+          const fallbackQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!;
+          const fallbackResult = await fallbackQuery.select();
+          data = fallbackResult.data;
+          error = fallbackResult.error;
+          console.log(`ℹ️ Plan already "${planName}" or renewal — skipping duplicate upgrade confirmation (event: ${eventName}).`);
+        }
 
-      if (error) {
-        console.error("Supabase Update Error:", error);
-        return NextResponse.json(
-          { error: "Database update failed", details: error.message },
-          { status: 500 }
-        );
-      }
+        if (error) {
+          console.error("Supabase Update Error:", error);
+          return NextResponse.json(
+            { error: "Database update failed", details: error.message },
+            { status: 500 }
+          );
+        }
 
-      console.log(`✅ Successfully updated user to plan: ${planName}`, data);
+        console.log(`✅ Successfully updated user to plan: ${planName}`, data);
 
-      if (isUpgrade && alreadyLinked && upgradeChannel && planActuallyChanged && data && data[0]) {
-        await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
+        if (isUpgrade && alreadyLinked && upgradeChannel && planActuallyChanged && data && data[0]) {
+          await sendUpgradeConfirmation(data[0], planName, upgradeChannel);
+        }
       }
     }
 
@@ -189,11 +197,6 @@ export async function POST(req: Request) {
       eventName === "subscription_cancelled" ||
       eventName === "subscription_expired"
     ) {
-      // 🔧 FIX: previously only set payment_status/is_active — `plan`
-      // stayed at "CORE"/"MAX" forever, so a cancelled/expired subscriber
-      // kept full paid-tier access on WhatsApp/Telegram (those routes only
-      // check `plan`, not payment_status/is_active). Downgrading to LITE
-      // here is what actually restores the daily limits.
       const updateData = {
         plan: "LITE",
         payment_status: "EXPIRED",
@@ -212,7 +215,7 @@ export async function POST(req: Request) {
       }
 
       await query;
-      console.log(`⚠️ Subscription cancelled/expired for user — downgraded to LITE.`);
+      console.log(`⚠️ Subscription cancelled/expired for user – downgraded to LITE.`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
