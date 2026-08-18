@@ -44,7 +44,10 @@ export async function checkUserLimits(
     }).eq("id", userId);
   }
 
-  const plan = user.plan || "lite";
+  // 🔧 FIX: DB stores plan as "LITE" / "CORE" / "MAX" (uppercase) — without
+  // .toLowerCase() here, `plan === "lite"` never matched, so Lite users
+  // were never actually limit-checked at all (unlimited free usage).
+  const plan = (user.plan || "lite").toLowerCase();
 
   // Helper: every time we're about to block a user, that's a strong
   // "wants to upgrade" signal. Track it so the weekly upgrade-nudge cron
