@@ -958,6 +958,15 @@ function RegisterForm() {
               plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
               payment_status: isFreePlan ? "PAID" : "PENDING",
               is_active: isFreePlan ? true : false,
+              // 7-day WhatsApp trial: only free/Lite signups on WhatsApp get a
+              // trial_ends_at — this is what app/api/whatsapp/route.ts checks
+              // to block messages once the trial's over, and what the
+              // reminder cron uses for day 1/4/6 nudges. Telegram is
+              // permanently free (no trial), and paid plans don't need one.
+              trial_ends_at:
+                isFreePlan && formData.channel === "whatsapp"
+                  ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                  : null,
             }
           ], { onConflict: "id" });
 
