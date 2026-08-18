@@ -37,6 +37,28 @@ async function sendUpgradeConfirmation(user: any, planName: string, channelKey: 
   }
 }
 
+// Sends the "your subscription ended, you're back on Lite" message on
+// whichever channel the user was chatting on — mirrors sendUpgradeConfirmation.
+async function sendDowngradeNotice(user: any, channelKey: string | null) {
+  if (!channelKey) return;
+  const nickname = user.how_to_call_you || user.nickname || user.name || "Bro";
+  const text = `👋 Hey ${nickname}, your subscription has ended and your account is now back on the *LITE* plan. You can resubscribe anytime from your dashboard.`;
+
+  try {
+    if (channelKey === "telegram" && user.telegram_chat_id) {
+      await sendTelegramMessage(user.telegram_chat_id, text);
+    } else if (channelKey === "whatsapp" && user.phone_number) {
+      await twilioClient.messages.create({
+        from: TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${user.phone_number}`,
+        body: text,
+      });
+    }
+  } catch (err) {
+    console.error("❌ Downgrade notice push failed:", err);
+  }
+}
+
 // Every variant ID that should map to a paid plan — channel-specific ones
 // first (see /api/create-checkout), then the old channel-agnostic fallback
 // env vars for stores that haven't split WhatsApp/Telegram into separate
@@ -248,24 +270,56 @@ export async function POST(req: Request) {
       eventName === "subscription_cancelled" ||
       eventName === "subscription_expired"
     ) {
+      const applyIdentityFilter = (q: any) => {
+        if (userId) return q.eq("id", userId);
+        if (userPhone) return q.eq("phone_number", userPhone);
+        if (userEmail) return q.eq("email", userEmail);
+        return null;
+      };
+
+      if (!userId && !userPhone && !userEmail) {
+        console.error("❌ No user identifier found in cancel/expire webhook payload");
+        return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
+      }
+
       const updateData = {
+        plan: "LITE",
         payment_status: "EXPIRED",
         is_active: false,
+        active_channel: null,
         updated_at: new Date().toISOString(),
       };
 
-      let query = supabaseAdmin.from("users").update(updateData);
+      // Grab the pre-update row (channel + contact info) BEFORE nulling
+      // active_channel, so we still know where to send the downgrade notice.
+      const preUpdateQuery = applyIdentityFilter(
+        supabaseAdmin
+          .from("users")
+          .select("active_channel, telegram_chat_id, phone_number, how_to_call_you, nickname, name, plan")
+      )!;
+      const { data: preRows } = await preUpdateQuery;
+      const preRow = preRows && preRows[0];
 
-      if (userId) {
-        query = query.eq("id", userId);
-      } else if (userPhone) {
-        query = query.eq("phone_number", userPhone);
-      } else if (userEmail) {
-        query = query.eq("email", userEmail);
+      // Idempotency: only downgrade (and notify) if not already on LITE —
+      // same race-safe pattern as the paid-plan branch above, so duplicate
+      // cancelled+expired deliveries for the same subscription don't double-fire.
+      const atomicQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!.neq("plan", "LITE");
+      const { data, error } = await atomicQuery.select();
+
+      if (error) {
+        console.error("Supabase Cancel/Expire Update Error:", error);
+        return NextResponse.json(
+          { error: "Database update failed", details: error.message },
+          { status: 500 }
+        );
       }
 
-      await query;
-      console.log(`⚠️ Subscription cancelled/expired for user.`);
+      const planActuallyChanged = !!data && data.length > 0;
+      console.log(`⚠️ Subscription ${eventName} — plan set to LITE: ${planActuallyChanged}`);
+
+      if (planActuallyChanged && preRow) {
+        await sendDowngradeNotice(preRow, preRow.active_channel);
+      }
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
