@@ -288,7 +288,8 @@ export default function BrooDashboard() {
   const [nickname, setNickname] = useState<string>("Bro");
   const [userPhone, setUserPhone] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState<string>(""); // Supabase Auth session UID (used for /pricing links etc.)
+  const [dbUserId, setDbUserId] = useState<string>(""); // public.users.id — the FK target on transactions/budgets.user_id
   const [avatarUrl, setAvatarUrl] = useState<string>(AVATAR_OPTIONS[0]);
   const router = useRouter();
 
@@ -384,6 +385,8 @@ export default function BrooDashboard() {
 
     let phoneToUse = userData?.phone_number?.trim() || "";
 
+    if (userData?.id) setDbUserId(userData.id);
+
     if (userData) {
       setCurrency(userData.currency || "USD");
       if (userData.language) setAppLanguage(userData.language);
@@ -415,10 +418,13 @@ export default function BrooDashboard() {
       }
     }
 
-    // 🎯 1. Fetch Budgets safely
+    // 🎯 1. Fetch Budgets — filtered by user_id (channel-agnostic, and never
+    // fetches every user's budgets when phone_number is empty).
     let budgetQuery = supabase.from("budgets").select("*");
-    if (phoneToUse) {
-      budgetQuery = budgetQuery.eq("phone_number", phoneToUse);
+    if (userData?.id) {
+      budgetQuery = budgetQuery.eq("user_id", userData.id);
+    } else {
+      budgetQuery = budgetQuery.eq("id", "00000000-0000-0000-0000-000000000000"); // no user resolved yet — fetch nothing
     }
     const { data: budgetData } = await budgetQuery;
 
@@ -456,21 +462,24 @@ export default function BrooDashboard() {
       await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
     }
 
-    // Fetch transactions safely
-    const { data: txData } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // Fetch transactions — filtered server-side by user_id (not
+    // phone_number) so it's channel-agnostic: a single user_id covers both
+    // WhatsApp- and Telegram-logged transactions after linking/upgrading.
+    // Previously this fetched the ENTIRE table and filtered by phone_number
+    // client-side, which (a) hid Telegram-only transactions entirely since
+    // they have no phone_number, and (b) leaked every user's transactions
+    // to the client whenever phoneToUse was empty (e.g. Telegram-only
+    // accounts) since the "no phone" branch skipped filtering altogether.
+    if (userData?.id) {
+      const { data: txData } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userData.id)
+        .order("created_at", { ascending: false });
 
-    if (txData && phoneToUse) {
-      const cleanPhone = phoneToUse.replace(/\D/g, "").slice(-9);
-      const filtered = txData.filter(t => {
-        if (!t.phone_number) return false;
-        return t.phone_number.replace(/\D/g, "").endsWith(cleanPhone);
-      });
-      setTransactions([...filtered]);
-    } else if (txData) {
-      setTransactions([...txData]);
+      setTransactions(txData ? [...txData] : []);
+    } else {
+      setTransactions([]);
     }
 
     setLoading(false);
@@ -566,7 +575,7 @@ export default function BrooDashboard() {
     setSaveLoading(true);
 
     try {
-      const { error } = await supabase
+      const { error, data: updatedRows } = await supabase
         .from("transactions")
         .update({
           item: editItem.trim(),
@@ -574,9 +583,14 @@ export default function BrooDashboard() {
           amount: Number(editAmount),
           type: editType
         })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", dbUserId) // ownership check — only rows belonging to this user can be edited
+        .select();
 
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Transaction not found or you don't have permission to edit it.");
+      }
 
       setTransactions(prev => prev.map(t => t.id === id ? {
         ...t,

@@ -391,6 +391,7 @@ export async function saveExtractedDirect(
       const { error: budgetErr } = await supabase.from("budgets").insert([
         {
           [idColumn]: idValue,
+          user_id: userProfile.id,
           category: tx.category || "General",
           amount_limit: tx.amount,
         },
@@ -402,6 +403,7 @@ export async function saveExtractedDirect(
     const { error: insErr } = await supabase.from("transactions").insert([
       {
         [idColumn]: idValue,
+        user_id: userProfile.id,
         type: tx.type,
         item: tx.item,
         category: tx.category,
@@ -462,6 +464,7 @@ export async function handleConfirmTransaction(
       const { error: budgetErr } = await supabase.from("budgets").insert([
         {
           [idColumn]: idValue,
+          user_id: userProfile.id,
           category: tx.category || "General",
           amount_limit: tx.amount,
         },
@@ -475,6 +478,7 @@ export async function handleConfirmTransaction(
     const { error: insErr } = await supabase.from("transactions").insert([
       {
         [idColumn]: idValue,
+        user_id: userProfile.id,
         type: tx.type,
         item: tx.item,
         category: tx.category,

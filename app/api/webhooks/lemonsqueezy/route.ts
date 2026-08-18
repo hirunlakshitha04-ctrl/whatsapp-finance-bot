@@ -159,12 +159,21 @@ export async function POST(req: Request) {
 
       const customerId = attributes?.customer_id ? String(attributes.customer_id) : "";
 
+      // custom_data.channel is set by /api/create-checkout in both the
+      // fresh-registration and upgrade branches, so this reliably stamps
+      // whichever channel this payment/upgrade was made on as the user's
+      // single active channel (see the WhatsApp/Telegram routes' block).
+      const paymentChannel = customData?.channel === "telegram" ? "telegram" : customData?.channel === "whatsapp" ? "whatsapp" : null;
+
       const updateData: Record<string, any> = {
         plan: planName,
         payment_status: "PAID",
         is_active: true,
         updated_at: new Date().toISOString(),
       };
+      if (paymentChannel) {
+        updateData.active_channel = paymentChannel;
+      }
 
       // Subscription events walata witharai subscription_id eka save karanne
       // order_created event ekata subscription_id ekak thiyenne nathi wela puluwan

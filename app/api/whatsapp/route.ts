@@ -103,6 +103,9 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("user_sessions")
           .upsert({ phone_number: from, step: "ACTIVE" }, { onConflict: "phone_number" });
+        // WhatsApp becomes this user's active channel — the old channel
+        // (e.g. Telegram) will now be blocked from logging new transactions.
+        await supabase.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
         await send(
           `🎉 Connected! Hey ${linkedNickname}, WhatsApp is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
         );
@@ -112,6 +115,7 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("user_sessions")
           .upsert({ phone_number: from, step: "AWAITING_STARTING_BALANCE" }, { onConflict: "phone_number" });
+        await supabase.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
 
         const welcomeMsgs = await getLocalizedMessages(linkedLang, linkedNickname, linkedCurrency, websiteUrl);
         await send(welcomeMsgs.welcome);
@@ -126,6 +130,20 @@ export async function POST(req: NextRequest) {
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
       await send(getRegisterMessage(websiteUrl));
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // ---------------- SINGLE ACTIVE CHANNEL ENFORCEMENT ----------------
+    // If this user switched their active channel to Telegram (via an
+    // upgrade or a fresh channel link), block further use of WhatsApp
+    // entirely rather than letting transactions fragment across channels.
+    // active_channel is null for pre-migration rows / users who never
+    // switched, so this only blocks users who explicitly moved channels.
+    if (userProfile.active_channel && userProfile.active_channel !== "whatsapp") {
+      const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "your_bot_username";
+      await send(
+        `👋 Looks like your account is now active on Telegram! Please continue chatting with BroFinAi there:\nhttps://t.me/${telegramBotUsername}`
+      );
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -259,6 +277,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("transactions").insert([
           {
             [ID_COLUMN]: from,
+            user_id: userProfile.id,
             type: "income",
             item: "Starting Capital",
             category: "Savings/Investments",

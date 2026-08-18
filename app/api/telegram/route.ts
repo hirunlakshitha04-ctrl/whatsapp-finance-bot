@@ -151,10 +151,14 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("user_sessions")
           .upsert({ [ID_COLUMN]: from, step: "ACTIVE" }, { onConflict: ID_COLUMN });
+        // Telegram becomes this user's active channel — the old channel
+        // (e.g. WhatsApp) will now be blocked from logging new transactions.
+        await supabase.from("users").update({ active_channel: "telegram" }).eq("id", pendingUser.id);
         await send(
           `✅ *Connected!*\n\nHey ${linkNickname}, Telegram is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
         );
       } else {
+        await supabase.from("users").update({ active_channel: "telegram" }).eq("id", pendingUser.id);
         await send(`✅ *Connected!*\n\nHey ${linkNickname}, your Telegram is now linked to Brofinai. 🚀\n\nSend your **Starting Balance** to begin tracking — e.g. *"50000"*`);
       }
 
@@ -167,6 +171,20 @@ export async function POST(req: NextRequest) {
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
       await send(getRegisterMessage(websiteUrl));
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    // ---------------- SINGLE ACTIVE CHANNEL ENFORCEMENT ----------------
+    // If this user switched their active channel to WhatsApp (via an
+    // upgrade or a fresh channel link), block further use of Telegram
+    // entirely rather than letting transactions fragment across channels.
+    // Mirrors the WhatsApp route's identical check.
+    if (userProfile.active_channel && userProfile.active_channel !== "telegram") {
+      const rawBotNumber = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+      const waNumber = rawBotNumber.replace("whatsapp:", "");
+      await send(
+        `👋 Looks like your account is now active on WhatsApp! Please continue chatting with BroFinAi there:\nhttps://wa.me/${waNumber.replace("+", "")}`
+      );
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -286,6 +304,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("transactions").insert([
           {
             [ID_COLUMN]: from,
+            user_id: userProfile.id,
             type: "income",
             item: "Starting Capital",
             category: "Savings/Investments",
