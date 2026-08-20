@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, useScroll, useTransform, Variants } from "framer-motion";
-import { 
-  Bot, 
-  ArrowUpRight, 
-  Zap, 
-  ShieldCheck, 
-  Receipt, 
+import {
+  ArrowUpRight,
+  Zap,
+  ShieldCheck,
+  Receipt,
   Sparkles,
   ArrowRight,
   CheckCircle2,
@@ -20,7 +19,8 @@ import {
   Activity,
   Mail,
   Phone,
-  Send
+  Send,
+  Tag,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -55,16 +55,87 @@ const FacebookIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Brand marks for the two supported chat channels. Drawn in the same filled
+// style as the social icons above so they sit naturally in the same rows.
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.87.5 3.68 1.47 5.27L2 22l4.94-1.56a9.9 9.9 0 0 0 5.1 1.4h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.02c-.24.68-1.4 1.3-1.93 1.36-.5.06-1.12.08-1.8-.11a13.8 13.8 0 0 1-2-.71 11.05 11.05 0 0 1-4.36-3.86c-.42-.58-.85-1.26-.95-1.98-.1-.7.06-1.28.5-1.72.19-.19.42-.29.66-.29h.47c.16 0 .37-.03.55.42l.78 1.9c.06.16.1.28.02.44-.08.16-.13.26-.26.4l-.36.42c-.11.13-.23.27-.1.5.14.24.62 1.03 1.34 1.67.92.83 1.7 1.09 1.94 1.21.24.13.38.11.53-.06l.55-.63c.2-.24.38-.2.62-.11l1.71.81c.24.11.4.16.46.26.06.11.06.63-.18 1.3Z" />
+  </svg>
+);
+
+const TelegramIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M21.5 3.5 2.7 10.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14.1c.3-1.2-.4-1.7-1.3-1.3Zm-3.9 3.5-7.7 6.9-.3 3.1-1.5-4.6 8.6-6.1c.4-.3.8.1.4.4Z" />
+  </svg>
+);
+
+// ---------------------------------------------------------------------------
+// Channel system — the whole page is aware of which chat app the visitor is
+// picturing themselves in. One switcher (nav) drives the hero, the live
+// mockup, the "how it works" copy, and pricing, so WhatsApp and Telegram
+// read as genuinely equal front doors into the product, not WhatsApp-first
+// with Telegram bolted on.
+// ---------------------------------------------------------------------------
+type Channel = "whatsapp" | "telegram";
+
+const CHANNEL_META: Record<
+  Channel,
+  {
+    label: string;
+    icon: React.FC<{ className?: string }>;
+    from: string;
+    via: string;
+    to: string;
+    text: string;
+    dot: string;
+    ring: string;
+    glow: string;
+    handle: string;
+    badge: string;
+    connectTitle: string;
+    connectDesc: string;
+    exampleMessage: string;
+  }
+> = {
+  whatsapp: {
+    label: "WhatsApp",
+    icon: WhatsAppIcon,
+    from: "from-emerald-400",
+    via: "via-teal-300",
+    to: "to-cyan-400",
+    text: "text-emerald-400",
+    dot: "bg-emerald-400",
+    ring: "border-emerald-400/60",
+    glow: "shadow-emerald-500/25",
+    handle: "+1 (555) 019-4321",
+    badge: "Live now on WhatsApp",
+    connectTitle: "Save the WhatsApp Number",
+    connectDesc: "Save our WhatsApp business number and send \"Hi\" to instantly link your account.",
+    exampleMessage: "Spent $45.50 on Coffee & Breakfast ☕",
+  },
+  telegram: {
+    label: "Telegram",
+    icon: TelegramIcon,
+    from: "from-sky-400",
+    via: "via-blue-300",
+    to: "to-cyan-400",
+    text: "text-sky-400",
+    dot: "bg-sky-400",
+    ring: "border-sky-400/60",
+    glow: "shadow-sky-500/25",
+    handle: "@BroFInAi_Bot",
+    badge: "Live now on Telegram",
+    connectTitle: "Start the Telegram Bot",
+    connectDesc: "Search @BroFInAi_Bot on Telegram and hit Start to instantly link your account.",
+    exampleMessage: "Spent $45.50 on Coffee & Breakfast ☕",
+  },
+};
+
+const CHANNELS: Channel[] = ["whatsapp", "telegram"];
+
 // Pricing Plans Data — 3 plans × 2 channels (WhatsApp / Telegram).
 // Prices are channel-specific; everything else (features, badge, copy) stays
 // constant across channels, so the cards only need to swap the price on toggle.
-type Channel = "whatsapp" | "telegram";
-
-const CHANNELS: { id: Channel; label: string }[] = [
-  { id: "whatsapp", label: "WhatsApp" },
-  { id: "telegram", label: "Telegram" },
-];
-
 const PRICING_PLANS = [
   {
     id: "free",
@@ -128,6 +199,20 @@ const PRICING_PLANS = [
   },
 ];
 
+// Telegram is cheaper than WhatsApp on every paid plan — this derives the
+// exact per-plan savings straight from PRICING_PLANS (never hardcoded), so
+// the discount popup always matches whatever the pricing cards show.
+const TELEGRAM_SAVINGS = PRICING_PLANS.map((plan) => {
+  const wa = parseFloat(plan.prices.whatsapp.replace("$", ""));
+  const tg = parseFloat(plan.prices.telegram.replace("$", ""));
+  return { name: plan.name, amount: wa - tg };
+}).filter((s) => s.amount > 0);
+
+const BEST_TELEGRAM_SAVING = TELEGRAM_SAVINGS.reduce(
+  (best, s) => (s.amount > best.amount ? s : best),
+  { name: "", amount: 0 }
+);
+
 // Full row-by-row feature comparison (collapsible table under the cards).
 // Values are either a string (shown as-is) or a boolean (rendered as check/x).
 const FEATURE_COMPARISON: {
@@ -146,13 +231,84 @@ const FEATURE_COMPARISON: {
   { label: "Web dashboard access", free: true, core: true, max: true },
 ];
 
+// Reusable, compact channel switcher — this is the page's signature control.
+// It appears in the nav and again above pricing, both driving the same
+// shared state, so switching once carries the visitor's choice everywhere.
+function ChannelSwitch({
+  channel,
+  onChange,
+  layoutId,
+  size = "sm",
+}: {
+  channel: Channel;
+  onChange: (c: Channel) => void;
+  layoutId: string;
+  size?: "sm" | "lg";
+}) {
+  const isLg = size === "lg";
+  return (
+    <div className={`relative inline-flex items-center gap-1 rounded-full bg-white/5 border border-white/10 ${isLg ? "p-1.5" : "p-1"}`}>
+      {CHANNELS.map((c) => {
+        const meta = CHANNEL_META[c];
+        const Icon = meta.icon;
+        const active = channel === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={active}
+            aria-label={`Switch to ${meta.label}`}
+            onClick={() => onChange(c)}
+            className={`relative z-10 flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wider transition-colors ${
+              isLg ? "px-6 py-2.5 text-xs" : "px-3 py-1.5 text-[11px]"
+            } ${active ? "text-slate-950" : "text-slate-400 hover:text-white"}`}
+          >
+            {active && (
+              <motion.div
+                layoutId={layoutId}
+                transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                className={`absolute inset-0 rounded-full bg-gradient-to-r ${meta.from} ${meta.to}`}
+              />
+            )}
+            <Icon className={`relative ${isLg ? "w-3.5 h-3.5" : "w-3 h-3"}`} />
+            <span className="relative">{meta.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BroFInAiLandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
   const [contactSent, setContactSent] = useState(false);
-  const [pricingChannel, setPricingChannel] = useState<Channel>("whatsapp");
+  const [channel, setChannel] = useState<Channel>("whatsapp");
   const [showComparison, setShowComparison] = useState(false);
+  const [showDiscountToast, setShowDiscountToast] = useState(false);
   const { scrollYProgress } = useScroll();
+
+  const meta = CHANNEL_META[channel];
+  const ChannelIcon = meta.icon;
+
+  // Discount popup — fires while the visitor is browsing on WhatsApp, to
+  // nudge them toward the cheaper Telegram plans. Hides itself the moment
+  // they actually switch to Telegram (nothing left to nudge them into).
+  // Savings are calculated live from the same numbers shown on the
+  // pricing cards below.
+  useEffect(() => {
+    if (channel !== "whatsapp") {
+      setShowDiscountToast(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowDiscountToast(true), 1200);
+    return () => clearTimeout(timer);
+  }, [channel]);
+
+  const discountLines = useMemo(
+    () => TELEGRAM_SAVINGS.map((s) => `${s.name.replace("BRO ", "")} −$${s.amount.toFixed(2)}/mo`).join("  ·  "),
+    []
+  );
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.98]);
@@ -180,12 +336,12 @@ export default function BroFInAiLandingPage() {
 
   const fadeInUp: Variants = {
     hidden: { opacity: 0, y: 50, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    visible: {
+      opacity: 1,
+      y: 0,
       scale: 1,
-      transition: { duration: 0.7, ease: [0.215, 0.610, 0.355, 1.000] } 
-    }
+      transition: { duration: 0.7, ease: [0.215, 0.610, 0.355, 1.000] },
+    },
   };
 
   const staggerContainer: Variants = {
@@ -193,38 +349,43 @@ export default function BroFInAiLandingPage() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.15
-      }
-    }
+        staggerChildren: 0.15,
+      },
+    },
   };
 
   return (
     <div className="min-h-screen bg-[#07090e] text-white selection:bg-purple-500 selection:text-white font-sans overflow-x-hidden relative pb-28">
-      
+
       {/* Scroll Progress Bar */}
-      <motion.div 
+      <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 z-[100] origin-left"
         style={{ scaleX: scrollYProgress }}
       />
 
-      {/* Ambient Lights */}
+      {/* Ambient Lights — soft, diffused "aurora" blooms rather than hard
+          accent blocks, closer to a cinematic generative-AI canvas than a
+          flat SaaS gradient. One bloom now tracks the active channel. */}
       <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none -z-10" />
       <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none -z-10" />
-      <div className="fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] bg-emerald-600/15 rounded-full blur-[160px] pointer-events-none -z-10" />
+      <motion.div
+        animate={{ opacity: 1 }}
+        className={`fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none -z-10 transition-colors duration-700 ${
+          channel === "whatsapp" ? "bg-emerald-600/15" : "bg-sky-600/15"
+        }`}
+      />
 
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[#07090e]/70 border-b border-white/5 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Bro<span className="text-purple-400">FInAi</span>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight shrink-0">
+            <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent hidden sm:inline">
+              Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+          <div className="hidden lg:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-white transition-colors">Features</a>
             <a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a>
             <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a>
@@ -232,103 +393,209 @@ export default function BroFInAiLandingPage() {
             <a href="#contact" onClick={(e) => scrollToSection(e, "contact")} className="hover:text-white transition-colors">Contact</a>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-4">
-            <Link href="/login" className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="nav-channel-pill" />
+            <Link href="/login" className="hidden sm:inline text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
               Login
             </Link>
             <Link
-              href="/register?plan=free&type=direct"
+              href={`/register?plan=free&channel=${channel}&type=direct`}
               className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
             >
-              <span>Get Started</span>
+              <span className="hidden sm:inline">Get Started</span>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>
       </nav>
 
+      {/* TELEGRAM DISCOUNT POPUP — shows while browsing on WhatsApp to nudge
+          toward the cheaper Telegram plans; disappears once they switch. */}
+      <AnimatePresence>
+        {showDiscountToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            className="fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-md"
+          >
+            <div className="relative overflow-hidden rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-sky-400/40 shadow-2xl shadow-sky-500/20 p-4 sm:p-5">
+              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 via-transparent to-cyan-400/10 pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setShowDiscountToast(false)}
+                aria-label="Dismiss"
+                className="absolute top-3 right-3 text-slate-500 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="relative flex items-start gap-3">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div className="space-y-1.5 pr-4">
+                  <p className="text-sm font-bold text-white">
+                    Register on Telegram & save 🎉
+                  </p>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Same bot, same features — but up to{" "}
+                    <span className="font-bold text-sky-400">${BEST_TELEGRAM_SAVING.amount.toFixed(2)}/mo</span> cheaper on {BEST_TELEGRAM_SAVING.name.replace("BRO ", "")} if you sign up via Telegram instead of WhatsApp.
+                  </p>
+                  <p className="text-[11px] text-slate-500">{discountLines}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChannel("telegram");
+                      setShowDiscountToast(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300 transition-colors pt-0.5"
+                  >
+                    Switch to Telegram pricing <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HERO SECTION */}
-      <motion.section 
+      <motion.section
         style={{ opacity, scale }}
         className="relative max-w-7xl mx-auto px-6 pt-16 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center"
       >
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -80 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.9 }}
           className="lg:col-span-6 space-y-8"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/15 backdrop-blur-md text-xs font-semibold text-purple-300 shadow-xl shadow-purple-500/10">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Official Launch: Live Now</span>
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`badge-${channel}`}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/15 backdrop-blur-md text-xs font-semibold text-purple-300 shadow-xl shadow-purple-500/10"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>{meta.badge}</span>
+            </motion.div>
+          </AnimatePresence>
 
           <h1 className="text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.08]">
             Master Your Expenses Right Inside{" "}
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
-              WhatsApp
-            </span>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={channel}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className={`inline-block bg-gradient-to-r ${meta.from} ${meta.via} ${meta.to} bg-clip-text text-transparent`}
+              >
+                {meta.label}
+              </motion.span>
+            </AnimatePresence>
           </h1>
 
           <p className="text-slate-400 text-lg max-w-lg font-normal leading-relaxed">
-            Zero complex apps. Log unlimited expenses via WhatsApp text or auto-scan receipt photos with AI. Instant real-time dashboard tracking.
+            Zero complex apps. Log unlimited expenses via chat text or auto-scan receipt photos with AI. Instant real-time dashboard tracking — on whichever app you already live in.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Link
-              href="/register?plan=free&type=direct"
-              className="px-8 py-4 rounded-full font-bold text-sm bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 transition-all shadow-xl shadow-emerald-500/25 flex items-center gap-2 group"
+              href={`/register?plan=free&channel=${channel}&type=direct`}
+              className={`px-8 py-4 rounded-full font-bold text-sm bg-gradient-to-r ${meta.from} ${meta.via} ${meta.to} text-slate-950 transition-all shadow-xl ${meta.glow} flex items-center gap-2 group`}
             >
-              <span>Start Free Forever 🚀</span>
+              <span>Start Free on {meta.label} 🚀</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
               <Zap className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" /> Unlimited Free Text Logging
             </span>
           </div>
+
+          <div className="flex items-center gap-2 pt-1 text-xs text-slate-500">
+            <span>Also available on</span>
+            <button
+              type="button"
+              onClick={() => setChannel(channel === "whatsapp" ? "telegram" : "whatsapp")}
+              className="inline-flex items-center gap-1.5 font-semibold text-slate-300 hover:text-white transition-colors underline decoration-dotted underline-offset-4"
+            >
+              {React.createElement(CHANNEL_META[channel === "whatsapp" ? "telegram" : "whatsapp"].icon, { className: "w-3.5 h-3.5" })}
+              {CHANNEL_META[channel === "whatsapp" ? "telegram" : "whatsapp"].label}
+            </button>
+          </div>
         </motion.div>
 
-        {/* Dynamic WhatsApp Mockup */}
-        <motion.div 
+        {/* Dynamic Chat Mockup — chrome, accent, and the bot's handle swap
+            with the active channel so the preview never lies about which
+            app it's simulating. */}
+        <motion.div
           initial={{ opacity: 0, y: 80 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
           className="lg:col-span-6 relative flex justify-center"
         >
-          <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900/80 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-4">
+          <div className={`relative w-full max-w-md p-6 rounded-3xl bg-slate-900/80 backdrop-blur-2xl border shadow-2xl space-y-4 transition-colors duration-500 ${meta.ring}`}>
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500/80 animate-pulse" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/80 animate-pulse" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/80 animate-pulse" />
+              <div className="flex items-center gap-2 text-slate-400">
+                <ChannelIcon className={`w-4 h-4 ${meta.text}`} />
+                <span className="text-xs font-mono">{meta.handle}</span>
               </div>
-              <span className="text-xs font-mono text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                <Activity className="w-3 h-3 animate-spin text-emerald-400" />
-                BroFInAi Bot Live
-              </span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={`status-${channel}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className={`text-xs font-mono flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${meta.text} bg-white/5 border-white/10`}
+                >
+                  <Activity className="w-3 h-3 animate-spin" />
+                  BroFInAi Bot Live
+                </motion.span>
+              </AnimatePresence>
             </div>
 
-            <div className="space-y-3 font-sans text-xs sm:text-sm pt-2">
-              <div className="bg-emerald-600/30 border border-emerald-500/30 text-emerald-100 p-3 rounded-2xl rounded-tr-none max-w-[85%] ml-auto shadow-md">
-                Spent $45.50 on Coffee & Breakfast ☕
-              </div>
-              <div className="bg-slate-800/90 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-none max-w-[90%] space-y-2 shadow-lg">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-                  <CheckCircle2 className="w-4 h-4" /> Expense Logged!
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`chat-${channel}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-3 font-sans text-xs sm:text-sm pt-2"
+              >
+                <div
+                  className={`p-3 rounded-2xl rounded-tr-none max-w-[85%] ml-auto shadow-md border ${
+                    channel === "whatsapp"
+                      ? "bg-emerald-600/30 border-emerald-500/30 text-emerald-100"
+                      : "bg-sky-600/30 border-sky-500/30 text-sky-100"
+                  }`}
+                >
+                  {meta.exampleMessage}
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-slate-300 pt-1 text-xs">
-                  <div className="bg-white/5 p-2 rounded-lg">💵 Amount: <b className="text-white">$45.50</b></div>
-                  <div className="bg-white/5 p-2 rounded-lg">🏷️ Category: <b className="text-white">Dining</b></div>
+                <div className="bg-slate-800/90 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-none max-w-[90%] space-y-2 shadow-lg">
+                  <div className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wider ${meta.text}`}>
+                    <CheckCircle2 className="w-4 h-4" /> Expense Logged!
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-slate-300 pt-1 text-xs">
+                    <div className="bg-white/5 p-2 rounded-lg">💵 Amount: <b className="text-white">$45.50</b></div>
+                    <div className="bg-white/5 p-2 rounded-lg">🏷️ Category: <b className="text-white">Dining</b></div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </motion.div>
       </motion.section>
 
       {/* FEATURES SECTION */}
       <section id="features" className="scroll-mt-24">
-        <motion.div 
+        <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
@@ -338,6 +605,12 @@ export default function BroFInAiLandingPage() {
           <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-3">
             <div className="text-xs font-bold uppercase tracking-widest text-purple-400">Core Features</div>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">Everything You Need to Save More</h2>
+            <p className="text-slate-500 text-sm flex items-center justify-center gap-2 pt-1">
+              <WhatsAppIcon className="w-4 h-4 text-emerald-400" />
+              <span>Identical on WhatsApp and</span>
+              <TelegramIcon className="w-4 h-4 text-sky-400" />
+              <span>Telegram — pick one, or use both.</span>
+            </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -346,7 +619,7 @@ export default function BroFInAiLandingPage() {
                 <MessageSquare className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-xl mb-3">💬 Unlimited Chat Logging</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">No daily limits! Send standard WhatsApp messages anytime to log expenses naturally.</p>
+              <p className="text-slate-400 text-sm leading-relaxed">No daily limits! Send a normal WhatsApp or Telegram message anytime to log expenses naturally.</p>
             </motion.div>
 
             <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all shadow-xl">
@@ -370,23 +643,31 @@ export default function BroFInAiLandingPage() {
 
       {/* HOW IT WORKS */}
       <section id="how-it-works" className="scroll-mt-24">
-        <motion.div 
+        <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           className="max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
         >
-          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-10 space-y-3">
             <div className="text-xs font-bold uppercase tracking-widest text-emerald-400">Step-by-Step</div>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">How It Works</h2>
+          </motion.div>
+
+          <motion.div variants={fadeInUp} className="flex justify-center mb-14">
+            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="how-it-works-pill" size="lg" />
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/40 border border-white/10 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 font-black flex items-center justify-center text-xl">1</div>
-              <h3 className="text-xl font-bold">Connect WhatsApp Number</h3>
-              <p className="text-slate-400 text-sm">Register your WhatsApp phone number to instantly link your account.</p>
+              <AnimatePresence mode="wait">
+                <motion.div key={`step1-${channel}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                  <h3 className="text-xl font-bold">{meta.connectTitle}</h3>
+                  <p className="text-slate-400 text-sm mt-1">{meta.connectDesc}</p>
+                </motion.div>
+              </AnimatePresence>
             </motion.div>
 
             <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/40 border border-white/10 space-y-4">
@@ -406,7 +687,7 @@ export default function BroFInAiLandingPage() {
 
       {/* PRICING SECTION */}
       <section id="pricing" className="scroll-mt-24">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 60 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -428,51 +709,69 @@ export default function BroFInAiLandingPage() {
 
           {/* Channel Toggle — WhatsApp / Telegram. Selecting a channel here
               swaps the price shown on all 3 cards and carries through to the
-              register link, so users never get asked again at signup. */}
+              register link, and stays in sync with the switcher in the nav. */}
           <div className="flex items-center justify-center mb-10">
-            <div className="relative inline-flex p-1 rounded-full bg-slate-900/70 border border-white/10">
-              {CHANNELS.map((ch) => (
-                <button
-                  key={ch.id}
-                  type="button"
-                  onClick={() => setPricingChannel(ch.id)}
-                  className="relative z-10 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors"
-                >
-                  {pricingChannel === ch.id && (
-                    <motion.div
-                      layoutId="pricing-channel-pill"
-                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
-                    />
-                  )}
-                  <span className={`relative flex items-center gap-1.5 ${pricingChannel === ch.id ? "text-slate-950" : "text-slate-400"}`}>
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    {ch.label}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="pricing-channel-pill" size="lg" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-6xl mx-auto">
             {PRICING_PLANS.map((plan) => (
               <div
                 key={plan.id}
-                className={`relative rounded-3xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-xl ${
+                className={`group relative flex flex-col transition-all duration-300 ${
                   plan.highlight
-                    ? "bg-slate-900/90 border-2 border-emerald-400/80 shadow-[0_0_40px_0_rgba(52,211,153,0.15)] scale-[1.02]"
-                    : "bg-slate-900/50 border border-white/10 hover:border-white/20"
+                    ? "scale-[1.02] drop-shadow-[0_0_40px_rgba(52,211,153,0.2)]"
+                    : ""
                 }`}
               >
                 {/* Highlight Badge */}
                 {plan.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
                     <Sparkles className="w-3 h-3" />
                     {plan.badge}
                   </div>
                 )}
 
-                <div>
+                {/* Speech-bubble shaped "border" layer — mirrors the logo mark's
+                    rounded body + notch tail instead of a plain rectangle. */}
+                <div
+                  aria-hidden
+                  className="absolute inset-0 transition-colors duration-300"
+                  style={{
+                    background: plan.highlight
+                      ? "linear-gradient(135deg, #34d399, #38bdf8)"
+                      : "rgba(255,255,255,0.14)",
+                    WebkitMaskImage: "url('/speech-bubble-mask.svg')",
+                    maskImage: "url('/speech-bubble-mask.svg')",
+                    WebkitMaskSize: "100% 100%",
+                    maskSize: "100% 100%",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                  }}
+                />
+
+                {/* Speech-bubble shaped fill layer, inset slightly to leave the
+                    border layer visible as a thin outline around the shape. */}
+                <div
+                  aria-hidden
+                  className={`absolute backdrop-blur-xl transition-colors duration-300 ${
+                    plan.highlight
+                      ? "bg-slate-900/90 group-hover:bg-slate-900/95"
+                      : "bg-slate-900/60 group-hover:bg-slate-900/70"
+                  }`}
+                  style={{
+                    inset: plan.highlight ? "2px" : "1.5px",
+                    WebkitMaskImage: "url('/speech-bubble-mask.svg')",
+                    maskImage: "url('/speech-bubble-mask.svg')",
+                    WebkitMaskSize: "100% 100%",
+                    maskSize: "100% 100%",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                  }}
+                />
+
+                <div className="relative z-10 flex flex-col justify-between h-full pl-6 pr-9 py-6 md:pl-8 md:pr-12 md:py-8">
+                  <div>
                   {/* Header */}
                   <div className="mb-6">
                     <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
@@ -481,7 +780,7 @@ export default function BroFInAiLandingPage() {
                     <div className="relative h-11 md:h-14 mt-2">
                       <AnimatePresence mode="wait" initial={false}>
                         <motion.div
-                          key={`${plan.id}-${pricingChannel}`}
+                          key={`${plan.id}-${channel}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -489,7 +788,7 @@ export default function BroFInAiLandingPage() {
                           className="absolute inset-0 flex items-baseline gap-1"
                         >
                           <span className="text-4xl md:text-5xl font-black tracking-tight text-white whitespace-nowrap">
-                            {plan.prices[pricingChannel]}
+                            {plan.prices[channel]}
                           </span>
                           <span className="text-xs text-slate-400 font-medium">
                             {plan.period}
@@ -500,14 +799,14 @@ export default function BroFInAiLandingPage() {
                     {plan.prices.telegram !== plan.prices.whatsapp && (
                       <AnimatePresence mode="wait" initial={false}>
                         <motion.p
-                          key={`save-${plan.id}-${pricingChannel}`}
+                          key={`save-${plan.id}-${channel}`}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.2 }}
                           className="text-[11px] font-semibold mt-0.5"
                         >
-                          {pricingChannel === "telegram" ? (
+                          {channel === "telegram" ? (
                             <span className="text-emerald-400">
                               Save ${(
                                 parseFloat(plan.prices.whatsapp.replace("$", "")) -
@@ -532,7 +831,7 @@ export default function BroFInAiLandingPage() {
                     </p>
                     {plan.trialNote && (
                       <p className="text-[11px] text-emerald-400 font-medium mt-1">
-                        {plan.trialNote[pricingChannel]}
+                        {plan.trialNote[channel]}
                       </p>
                     )}
                   </div>
@@ -554,16 +853,17 @@ export default function BroFInAiLandingPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                  </div>
 
-                {/* Action Button — plan + channel both carry through to register */}
-                <Link
-                  href={`/register?plan=${plan.id}&channel=${pricingChannel}&type=direct`}
-                  className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
-                >
-                  <span>{plan.buttonText}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                  {/* Action Button — plan + channel both carry through to register */}
+                  <Link
+                    href={`/register?plan=${plan.id}&channel=${channel}&type=direct`}
+                    className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
+                  >
+                    <span>{plan.buttonText}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -643,29 +943,33 @@ export default function BroFInAiLandingPage() {
           {[
             {
               q: "Is Bro Lite really free forever?",
-              a: "Yes! Bro Lite is 100% free forever. You get 3 daily transactions and 1 daily AI receipt scan at zero cost."
+              a: "Yes! Bro Lite is 100% free forever on both WhatsApp and Telegram. You get 3 daily transactions and 1 daily AI receipt scan at zero cost.",
+            },
+            {
+              q: "What's the difference between using WhatsApp and Telegram?",
+              a: "Every feature works identically on both — the same AI parsing, the same dashboard, the same export tools. Telegram plans are simply cheaper to run, so we pass that saving on. Pick whichever app you already chat in.",
             },
             {
               q: "How does AI Receipt Scanning work?",
-              a: "Simply snap a photo of any bill or purchase receipt and send it to our WhatsApp bot. AI automatically extracts store names, dates, and final bill amounts into your dashboard."
+              a: "Simply snap a photo of any bill or purchase receipt and send it to our WhatsApp or Telegram bot. AI automatically extracts store names, dates, and final bill amounts into your dashboard.",
             },
             {
               q: "Can I upgrade or cancel my subscription anytime?",
-              a: "Absolute freedom! You can upgrade from Lite to Core ($2.55/mo) or Max ($5.99/mo) anytime directly through your billing portal with zero long-term commitments."
-            }
+              a: "Absolute freedom! You can upgrade from Lite to Core or Max anytime directly through your billing portal with zero long-term commitments, on either channel.",
+            },
           ].map((item, index) => (
             <div key={index} className="rounded-2xl bg-slate-900/60 border border-white/10 overflow-hidden">
-              <button 
+              <button
                 onClick={() => toggleFaq(index)}
                 className="w-full p-6 text-left flex justify-between items-center font-bold text-sm sm:text-base hover:text-purple-300 transition"
               >
                 <span>{item.q}</span>
                 <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${activeFaq === index ? "rotate-180 text-purple-400" : "text-slate-500"}`} />
               </button>
-              
+
               <AnimatePresence>
                 {activeFaq === index && (
-                  <motion.div 
+                  <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -687,15 +991,24 @@ export default function BroFInAiLandingPage() {
             Ready to Master Your Finances Globally?
           </h2>
           <p className="text-slate-300 text-sm md:text-base max-w-xl mx-auto">
-            Join thousands of smart spenders tracking expenses directly inside WhatsApp.
+            Join thousands of smart spenders tracking expenses directly inside WhatsApp and Telegram.
           </p>
-          <Link
-            href="/register?plan=free&type=direct"
-            className="inline-flex items-center gap-2 px-10 py-4 rounded-full font-bold text-sm bg-white text-slate-950 hover:bg-slate-200 transition shadow-2xl shadow-white/20"
-          >
-            <span>Start Tracking Free 🚀</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/register?plan=free&channel=whatsapp&type=direct"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-sm bg-white text-slate-950 hover:bg-slate-200 transition shadow-2xl shadow-white/20"
+            >
+              <WhatsAppIcon className="w-4 h-4" />
+              <span>Start on WhatsApp</span>
+            </Link>
+            <Link
+              href="/register?plan=free&channel=telegram&type=direct"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-sm bg-white/10 border border-white/20 text-white hover:bg-white/15 transition"
+            >
+              <TelegramIcon className="w-4 h-4 text-sky-400" />
+              <span>Start on Telegram</span>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -729,12 +1042,32 @@ export default function BroFInAiLandingPage() {
                 </div>
               </div>
 
+              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 transition-all flex items-start gap-4">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <WhatsAppIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm mb-1">WhatsApp Support</h3>
+                  <span className="text-slate-400 text-xs">+94 729 367 157</span>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-sky-500/50 transition-all flex items-start gap-4">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <TelegramIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm mb-1">Telegram Support</h3>
+                  <span className="text-slate-400 text-xs">@BroFInAi_Support</span>
+                </div>
+              </div>
+
               <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all flex items-start gap-4">
                 <div className="w-11 h-11 shrink-0 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm mb-1">WhatsApp Support</h3>
+                  <h3 className="font-bold text-sm mb-1">Call Us</h3>
                   <span className="text-slate-400 text-xs">+94 729 367 157</span>
                 </div>
               </div>
@@ -817,17 +1150,21 @@ export default function BroFInAiLandingPage() {
             {/* Brand Column */}
             <div className="md:col-span-5 space-y-5">
               <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight w-fit">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <Bot className="w-5 h-5 text-white" />
-                </div>
+                <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
                 <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                  Bro<span className="text-purple-400">FInAi</span>
+                  Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
                 </span>
               </Link>
               <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-                Track every expense right inside WhatsApp. No new apps, no spreadsheets — just message, snap, and go.
+                Track every expense right inside WhatsApp or Telegram. No new apps, no spreadsheets — just message, snap, and go.
               </p>
               <div className="flex items-center gap-3 pt-1">
+                <a href="#" aria-label="WhatsApp" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-400/40 transition">
+                  <WhatsAppIcon className="w-4 h-4" />
+                </a>
+                <a href="#" aria-label="Telegram" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-sky-400 hover:border-sky-400/40 transition">
+                  <TelegramIcon className="w-4 h-4" />
+                </a>
                 <a href="#" aria-label="Twitter" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition">
                   <TwitterIcon className="w-4 h-4" />
                 </a>
@@ -873,19 +1210,28 @@ export default function BroFInAiLandingPage() {
         </div>
       </footer>
 
-      {/* FLOATING STICKY DOCK */}
+      {/* FLOATING STICKY DOCK — reflects whichever channel is active */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-3xl">
         <div className="p-3 sm:p-4 rounded-full bg-slate-950/80 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-between gap-4 px-6">
-          <div className="flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-xs sm:text-sm font-semibold text-slate-200">
-              Free WhatsApp Expense Tracker
-            </span>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-2.5 h-2.5 rounded-full animate-ping shrink-0 transition-colors duration-500 ${meta.dot}`} />
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={`dock-${channel}`}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="text-xs sm:text-sm font-semibold text-slate-200 truncate"
+              >
+                Free {meta.label} Expense Tracker
+              </motion.span>
+            </AnimatePresence>
           </div>
 
-          <Link 
-            href="/register?plan=free&type=direct" 
-            className="px-5 py-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 whitespace-nowrap"
+          <Link
+            href={`/register?plan=free&channel=${channel}&type=direct`}
+            className={`px-5 py-2 rounded-full bg-gradient-to-r ${meta.from} ${meta.to} text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg ${meta.glow} whitespace-nowrap shrink-0`}
           >
             <span>Get Started</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
