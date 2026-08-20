@@ -72,9 +72,46 @@ export default function LoginPage() {
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-500/15 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-500/15 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Glassmorphism Card */}
-      <div className="w-full max-w-md bg-slate-900/40 border border-slate-800/80 backdrop-blur-2xl p-8 rounded-[32px] shadow-2xl relative z-10 space-y-6">
-        
+      {/* Site Logo — same mark used in the header/footer of the marketing site */}
+      <Link href="/" className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2.5 font-bold text-xl tracking-tight w-fit">
+        <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+        <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+          Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
+        </span>
+      </Link>
+
+      {/* Speech-bubble Card — rounded card with a small, fixed-size CSS tail
+          (two stacked rotated squares: gradient border + dark fill) instead
+          of the pricing-card SVG mask. The mask stretched 100%/100%, so on
+          a tall form it kept scaling the tail up with the card's height —
+          a fixed-px tail stays the same size and position regardless. */}
+      <div className="w-full max-w-md relative z-10 mt-16">
+        {/* Border layer */}
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-[32px]"
+          style={{ background: "linear-gradient(135deg, #34d399, #38bdf8)" }}
+        />
+        {/* Fill layer */}
+        <div
+          aria-hidden
+          className="absolute inset-[2px] rounded-[30px] bg-slate-900/70 backdrop-blur-2xl"
+        />
+
+        {/* Tail — fixed 26px notch, border square + inset fill square */}
+        <div
+          aria-hidden
+          className="absolute w-[26px] h-[26px] rounded-[6px] rotate-45"
+          style={{ right: "-11px", bottom: "72px", background: "linear-gradient(135deg, #34d399, #38bdf8)" }}
+        />
+        <div
+          aria-hidden
+          className="absolute w-[22px] h-[22px] rounded-[5px] rotate-45 bg-slate-900"
+          style={{ right: "-9px", bottom: "74px" }}
+        />
+
+        <div className="relative shadow-2xl pl-8 pr-9 py-9 md:pl-10 md:pr-10 md:py-10 space-y-6">
+
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-2">
             <Sparkles size={12} /> Brofinai Portal
@@ -157,6 +194,7 @@ export default function LoginPage() {
           </Link>
         </p>
 
+        </div>
       </div>
 
       {/* Forgot Password Popup Modal Component */}

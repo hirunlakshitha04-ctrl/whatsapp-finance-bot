@@ -21,6 +21,7 @@ import {
   Phone,
   Send,
   Tag,
+  Mic,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -107,7 +108,7 @@ const CHANNEL_META: Record<
     dot: "bg-emerald-400",
     ring: "border-emerald-400/60",
     glow: "shadow-emerald-500/25",
-    handle: "+1 (555) 019-4321",
+    handle: "+ 94 71 636 3235",
     badge: "Live now on WhatsApp",
     connectTitle: "Save the WhatsApp Number",
     connectDesc: "Save our WhatsApp business number and send \"Hi\" to instantly link your account.",
@@ -613,8 +614,8 @@ export default function BroFInAiLandingPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 transition-all shadow-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 transition-all shadow-xl">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6">
                 <MessageSquare className="w-6 h-6" />
               </div>
@@ -622,7 +623,15 @@ export default function BroFInAiLandingPage() {
               <p className="text-slate-400 text-sm leading-relaxed">No daily limits! Send a normal WhatsApp or Telegram message anytime to log expenses naturally.</p>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all shadow-xl">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-orange-500/50 transition-all shadow-xl">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center mb-6">
+                <Mic className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold text-xl mb-3">🎤 Track by Voice</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Just say what you spent in a voice note — AI transcribes and logs it instantly, no typing needed.</p>
+            </motion.div>
+
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all shadow-xl">
               <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-6">
                 <Receipt className="w-6 h-6" />
               </div>
@@ -630,7 +639,7 @@ export default function BroFInAiLandingPage() {
               <p className="text-slate-400 text-sm leading-relaxed">Snap photos of receipts. Smart AI extracts merchant name, date, and exact amounts automatically.</p>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 transition-all shadow-xl">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 transition-all shadow-xl">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-6">
                 <PieChart className="w-6 h-6" />
               </div>
@@ -660,7 +669,7 @@ export default function BroFInAiLandingPage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/40 border border-white/10 space-y-4">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 font-black flex items-center justify-center text-xl">1</div>
               <AnimatePresence mode="wait">
                 <motion.div key={`step1-${channel}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
@@ -670,13 +679,13 @@ export default function BroFInAiLandingPage() {
               </AnimatePresence>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/40 border border-white/10 space-y-4">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-xl">2</div>
-              <h3 className="text-xl font-bold">Text or Send Receipt Photo</h3>
-              <p className="text-slate-400 text-sm">Send a quick message like "Spent $15 for Groceries" or upload receipt photos.</p>
+              <h3 className="text-xl font-bold">Text, Talk, or Send a Photo</h3>
+              <p className="text-slate-400 text-sm">Type "Spent $15 for Groceries", send a voice note, or upload a receipt photo — all work instantly.</p>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-3xl bg-slate-900/40 border border-white/10 space-y-4">
+            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 font-black flex items-center justify-center text-xl">3</div>
               <h3 className="text-xl font-bold">Instant Web Sync</h3>
               <p className="text-slate-400 text-sm">Watch real-time visual charts update and export full financial reports easily.</p>
@@ -770,7 +779,7 @@ export default function BroFInAiLandingPage() {
                   }}
                 />
 
-                <div className="relative z-10 flex flex-col justify-between h-full pl-6 pr-9 py-6 md:pl-8 md:pr-12 md:py-8">
+                <div className="relative z-10 flex flex-col justify-between h-full pl-7 pr-8 py-7 md:pl-9 md:pr-10 md:py-9">
                   <div>
                   {/* Header */}
                   <div className="mb-6">
@@ -1087,7 +1096,7 @@ export default function BroFInAiLandingPage() {
                       required
                       value={contactForm.name}
                       onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                      placeholder="Jane Doe"
+                      placeholder="Enter your name"
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/60 focus:bg-white/[0.07] transition"
                     />
                   </div>
@@ -1098,7 +1107,7 @@ export default function BroFInAiLandingPage() {
                       required
                       value={contactForm.email}
                       onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                      placeholder="jane@example.com"
+                      placeholder="Enter your email"
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/60 focus:bg-white/[0.07] transition"
                     />
                   </div>

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
 export const metadata = {
-  title: "Privacy Policy — BroFinAi",
-  description: "How BroFinAi collects, uses, and protects your data.",
+  title: "Privacy Policy — BroFInAi",
+  description: "How BroFInAi collects, uses, and protects your data.",
 };
 
 const sections = [
@@ -13,9 +14,9 @@ const sections = [
         <p>To provide the Service, we collect:</p>
         <ul className="list-disc pl-5 space-y-2 mt-3">
           <li>
-            <span className="text-white font-medium">WhatsApp account info:</span>{" "}
-            your phone number and WhatsApp profile name, received when you
-            message the BroFinAi bot.
+            <span className="text-white font-medium">WhatsApp / Telegram account info:</span>{" "}
+            your phone number or Telegram username and profile name, received when you
+            message the BroFInAi bot.
           </li>
           <li>
             <span className="text-white font-medium">Messages you send:</span>{" "}
@@ -71,9 +72,9 @@ const sections = [
         <p>We do not sell your personal data. We may share information with:</p>
         <ul className="list-disc pl-5 space-y-2 mt-3">
           <li>
-            <span className="text-white font-medium">WhatsApp / Meta:</span>{" "}
-            as the messaging platform through which the Service operates,
-            subject to WhatsApp's own terms and privacy policy.
+            <span className="text-white font-medium">WhatsApp / Meta and Telegram:</span>{" "}
+            as the messaging platforms through which the Service operates,
+            subject to their own terms and privacy policies.
           </li>
           <li>
             <span className="text-white font-medium">
@@ -131,7 +132,7 @@ const sections = [
           To exercise these rights, contact us at{" "}
           <a
             href="mailto:support@brofinai.com"
-            className="text-teal-300 hover:text-teal-200 underline underline-offset-4"
+            className="text-emerald-300 hover:text-emerald-200 underline underline-offset-4"
           >
             support@brofinai.com
           </a>
@@ -155,7 +156,7 @@ const sections = [
     body: (
       <p>
         We may update this Privacy Policy from time to time. We'll notify
-        you of material changes via the WhatsApp bot or by updating the
+        you of material changes via the bot or by updating the
         "Last updated" date above.
       </p>
     ),
@@ -167,7 +168,7 @@ const sections = [
         Questions about this Privacy Policy? Reach us at{" "}
         <a
           href="mailto:support@brofinai.com"
-          className="text-teal-300 hover:text-teal-200 underline underline-offset-4"
+          className="text-emerald-300 hover:text-emerald-200 underline underline-offset-4"
         >
           support@brofinai.com
         </a>
@@ -179,16 +180,19 @@ const sections = [
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen bg-[#040309] text-slate-300">
-      {/* nav */}
-      <header className="border-b border-white/5">
-        <div className="mx-auto max-w-4xl px-6 py-5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-fuchsia-500 to-purple-600 text-sm">
-              🤖
-            </span>
-            <span className="text-lg font-bold text-white">
-              Bro<span className="bg-gradient-to-r from-teal-300 to-purple-400 bg-clip-text text-transparent">FInAi</span>
+    <main className="min-h-screen bg-[#07090e] text-slate-300 selection:bg-purple-500 selection:text-white overflow-x-hidden relative">
+      {/* Ambient Lights — same soft aurora blooms as the homepage */}
+      <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none -z-10" />
+      <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none -z-10" />
+      <div className="fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none -z-10 bg-emerald-600/15" />
+
+      {/* Navigation Header — matches the homepage nav */}
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[#07090e]/70 border-b border-white/5 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight shrink-0">
+            <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
             </span>
           </Link>
           <Link
@@ -198,11 +202,11 @@ export default function PrivacyPolicyPage() {
             ← Back to home
           </Link>
         </div>
-      </header>
+      </nav>
 
       {/* content */}
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-teal-300">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-emerald-300">
           Legal
         </span>
         <h1 className="mt-4 text-4xl sm:text-5xl font-black tracking-tight text-white">
@@ -213,12 +217,12 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <p className="mt-8 text-base leading-relaxed">
-          BroFinAi ("we", "us", "our") provides an AI-powered expense
-          tracking service accessible through WhatsApp (the "Service").
-          This Privacy Policy explains what information we collect when
-          you use the Service, how we use it, and the choices you have. By
-          using the Service, you agree to the collection and use of
-          information as described here.
+          BroFInAi ("we", "us", "our") provides an AI-powered expense
+          tracking service accessible through WhatsApp and Telegram (the
+          "Service"). This Privacy Policy explains what information we
+          collect when you use the Service, how we use it, and the choices
+          you have. By using the Service, you agree to the collection and
+          use of information as described here.
         </p>
 
         <div className="mt-12 space-y-10">
@@ -235,17 +239,27 @@ export default function PrivacyPolicyPage() {
           ))}
         </div>
 
-        <div className="mt-14 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-500/10 to-purple-500/10 p-6 text-sm text-slate-400">
+        <div className="mt-14 rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/10 to-sky-500/10 p-6 text-sm text-slate-400">
           Questions about your data? Message the bot or email{" "}
           <a
             href="mailto:support@brofinai.com"
-            className="text-teal-300 hover:text-teal-200 underline underline-offset-4"
+            className="text-emerald-300 hover:text-emerald-200 underline underline-offset-4"
           >
             support@brofinai.com
           </a>
           .
         </div>
       </div>
+
+      {/* Footer — matches the homepage footer's brand + legal styling */}
+      <footer className="border-t border-white/5">
+        <div className="max-w-4xl mx-auto px-6 pt-10 pb-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-xs text-slate-500">© {new Date().getFullYear()} BroFInAi. All rights reserved.</span>
+          <span className="text-xs text-slate-500 flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Bank-grade encryption on every message
+          </span>
+        </div>
+      </footer>
     </main>
   );
 }

@@ -134,6 +134,17 @@ function PricingContent() {
       <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
 
       <div className="relative z-10 max-w-5xl mx-auto">
+        {/* Site Logo */}
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-2.5 font-bold text-xl tracking-tight mb-8 hover:opacity-90 transition"
+        >
+          <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+          <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
+          </span>
+        </Link>
+
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold mb-4">
@@ -228,12 +239,49 @@ function PricingContent() {
             return (
               <div
                 key={plan.key}
-                className={`relative flex flex-col rounded-3xl p-6 border backdrop-blur-2xl transition-all duration-300 ${
-                  isRecommended
-                    ? "bg-slate-900/90 border-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.15)] scale-[1.02]"
-                    : "bg-slate-900/70 border-white/10"
+                className={`relative flex flex-col transition-all duration-300 ${
+                  isRecommended ? "scale-[1.02]" : ""
                 } ${isDowngrade ? "opacity-50" : ""}`}
               >
+                {/* Border layer */}
+                <div
+                  aria-hidden
+                  className="absolute inset-0 rounded-[28px]"
+                  style={{
+                    background: isRecommended
+                      ? "linear-gradient(135deg, #a855f7, #ec4899)"
+                      : "rgba(255,255,255,0.14)",
+                  }}
+                />
+                {/* Fill layer */}
+                <div
+                  aria-hidden
+                  className={`absolute inset-[2px] rounded-[26px] backdrop-blur-2xl ${
+                    isRecommended ? "bg-slate-900/90" : "bg-slate-900/70"
+                  }`}
+                />
+                {/* Tail — fixed size, doesn't scale with card height */}
+                <div
+                  aria-hidden
+                  className="absolute w-[22px] h-[22px] rounded-[5px] rotate-45"
+                  style={{
+                    right: "-9px",
+                    top: "50%",
+                    marginTop: "-11px",
+                    background: isRecommended
+                      ? "linear-gradient(135deg, #a855f7, #ec4899)"
+                      : "rgba(255,255,255,0.14)",
+                  }}
+                />
+                <div
+                  aria-hidden
+                  className={`absolute w-[18px] h-[18px] rounded-[4px] rotate-45 ${
+                    isRecommended ? "bg-slate-900" : "bg-slate-900"
+                  }`}
+                  style={{ right: "-7px", top: "50%", marginTop: "-9px" }}
+                />
+
+                <div className="relative flex flex-col flex-1 p-6">
                 {isRecommended && !isCurrentPlan && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg">
                     Most Popular
@@ -328,6 +376,7 @@ function PricingContent() {
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 )}
+                </div>
               </div>
             );
           })}

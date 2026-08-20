@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
 export const metadata = {
-  title: "Terms of Service — BroFinAi",
-  description: "The terms that govern your use of BroFinAi.",
+  title: "Terms of Service — BroFInAi",
+  description: "The terms that govern your use of BroFInAi.",
 };
 
 const sections = [
@@ -10,9 +11,10 @@ const sections = [
     title: "1. Description of Service",
     body: (
       <p>
-        BroFinAi lets you log, categorize, and review personal expenses by
-        sending messages (text or receipt photos) via WhatsApp, using AI to
-        interpret and organize the information into a real-time dashboard.
+        BroFInAi lets you log, categorize, and review personal expenses by
+        sending messages (text or receipt photos) via WhatsApp or Telegram,
+        using AI to interpret and organize the information into a real-time
+        dashboard.
       </p>
     ),
   },
@@ -36,9 +38,9 @@ const sections = [
           others, or to send harmful, abusive, or fraudulent content.
         </li>
         <li>
-          You're responsible for keeping your WhatsApp account secure,
-          since anyone with access to it can access your expense data
-          through the bot.
+          You're responsible for keeping your WhatsApp or Telegram account
+          secure, since anyone with access to it can access your expense
+          data through the bot.
         </li>
       </ul>
     ),
@@ -62,7 +64,7 @@ const sections = [
     title: "5. Plans & Billing",
     body: (
       <>
-        <p>BroFinAi offers the following plans:</p>
+        <p>BroFInAi offers the following plans:</p>
         <ul className="list-disc pl-5 space-y-3 mt-3">
           <li>
             <span className="text-white font-medium">Bro Lite — Free Forever ($0.00/month):</span>{" "}
@@ -110,7 +112,7 @@ const sections = [
     body: (
       <p>
         All rights, title, and interest in the Service — including its
-        software, branding, and design — belong to BroFinAi. Your expense
+        software, branding, and design — belong to BroFInAi. Your expense
         data remains yours; we don't claim ownership of it.
       </p>
     ),
@@ -132,7 +134,7 @@ const sections = [
     body: (
       <p>
         The Service is provided "as is" without warranties of any kind.
-        To the maximum extent permitted by law, BroFinAi will not be
+        To the maximum extent permitted by law, BroFInAi will not be
         liable for any indirect, incidental, or consequential damages
         arising from your use of the Service, including errors in
         AI-generated expense data.
@@ -166,7 +168,7 @@ const sections = [
         Questions about these Terms? Reach us at{" "}
         <a
           href="mailto:support@brofinai.com"
-          className="text-teal-300 hover:text-teal-200 underline underline-offset-4"
+          className="text-emerald-300 hover:text-emerald-200 underline underline-offset-4"
         >
           support@brofinai.com
         </a>
@@ -178,16 +180,19 @@ const sections = [
 
 export default function TermsOfServicePage() {
   return (
-    <main className="min-h-screen bg-[#040309] text-slate-300">
-      {/* nav */}
-      <header className="border-b border-white/5">
-        <div className="mx-auto max-w-4xl px-6 py-5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-fuchsia-500 to-purple-600 text-sm">
-              🤖
-            </span>
-            <span className="text-lg font-bold text-white">
-              Bro<span className="bg-gradient-to-r from-teal-300 to-purple-400 bg-clip-text text-transparent">FInAi</span>
+    <main className="min-h-screen bg-[#07090e] text-slate-300 selection:bg-purple-500 selection:text-white overflow-x-hidden relative">
+      {/* Ambient Lights — same soft aurora blooms as the homepage */}
+      <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none -z-10" />
+      <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none -z-10" />
+      <div className="fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none -z-10 bg-emerald-600/15" />
+
+      {/* Navigation Header — matches the homepage nav */}
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[#07090e]/70 border-b border-white/5 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight shrink-0">
+            <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+            <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
             </span>
           </Link>
           <Link
@@ -197,11 +202,11 @@ export default function TermsOfServicePage() {
             ← Back to home
           </Link>
         </div>
-      </header>
+      </nav>
 
       {/* content */}
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-teal-300">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-emerald-300">
           Legal
         </span>
         <h1 className="mt-4 text-4xl sm:text-5xl font-black tracking-tight text-white">
@@ -212,9 +217,9 @@ export default function TermsOfServicePage() {
         </p>
 
         <p className="mt-8 text-base leading-relaxed">
-          These Terms of Service ("Terms") govern your use of BroFinAi
+          These Terms of Service ("Terms") govern your use of BroFInAi
           (the "Service"), an AI-powered expense tracker accessible via
-          WhatsApp. By messaging our WhatsApp number or otherwise using
+          WhatsApp and Telegram. By messaging our bot or otherwise using
           the Service, you agree to these Terms. If you don't agree,
           please don't use the Service.
         </p>
@@ -233,17 +238,27 @@ export default function TermsOfServicePage() {
           ))}
         </div>
 
-        <div className="mt-14 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-500/10 to-purple-500/10 p-6 text-sm text-slate-400">
+        <div className="mt-14 rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/10 to-sky-500/10 p-6 text-sm text-slate-400">
           Questions about these Terms? Message the bot or email{" "}
           <a
             href="mailto:support@brofinai.com"
-            className="text-teal-300 hover:text-teal-200 underline underline-offset-4"
+            className="text-emerald-300 hover:text-emerald-200 underline underline-offset-4"
           >
             support@brofinai.com
           </a>
           .
         </div>
       </div>
+
+      {/* Footer — matches the homepage footer's brand + legal styling */}
+      <footer className="border-t border-white/5">
+        <div className="max-w-4xl mx-auto px-6 pt-10 pb-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-xs text-slate-500">© {new Date().getFullYear()} BroFInAi. All rights reserved.</span>
+          <span className="text-xs text-slate-500 flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Bank-grade encryption on every message
+          </span>
+        </div>
+      </footer>
     </main>
   );
 }

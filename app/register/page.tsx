@@ -1002,16 +1002,14 @@ function RegisterForm() {
   }
 
   return (
-    <div className="relative z-10 w-full max-w-4xl p-6 md:p-10 rounded-3xl bg-slate-900/80 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_0_rgba(0,0,0,0.8)] text-white">
-      
-      {/* Header Bar */}
-      <div className="flex justify-between items-center pb-6 border-b border-white/10 mb-8">
+    <div className="relative z-10 w-full max-w-5xl text-white">
+
+      {/* Header Bar — sits above both speech-bubble panels */}
+      <div className="flex justify-between items-center pb-6 mb-8 md:mb-10">
         <Link className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition" href="/">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Bot className="w-5 h-5 text-white"/>
-          </div>
+          <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
           <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            BroFin<span className="text-purple-400">Ai</span>
+            Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
           </span>
         </Link>
         
@@ -1021,11 +1019,35 @@ function RegisterForm() {
         </div>
       </div>
 
-      {/* Main Content Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      {/* Main Content Layout — left info panel and right form panel are each
+          their own speech-bubble shape (gradient border + fixed-size tail),
+          tails pointing at each other like two sides of a chat. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-stretch">
         
-        {/* Left Side Info */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* Left Side Info — bubble panel, tail points right toward the form */}
+        <div className="lg:col-span-5 relative">
+          <div
+            aria-hidden
+            className="absolute inset-0 rounded-[28px]"
+            style={{ background: "linear-gradient(135deg, #a855f7, #38bdf8)" }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-[2px] rounded-[26px] bg-slate-900/80 backdrop-blur-2xl"
+          />
+          <div
+            aria-hidden
+            className="hidden lg:block absolute w-[24px] h-[24px] rounded-[6px] rotate-45"
+            style={{ right: "-10px", top: "50%", marginTop: "-12px", background: "linear-gradient(135deg, #a855f7, #38bdf8)" }}
+          />
+          <div
+            aria-hidden
+            className="hidden lg:block absolute w-[20px] h-[20px] rounded-[5px] rotate-45 bg-slate-900"
+            style={{ right: "-8px", top: "50%", marginTop: "-10px" }}
+          />
+
+          <div className="relative p-6 md:p-8 h-full flex flex-col">
+          <div className="space-y-6">
           <h1 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">
             Stop Money <br />
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
@@ -1050,10 +1072,56 @@ function RegisterForm() {
               <span>Multi-currency real-time budgeting</span>
             </div>
           </div>
+          </div>
+
+          {/* Filler — mini chat preview showing the product in action, pinned
+              to the bottom so the panel doesn't sit half-empty next to the
+              taller form panel. */}
+          <div className="mt-auto pt-10">
+            <div className="space-y-2.5">
+              <div className="flex justify-end">
+                <div className="bg-emerald-500/15 border border-emerald-400/20 text-emerald-100 text-xs rounded-2xl rounded-br-sm px-3.5 py-2 max-w-[85%]">
+                  Spent $12.50 on lunch 🍔
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="bg-white/5 border border-white/10 text-slate-200 text-xs rounded-2xl rounded-bl-sm px-3.5 py-2 max-w-[85%]">
+                  Logged ✅ Food & Dining — Balance: $487.50
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-6 mt-6 border-t border-white/10">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Bank-grade encryption on every message you send</span>
+            </div>
+          </div>
+          </div>
         </div>
 
-        {/* Right Side Form */}
-        <div className="lg:col-span-7">
+        {/* Right Side Form — bubble panel, tail points left toward the info panel */}
+        <div className="lg:col-span-7 relative">
+          <div
+            aria-hidden
+            className="absolute inset-0 rounded-[28px]"
+            style={{ background: "linear-gradient(135deg, #38bdf8, #a855f7)" }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-[2px] rounded-[26px] bg-slate-900/80 backdrop-blur-2xl"
+          />
+          <div
+            aria-hidden
+            className="hidden lg:block absolute w-[24px] h-[24px] rounded-[6px] rotate-45"
+            style={{ left: "-10px", top: "50%", marginTop: "-12px", background: "linear-gradient(135deg, #38bdf8, #a855f7)" }}
+          />
+          <div
+            aria-hidden
+            className="hidden lg:block absolute w-[20px] h-[20px] rounded-[5px] rotate-45 bg-slate-900"
+            style={{ left: "-8px", top: "50%", marginTop: "-10px" }}
+          />
+
+          <div className="relative p-6 md:p-8">
           {errorMsg && (
             <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3.5 rounded-xl text-xs mb-4 flex items-center gap-2">
               <Lock className="w-4 h-4 text-red-400 shrink-0"/>
@@ -1342,6 +1410,7 @@ function RegisterForm() {
             </div>
 
           </form>
+          </div>
         </div>
       </div>
 

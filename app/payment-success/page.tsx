@@ -2,6 +2,7 @@
 
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -82,7 +83,7 @@ function PaymentSuccessContent() {
 
   const theme = isTelegram
     ? {
-        ring: "border-sky-400/60",
+        borderGradient: "linear-gradient(135deg, #38bdf8, #22d3ee)",
         glow: "shadow-[0_0_60px_0_rgba(56,189,248,0.25)]",
         badgeBg: "bg-sky-500/15 border-sky-400 text-sky-300",
         buttonClass:
@@ -91,7 +92,7 @@ function PaymentSuccessContent() {
         channelName: "Telegram",
       }
     : {
-        ring: "border-emerald-400/60",
+        borderGradient: "linear-gradient(135deg, #34d399, #22d3ee)",
         glow: "shadow-[0_0_60px_0_rgba(52,211,153,0.25)]",
         badgeBg: "bg-emerald-500/15 border-emerald-400 text-emerald-300",
         buttonClass:
@@ -101,12 +102,51 @@ function PaymentSuccessContent() {
       };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
-      className={`relative w-full max-w-md rounded-3xl p-8 md:p-10 bg-slate-900/70 backdrop-blur-xl border ${theme.ring} ${theme.glow} text-center`}
-    >
+    <div className="w-full max-w-md relative z-10">
+
+      {/* Site Logo — same mark used across the rest of the site */}
+      <Link
+        href="/"
+        className="flex items-center justify-center gap-2.5 font-bold text-xl tracking-tight mb-8 hover:opacity-90 transition"
+      >
+        <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+        <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+          Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
+        </span>
+      </Link>
+
+      {/* Speech-bubble Card — same shape language as the rest of the site:
+          gradient border layer + glass fill layer + a small fixed-size tail
+          (doesn't scale with card height, unlike the earlier SVG-mask
+          version), tinted to the active channel's color. */}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
+        className="relative"
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-[32px]"
+          style={{ background: theme.borderGradient }}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-[2px] rounded-[30px] bg-slate-900/80 backdrop-blur-2xl"
+        />
+        <div
+          aria-hidden
+          className="absolute w-[26px] h-[26px] rounded-[6px] rotate-45"
+          style={{ right: "-11px", bottom: "56px", background: theme.borderGradient }}
+        />
+        <div
+          aria-hidden
+          className="absolute w-[22px] h-[22px] rounded-[5px] rotate-45 bg-slate-900"
+          style={{ right: "-9px", bottom: "58px" }}
+        />
+
+        <div className={`relative p-8 md:p-10 text-center ${theme.glow}`}>
+
       {/* Success check */}
       <motion.div
         initial={{ scale: 0 }}
@@ -168,7 +208,9 @@ function PaymentSuccessContent() {
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
         <span>Your subscription is active — cancel anytime from the dashboard.</span>
       </div>
-    </motion.div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
