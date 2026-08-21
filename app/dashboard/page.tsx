@@ -8,7 +8,7 @@ import {
   Wallet, TrendingUp, TrendingDown, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
   Sparkles, LogOut, Settings, LayoutDashboard,
-  Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban,
+  Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban, Trash2,
   User, Mail, Phone, Camera, Globe
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -354,6 +354,7 @@ export default function BrooDashboard() {
   const [editAmount, setEditAmount] = useState<string>("");
   const [editType, setEditType] = useState<"income" | "expense">("expense");
   const [saveLoading, setSaveLoading] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ tx: Transaction; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
 
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
@@ -633,6 +634,64 @@ export default function BrooDashboard() {
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  // Actually deletes a transaction from Supabase. Called once the undo window expires
+  // (or immediately if another delete comes in before the previous one's window ends).
+  const commitDelete = async (tx: Transaction) => {
+    try {
+      const { error, data: deletedRows } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", tx.id)
+        .eq("user_id", dbUserId) // ownership check — only rows belonging to this user can be deleted
+        .select();
+
+      if (error) throw error;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Transaction not found or you don't have permission to delete it.");
+      }
+    } catch (err: any) {
+      console.error("Error deleting transaction:", err);
+      // Put it back since the server-side delete didn't actually happen.
+      setTransactions(prev => {
+        if (prev.some(t => t.id === tx.id)) return prev;
+        return [...prev, tx].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      });
+      alert("Failed to delete transaction: " + err.message);
+    }
+  };
+
+  // Removes the row from view right away and starts a 6s undo window.
+  // The real delete only happens once that window passes without an Undo click.
+  const handleDeleteTransaction = (tx: Transaction) => {
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeoutId);
+      commitDelete(pendingDelete.tx);
+    }
+
+    setTransactions(prev => prev.filter(t => t.id !== tx.id));
+    if (editingId === tx.id) setEditingId(null);
+
+    const timeoutId = setTimeout(() => {
+      commitDelete(tx);
+      setPendingDelete(current => (current?.tx.id === tx.id ? null : current));
+    }, 6000);
+
+    setPendingDelete({ tx, timeoutId });
+  };
+
+  const handleUndoDelete = () => {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timeoutId);
+    setTransactions(prev =>
+      [...prev, pendingDelete.tx].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    );
+    setPendingDelete(null);
   };
 
   const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1683,12 +1742,20 @@ export default function BrooDashboard() {
                                   </button>
                                 </div>
                               ) : (
-                                <button 
-                                  onClick={() => handleStartEdit(tx)} 
-                                  className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition border border-white/10 backdrop-blur-md"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button 
+                                    onClick={() => handleStartEdit(tx)} 
+                                    className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition border border-white/10 backdrop-blur-md"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteTransaction(tx)} 
+                                    className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 rounded-lg transition border border-rose-500/20 backdrop-blur-md"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -2001,6 +2068,20 @@ export default function BrooDashboard() {
           </div>
         )}
       </div>
+
+      {pendingDelete && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900/95 border border-white/10 text-slate-100 text-xs font-semibold px-4 py-3 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+          <span className="whitespace-nowrap">
+            Deleted <span className="text-white">{pendingDelete.tx.item || "transaction"}</span>
+          </span>
+          <button
+            onClick={handleUndoDelete}
+            className="text-emerald-400 hover:text-emerald-300 font-extrabold uppercase tracking-wide transition"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }
