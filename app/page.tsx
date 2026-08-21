@@ -382,6 +382,8 @@ export default function BroFInAiLandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
   const [contactSent, setContactSent] = useState(false);
+  const [contactSending, setContactSending] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [showComparison, setShowComparison] = useState(false);
   const [showDiscountToast, setShowDiscountToast] = useState(false);
@@ -411,12 +413,33 @@ export default function BroFInAiLandingPage() {
     setActiveFaq(activeFaq === index ? null : index);
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Hook this up to your API route / email service of choice
-    setContactSent(true);
-    setContactForm({ name: "", email: "", message: "" });
-    setTimeout(() => setContactSent(false), 4000);
+    setContactSending(true);
+    setContactError(null);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactForm),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to send message.");
+      }
+
+      setContactSent(true);
+      setContactForm({ name: "", email: "", message: "" });
+      setTimeout(() => setContactSent(false), 4000);
+    } catch (err) {
+      setContactError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
+    } finally {
+      setContactSending(false);
+    }
   };
 
   // Smooth Scroll Helper
@@ -1860,12 +1883,23 @@ export default function BroFInAiLandingPage() {
                         <CheckCircle2 className="w-4 h-4" /> Message sent — we'll be in touch!
                       </motion.span>
                     )}
+                    {contactError && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-red-400 font-semibold"
+                      >
+                        {contactError}
+                      </motion.span>
+                    )}
                   </AnimatePresence>
                   <button
                     type="submit"
-                    className="ml-auto px-8 py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center gap-2 group transition-transform hover:scale-[1.02]"
+                    disabled={contactSending}
+                    className="ml-auto px-8 py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center gap-2 group transition-transform hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <span>Send Message</span>
+                    <span>{contactSending ? "Sending..." : "Send Message"}</span>
                     <Send className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </button>
                 </div>
