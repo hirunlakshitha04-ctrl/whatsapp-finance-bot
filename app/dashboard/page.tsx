@@ -487,7 +487,7 @@ export default function BrooDashboard() {
   // WhatsApp Notification helper function
   const sendWhatsAppNotification = async (message: string) => {
     try {
-      await fetch('https://your-whatsapp-bot-api.com/send-message', {
+      await fetch('https://brofinai.com/send-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

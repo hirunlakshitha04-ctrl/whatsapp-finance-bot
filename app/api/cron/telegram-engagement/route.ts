@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     for (const user of sevenDayInactive || []) {
       const nickname = user.how_to_call_you || user.nickname || user.name || "there";
-      const body = `📉 Hi ${nickname}, it's been a week since your last log on Brofinai.\n\nA week of untracked spending is a week you can't see where your money went. Jump back in — and if 3 logs/day feels tight, *Broo Core* gives you 10/day plus voice notes:\n👉 https://brofinai/#pricing`;
+      const body = `📉 Hi ${nickname}, it's been a week since your last log on Brofinai.\n\nA week of untracked spending is a week you can't see where your money went. Jump back in — and if 3 logs/day feels tight, *Broo Core* gives you 10/day plus voice notes:\n👉 https://brofinai.com/#pricing`;
       try {
         await sendTelegramMessage(user.telegram_chat_id, body);
         sent++;
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     for (const user of heavyLimitHitters || []) {
       const nickname = user.how_to_call_you || user.nickname || user.name || "there";
       const hits = user.limit_hits_this_week || 0;
-      const body = `🚀 Hey ${nickname}, you've hit your daily limit *${hits} times* this week alone!\n\nThat's a sign *Broo Core* ($2.50/mo on Telegram) or *Broo Max* ($4.00/mo, unlimited) would fit you better — no more waiting till tomorrow to log:\n👉 https://brofinai/#pricing`;
+      const body = `🚀 Hey ${nickname}, you've hit your daily limit *${hits} times* this week alone!\n\nThat's a sign *Broo Core* ($2.50/mo on Telegram) or *Broo Max* ($4.00/mo, unlimited) would fit you better — no more waiting till tomorrow to log:\n👉 https://brofinai.com/#pricing`;
       try {
         await sendTelegramMessage(user.telegram_chat_id, body);
         sent++;

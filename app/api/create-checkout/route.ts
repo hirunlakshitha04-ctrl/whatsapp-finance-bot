@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com";
 
     const planKey = (plan || "core").toLowerCase().trim();
     const channelKey = channel === "telegram" ? "telegram" : "whatsapp";

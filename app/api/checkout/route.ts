@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         custom: customData,
       },
       productOptions: {
-        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard`,
+        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com"}/dashboard`,
       },
     });
 

@@ -26,7 +26,7 @@ const supabase = createClient(
 );
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+94764775963";
 
 type Stage = "day1_activation" | "day4_feature" | "day6_urgency";
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       const trialEnd = new Date(user.trial_ends_at);
       const daysUntilEnd = daysBetween(trialEnd, now); // positive = still in trial
       const nickname = user.how_to_call_you || user.nickname || user.name || "Bro";
-      const checkoutUrl = `https://brofinai/checkout?phone=${encodeURIComponent(user.phone_number)}`;
+      const checkoutUrl = `https://brofinai.com/checkout?phone=${encodeURIComponent(user.phone_number)}`;
 
       let stage: Stage | null = null;
 

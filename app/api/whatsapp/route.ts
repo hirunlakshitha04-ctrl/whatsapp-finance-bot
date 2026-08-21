@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     // EXISTING user row instead of treating them as brand new.
     if (body.toUpperCase().startsWith("START-")) {
       const linkToken = body.split("-").slice(1).join("-").trim();
-      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
 
       if (!linkToken) {
         await send(getRegisterMessage(websiteUrl));
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     let { data: userProfile } = await supabase.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
 
     if (!userProfile) {
-      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
       await send(getRegisterMessage(websiteUrl));
       return new NextResponse("OK", { status: 200 });
     }
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
     const userLang = userProfile.language || userProfile.preferred_language || "English";
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       userProfile.trial_ends_at &&
       new Date(userProfile.trial_ends_at) < new Date()
     ) {
-      const checkoutUrl = `https://brofinai/checkout?phone=${encodeURIComponent(from)}`;
+      const checkoutUrl = `https://brofinai.com/checkout?phone=${encodeURIComponent(from)}`;
       await send(
         `⏳ *Trial Ended*\n\nHey ${nickname}, your 7-day free trial on Brofinai WhatsApp has ended.\n\n🚀 Upgrade to Broo Core or Max to keep tracking:\n👉 ${checkoutUrl}`
       );

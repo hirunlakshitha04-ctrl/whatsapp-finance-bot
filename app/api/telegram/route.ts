@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
       if (!linkToken) {
         // Plain "/start" with no token — user opened the bot directly, not via a link
-        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
         await send(getRegisterMessage(websiteUrl));
         return new NextResponse("OK", { status: 200 });
       }
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     let { data: userProfile } = await supabase.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
 
     if (!userProfile) {
-      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
       await send(getRegisterMessage(websiteUrl));
       return new NextResponse("OK", { status: 200 });
     }
@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
     const userLang = userProfile.language || userProfile.preferred_language || "English";
     const nickname = userProfile.how_to_call_you || userProfile.nickname || userProfile.name || "Bro";
     const userCurrency = userProfile.base_currency || userProfile.currency || "LKR";

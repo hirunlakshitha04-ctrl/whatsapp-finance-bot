@@ -84,14 +84,14 @@ export async function checkUserLimits(
       await recordLimitHit();
       return {
         allowed: false,
-        message: `⚠️ *Daily Limit Reached!* (3/3 Expenses)\n\nBroo Lite එකේ දවසකට ඇතුලත් කළ හැක්කේ Transactions 3ක් පමණි.\n\n🚀 Unlimited tracking සඳහා **Broo Core ($2.55/mo)** හෝ **Broo Max ($5.99/mo)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
+        message: `⚠️ *Daily Limit Reached!* (3/3 Expenses)\n\nBroo Lite එකේ දවසකට ඇතුලත් කළ හැක්කේ Transactions 3ක් පමණි.\n\n🚀 Unlimited tracking සඳහා **Broo Core ($2.55/mo)** හෝ **Broo Max ($5.99/mo)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
     if (plan === "core" && dailyTx >= 10) {
       await recordLimitHit();
       return {
         allowed: false,
-        message: `⚠️ *Daily Limit Reached!* (10/10 Expenses)\n\nBroo Core එකේ දවසකට Max Transactions 10යි.\n\n🚀 Unlimited tracking සඳහා **Broo Max ($5.99/mo)** එකට Upgrade වන්න:\n🔗 https://brofinai/upgrade`
+        message: `⚠️ *Daily Limit Reached!* (10/10 Expenses)\n\nBroo Core එකේ දවසකට Max Transactions 10යි.\n\n🚀 Unlimited tracking සඳහා **Broo Max ($5.99/mo)** එකට Upgrade වන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
   }
@@ -102,14 +102,14 @@ export async function checkUserLimits(
       await recordLimitHit();
       return {
         allowed: false,
-        message: `⚠️ *Daily OCR Scan Limit Reached!* (1/1 Scan)\n\nBroo Lite එකේ දවසකට Receipt Scans 1යි.\n\n📸 මාසෙට Scans 30ක් සඳහා **Broo Core ($2.55)** හෝ Unlimited Scans සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
+        message: `⚠️ *Daily OCR Scan Limit Reached!* (1/1 Scan)\n\nBroo Lite එකේ දවසකට Receipt Scans 1යි.\n\n📸 මාසෙට Scans 30ක් සඳහා **Broo Core ($2.55)** හෝ Unlimited Scans සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
     if (plan === "core" && monthlyOcr >= 30) {
       await recordLimitHit();
       return {
         allowed: false,
-        message: `⚠️ *Monthly OCR Limit Reached!* (30/30 Scans)\n\nBroo Core හි මෙම මාසයේ Scans 30 සීමාව අවසන්.\n\n🚀 Unlimited Scans සඳහා **Broo Max ($5.99)** එකට Upgrade වන්න:\n🔗 https://brofinai/upgrade`
+        message: `⚠️ *Monthly OCR Limit Reached!* (30/30 Scans)\n\nBroo Core හි මෙම මාසයේ Scans 30 සීමාව අවසන්.\n\n🚀 Unlimited Scans සඳහා **Broo Max ($5.99)** එකට Upgrade වන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
   }
@@ -120,14 +120,14 @@ export async function checkUserLimits(
       await recordLimitHit();
       return {
         allowed: false,
-        message: `🎙️ *Voice Tracking is Locked!*\n\nBroo Lite එකේ Voice Notes මඟින් Expenses ඇතුලත් කළ නොහැක.\n\n🚀 Voice Notes 5ක්/දිනකට සඳහා **Broo Core ($2.55)** හෝ Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
+        message: `🎙️ *Voice Tracking is Locked!*\n\nBroo Lite එකේ Voice Notes මඟින් Expenses ඇතුලත් කළ නොහැක.\n\n🚀 Voice Notes 5ක්/දිනකට සඳහා **Broo Core ($2.55)** හෝ Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
     if (plan === "core" && dailyVoice >= 5) {
       await recordLimitHit();
       return {
         allowed: false,
-        message: `⚠️ *Daily Voice Limit Reached!* (5/5 Voice Notes)\n\nBroo Core හි දිනකට Voice Notes 5 සීමාව අවසන්.\n\n🚀 Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai/upgrade`
+        message: `⚠️ *Daily Voice Limit Reached!* (5/5 Voice Notes)\n\nBroo Core හි දිනකට Voice Notes 5 සීමාව අවසන්.\n\n🚀 Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
       };
     }
   }
