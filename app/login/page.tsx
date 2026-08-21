@@ -3,9 +3,63 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
-import { Phone, Lock, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
+import {
+  Phone,
+  Lock,
+  ArrowRight,
+  Sparkles,
+  AlertCircle,
+  DollarSign,
+  Wallet,
+  Coins,
+  TrendingUp,
+  Receipt,
+  CreditCard,
+  PieChart,
+} from "lucide-react";
+
+// Falling finance-icon background — same subtle ambience used on the
+// marketing site. Presets are hardcoded (not Math.random) so server-rendered
+// and client-hydrated markup match exactly, avoiding hydration warnings.
+const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieChart];
+
+const FALLING_ICON_PRESETS: { icon: number; left: number; size: number; duration: number; delay: number; drift: number }[] = [
+  { icon: 0, left: 4, size: 20, duration: 16, delay: 0, drift: 25 },
+  { icon: 3, left: 14, size: 15, duration: 21, delay: 3, drift: -18 },
+  { icon: 1, left: 24, size: 24, duration: 18, delay: 7, drift: 14 },
+  { icon: 5, left: 34, size: 17, duration: 24, delay: 1, drift: -30 },
+  { icon: 2, left: 46, size: 19, duration: 15, delay: 9, drift: 22 },
+  { icon: 6, left: 58, size: 22, duration: 22, delay: 4, drift: -14 },
+  { icon: 4, left: 68, size: 16, duration: 19, delay: 11, drift: 18 },
+  { icon: 0, left: 78, size: 18, duration: 17, delay: 2, drift: -22 },
+  { icon: 1, left: 88, size: 21, duration: 23, delay: 8, drift: 26 },
+  { icon: 3, left: 96, size: 15, duration: 20, delay: 5, drift: -16 },
+];
+
+function FallingIcons() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      {FALLING_ICON_PRESETS.map((p, i) => {
+        const Icon = FALLING_ICON_SET[p.icon];
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-white/20"
+            style={{ left: `${p.left}%`, top: "-8%" }}
+            initial={{ y: "-10vh", x: 0, opacity: 0, rotate: 0 }}
+            animate={{ y: "115vh", x: p.drift, opacity: [0, 1, 1, 0], rotate: 200 }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "linear" }}
+          >
+            <Icon style={{ width: p.size, height: p.size }} />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState(""); // Phone or Email
@@ -71,6 +125,11 @@ export default function LoginPage() {
       {/* Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-500/15 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-500/15 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Falling finance-tracker icons drifting down the background.
+          Rendered with no explicit z-index (same as the glows above),
+          so it stays below the logo/card which are both z-10. */}
+      <FallingIcons />
 
       {/* Site Logo — same mark used in the header/footer of the marketing site */}
       <Link href="/" className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2.5 font-bold text-xl tracking-tight w-fit">

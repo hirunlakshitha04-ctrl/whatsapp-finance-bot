@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
 import { 
   Bot, 
@@ -19,13 +20,60 @@ import {
   Lock,
   Mail,
   KeyRound,
-  Loader2
+  Loader2,
+  DollarSign,
+  Wallet,
+  TrendingUp,
+  Receipt,
+  CreditCard,
+  PieChart
 } from "lucide-react";
 
 // Supabase Client Setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Falling finance-icon background — same subtle ambience used on the
+// marketing site and login page. Presets are hardcoded (not Math.random) so
+// server-rendered and client-hydrated markup match exactly, avoiding
+// hydration warnings.
+const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieChart];
+
+const FALLING_ICON_PRESETS: { icon: number; left: number; size: number; duration: number; delay: number; drift: number }[] = [
+  { icon: 0, left: 4, size: 20, duration: 16, delay: 0, drift: 25 },
+  { icon: 3, left: 14, size: 15, duration: 21, delay: 3, drift: -18 },
+  { icon: 1, left: 24, size: 24, duration: 18, delay: 7, drift: 14 },
+  { icon: 5, left: 34, size: 17, duration: 24, delay: 1, drift: -30 },
+  { icon: 2, left: 46, size: 19, duration: 15, delay: 9, drift: 22 },
+  { icon: 6, left: 58, size: 22, duration: 22, delay: 4, drift: -14 },
+  { icon: 4, left: 68, size: 16, duration: 19, delay: 11, drift: 18 },
+  { icon: 0, left: 78, size: 18, duration: 17, delay: 2, drift: -22 },
+  { icon: 1, left: 88, size: 21, duration: 23, delay: 8, drift: 26 },
+  { icon: 3, left: 96, size: 15, duration: 20, delay: 5, drift: -16 },
+];
+
+function FallingIcons() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      {FALLING_ICON_PRESETS.map((p, i) => {
+        const Icon = FALLING_ICON_SET[p.icon];
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-white/20"
+            style={{ left: `${p.left}%`, top: "-8%" }}
+            initial={{ y: "-10vh", x: 0, opacity: 0, rotate: 0 }}
+            animate={{ y: "115vh", x: p.drift, opacity: [0, 1, 1, 0], rotate: 200 }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "linear" }}
+          >
+            <Icon style={{ width: p.size, height: p.size }} />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
 
 declare global {
   interface Window {
@@ -1429,6 +1477,9 @@ export default function RegisterPage() {
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute top-1/2 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
       <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
+
+      {/* Falling finance-tracker icons drifting down the background */}
+      <FallingIcons />
 
       <Suspense fallback={
         <div className="flex items-center gap-2 text-white text-sm">

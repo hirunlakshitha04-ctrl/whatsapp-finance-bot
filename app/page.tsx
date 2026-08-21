@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, useScroll, useTransform, Variants } from "framer-motion";
 import {
@@ -20,8 +20,12 @@ import {
   Mail,
   Phone,
   Send,
-  Tag,
   Mic,
+  DollarSign,
+  Wallet,
+  Coins,
+  CreditCard,
+  TrendingUp,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -280,6 +284,54 @@ function ChannelSwitch({
   );
 }
 
+// Falling finance-icon background — dollar signs, wallets, coins etc. drifting
+// down behind the content. Presets are hardcoded (not Math.random) so the
+// server-rendered and client-hydrated markup match exactly.
+const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieChart];
+
+const FALLING_ICON_PRESETS: { icon: number; left: number; size: number; duration: number; delay: number; drift: number }[] = [
+  { icon: 0, left: 4, size: 22, duration: 16, delay: 0, drift: 30 },
+  { icon: 3, left: 12, size: 16, duration: 21, delay: 3, drift: -20 },
+  { icon: 1, left: 20, size: 26, duration: 18, delay: 7, drift: 15 },
+  { icon: 5, left: 28, size: 18, duration: 24, delay: 1, drift: -35 },
+  { icon: 2, left: 36, size: 20, duration: 15, delay: 9, drift: 25 },
+  { icon: 6, left: 44, size: 24, duration: 22, delay: 4, drift: -15 },
+  { icon: 4, left: 52, size: 17, duration: 19, delay: 11, drift: 20 },
+  { icon: 0, left: 60, size: 19, duration: 17, delay: 2, drift: -25 },
+  { icon: 1, left: 68, size: 23, duration: 23, delay: 8, drift: 30 },
+  { icon: 3, left: 76, size: 16, duration: 20, delay: 5, drift: -18 },
+  { icon: 5, left: 84, size: 21, duration: 16, delay: 12, drift: 22 },
+  { icon: 2, left: 92, size: 18, duration: 25, delay: 6, drift: -30 },
+  { icon: 6, left: 8, size: 15, duration: 20, delay: 14, drift: 18 },
+  { icon: 0, left: 32, size: 20, duration: 18, delay: 16, drift: -22 },
+  { icon: 4, left: 56, size: 22, duration: 21, delay: 10, drift: 28 },
+  { icon: 1, left: 80, size: 17, duration: 19, delay: 13, drift: -16 },
+  { icon: 3, left: 96, size: 19, duration: 23, delay: 15, drift: 20 },
+  { icon: 5, left: 16, size: 24, duration: 17, delay: 18, drift: -28 },
+];
+
+function FallingIcons() {
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10" aria-hidden>
+      {FALLING_ICON_PRESETS.map((p, i) => {
+        const Icon = FALLING_ICON_SET[p.icon];
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-white/20"
+            style={{ left: `${p.left}%`, top: "-8%" }}
+            initial={{ y: "-10vh", x: 0, opacity: 0, rotate: 0 }}
+            animate={{ y: "115vh", x: p.drift, opacity: [0, 1, 1, 0], rotate: 200 }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "linear" }}
+          >
+            <Icon style={{ width: p.size, height: p.size }} />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BroFInAiLandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
@@ -305,11 +357,6 @@ export default function BroFInAiLandingPage() {
     const timer = setTimeout(() => setShowDiscountToast(true), 1200);
     return () => clearTimeout(timer);
   }, [channel]);
-
-  const discountLines = useMemo(
-    () => TELEGRAM_SAVINGS.map((s) => `${s.name.replace("BRO ", "")} −$${s.amount.toFixed(2)}/mo`).join("  ·  "),
-    []
-  );
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.98]);
@@ -364,17 +411,33 @@ export default function BroFInAiLandingPage() {
         style={{ scaleX: scrollYProgress }}
       />
 
-      {/* Ambient Lights — soft, diffused "aurora" blooms rather than hard
-          accent blocks, closer to a cinematic generative-AI canvas than a
-          flat SaaS gradient. One bloom now tracks the active channel. */}
-      <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none -z-10" />
-      <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none -z-10" />
-      <motion.div
-        animate={{ opacity: 1 }}
-        className={`fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none -z-10 transition-colors duration-700 ${
-          channel === "whatsapp" ? "bg-emerald-600/15" : "bg-sky-600/15"
-        }`}
-      />
+      {/* Background layer — everything here is pinned at z-0, strictly below
+          the "relative z-10" content wrapper further down. Previously these
+          used -z-10, which put them BEHIND this div's own background paint
+          in some stacking situations and made them invisible; z-0 + an
+          explicit z-10 wrapper for the real content guarantees they always
+          render above the page background but below every section. */}
+      <div className="fixed inset-0 -z-0 pointer-events-none">
+        {/* Falling finance-tracker icons drifting down the background */}
+        <FallingIcons />
+
+        {/* Ambient Lights — soft, diffused "aurora" blooms rather than hard
+            accent blocks, closer to a cinematic generative-AI canvas than a
+            flat SaaS gradient. One bloom now tracks the active channel. */}
+        <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none" />
+        <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none" />
+        <motion.div
+          animate={{ opacity: 1 }}
+          className={`fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${
+            channel === "whatsapp" ? "bg-emerald-600/15" : "bg-sky-600/15"
+          }`}
+        />
+      </div>
+
+      {/* Everything below is real page content, pinned above the background
+          layer with an explicit z-index so it can never accidentally end up
+          behind it, regardless of each section's own background. */}
+      <div className="relative z-10">
 
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[#07090e]/70 border-b border-white/5 px-6 py-4">
@@ -399,13 +462,14 @@ export default function BroFInAiLandingPage() {
             <Link href="/login" className="hidden sm:inline text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
               Login
             </Link>
-            <Link
-              href={`/register?plan=free&channel=${channel}&type=direct`}
-              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
+            <a
+              href="#pricing"
+              onClick={(e) => scrollToSection(e, "pricing")}
+              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-950 hover:bg-slate-200 transition shadow-lg shadow-white/10 flex items-center gap-1.5 overflow-hidden whitespace-nowrap cursor-pointer"
             >
               <span className="hidden sm:inline">Get Started</span>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -415,45 +479,61 @@ export default function BroFInAiLandingPage() {
       <AnimatePresence>
         {showDiscountToast && (
           <motion.div
-            initial={{ opacity: 0, y: -24, scale: 0.95 }}
+            initial={{ opacity: 0, y: -24, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -16, scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            className="fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-md"
+            exit={{ opacity: 0, y: -16, scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 320, damping: 26 }}
+            className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[90] w-[94%] max-w-xl"
           >
-            <div className="relative overflow-hidden rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-sky-400/40 shadow-2xl shadow-sky-500/20 p-4 sm:p-5">
-              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 via-transparent to-cyan-400/10 pointer-events-none" />
-              <button
-                type="button"
-                onClick={() => setShowDiscountToast(false)}
-                aria-label="Dismiss"
-                className="absolute top-3 right-3 text-slate-500 hover:text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <div className="relative flex items-start gap-3">
-                <div className="w-10 h-10 shrink-0 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
-                  <Tag className="w-5 h-5" />
-                </div>
-                <div className="space-y-1.5 pr-4">
-                  <p className="text-sm font-bold text-white">
-                    Register on Telegram & save 🎉
-                  </p>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Same bot, same features — but up to{" "}
-                    <span className="font-bold text-sky-400">${BEST_TELEGRAM_SAVING.amount.toFixed(2)}/mo</span> cheaper on {BEST_TELEGRAM_SAVING.name.replace("BRO ", "")} if you sign up via Telegram instead of WhatsApp.
-                  </p>
-                  <p className="text-[11px] text-slate-500">{discountLines}</p>
+            <div className="relative">
+              {/* Soft gradient glow behind the glass card */}
+              <div
+                aria-hidden
+                className="absolute -inset-6 rounded-[36px] bg-gradient-to-r from-sky-500/35 via-blue-400/25 to-cyan-400/35 blur-3xl pointer-events-none"
+              />
+
+              {/* Gradient border wrapper */}
+              <div className="relative rounded-[28px] p-[1.5px] bg-gradient-to-br from-sky-400/70 via-white/10 to-cyan-400/50 shadow-2xl shadow-sky-500/25">
+                <div className="relative overflow-hidden rounded-[26.5px] bg-slate-950/85 backdrop-blur-2xl px-6 py-7 sm:px-10 sm:py-9 text-center">
+                  {/* subtle inner sheen + glow accents */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-sky-500/[0.08] pointer-events-none" />
+                  <div aria-hidden className="absolute -top-14 -right-14 w-40 h-40 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
+                  <div aria-hidden className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full bg-cyan-400/15 blur-3xl pointer-events-none" />
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setChannel("telegram");
-                      setShowDiscountToast(false);
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300 transition-colors pt-0.5"
+                    onClick={() => setShowDiscountToast(false)}
+                    aria-label="Dismiss"
+                    className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
                   >
-                    Switch to Telegram pricing <ArrowRight className="w-3 h-3" />
+                    <X className="w-4 h-4" />
                   </button>
+
+                  <div className="relative flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-400 text-slate-950 flex items-center justify-center shadow-lg shadow-sky-500/30 mb-4">
+                      <Send className="w-8 h-8" />
+                    </div>
+
+                    <p className="text-lg sm:text-xl font-black text-white leading-snug">
+                      Save more on Telegram 🎉
+                    </p>
+
+                    <p className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent mt-2 tracking-tight">
+                      Up to ${BEST_TELEGRAM_SAVING.amount.toFixed(2)}/mo
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChannel("telegram");
+                        setShowDiscountToast(false);
+                      }}
+                      className="group inline-flex items-center gap-2 mt-5 text-sm font-bold text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 transition-colors px-6 py-3 rounded-full shadow-md shadow-sky-500/25"
+                    >
+                      Switch to Telegram
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -741,45 +821,17 @@ export default function BroFInAiLandingPage() {
                   </div>
                 )}
 
-                {/* Speech-bubble shaped "border" layer — mirrors the logo mark's
-                    rounded body + notch tail instead of a plain rectangle. */}
+                {/* Card background — plain rounded box (previously a speech-bubble
+                    mask shape; swapped for a simpler flat card). */}
                 <div
-                  aria-hidden
-                  className="absolute inset-0 transition-colors duration-300"
-                  style={{
-                    background: plan.highlight
-                      ? "linear-gradient(135deg, #34d399, #38bdf8)"
-                      : "rgba(255,255,255,0.14)",
-                    WebkitMaskImage: "url('/speech-bubble-mask.svg')",
-                    maskImage: "url('/speech-bubble-mask.svg')",
-                    WebkitMaskSize: "100% 100%",
-                    maskSize: "100% 100%",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskRepeat: "no-repeat",
-                  }}
-                />
-
-                {/* Speech-bubble shaped fill layer, inset slightly to leave the
-                    border layer visible as a thin outline around the shape. */}
-                <div
-                  aria-hidden
-                  className={`absolute backdrop-blur-xl transition-colors duration-300 ${
+                  className={`absolute inset-0 rounded-3xl border transition-colors duration-300 backdrop-blur-xl ${
                     plan.highlight
-                      ? "bg-slate-900/90 group-hover:bg-slate-900/95"
-                      : "bg-slate-900/60 group-hover:bg-slate-900/70"
+                      ? "border-emerald-400/60 bg-slate-900/90 group-hover:bg-slate-900/95 shadow-[0_0_40px_rgba(52,211,153,0.15)]"
+                      : "border-white/10 bg-slate-900/60 group-hover:bg-slate-900/70"
                   }`}
-                  style={{
-                    inset: plan.highlight ? "2px" : "1.5px",
-                    WebkitMaskImage: "url('/speech-bubble-mask.svg')",
-                    maskImage: "url('/speech-bubble-mask.svg')",
-                    WebkitMaskSize: "100% 100%",
-                    maskSize: "100% 100%",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskRepeat: "no-repeat",
-                  }}
                 />
 
-                <div className="relative z-10 flex flex-col justify-between h-full pl-7 pr-8 py-7 md:pl-9 md:pr-10 md:py-9">
+                <div className="relative z-10 flex flex-col justify-between h-full px-7 py-7 md:px-9 md:py-9">
                   <div>
                   {/* Header */}
                   <div className="mb-6">
@@ -1246,6 +1298,8 @@ export default function BroFInAiLandingPage() {
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
+      </div>
+
       </div>
     </div>
   );
