@@ -630,7 +630,6 @@ export default function BrooDashboard() {
           amount: Number(addAmount),
           type: addType,
           currency,
-          entry_type: "manual",
         }])
         .select();
 
