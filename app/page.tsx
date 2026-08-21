@@ -26,6 +26,12 @@ import {
   Coins,
   CreditCard,
   TrendingUp,
+  Download,
+  BarChart3,
+  UserPlus,
+  User,
+  MessageCircle,
+  Lock,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -602,12 +608,16 @@ export default function BroFInAiLandingPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/15 backdrop-blur-md text-xs font-semibold text-purple-300 shadow-xl shadow-purple-500/10"
             >
               <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span>{meta.badge}</span>
+              <span>
+                💬 Your AI money manager, inside {meta.label}
+              </span>
             </motion.div>
           </AnimatePresence>
 
           <h1 className="text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.08]">
-            Master Your Expenses Right Inside{" "}
+            Your AI Money Manager.
+            <br />
+            Inside{" "}
             <AnimatePresence mode="wait">
               <motion.span
                 key={channel}
@@ -620,10 +630,11 @@ export default function BroFInAiLandingPage() {
                 {meta.label}
               </motion.span>
             </AnimatePresence>
+            .
           </h1>
 
           <p className="text-slate-400 text-lg max-w-lg font-normal leading-relaxed">
-            Zero complex apps. Log unlimited expenses via chat text or auto-scan receipt photos with AI. Instant real-time dashboard tracking — on whichever app you already live in.
+            Track spending, understand your money, and ask questions about your finances — without opening another complicated app.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -652,163 +663,711 @@ export default function BroFInAiLandingPage() {
           </div>
         </motion.div>
 
-        {/* Dynamic Chat Mockup — chrome, accent, and the bot's handle swap
-            with the active channel so the preview never lies about which
-            app it's simulating. */}
+        {/* Dynamic Phone Mockup — a realistic device frame running the chat,
+            with small glass "dashboard" cards orbiting it. Chrome, accent,
+            and copy all swap with the active channel so the preview never
+            lies about which app it's simulating. */}
         <motion.div
           initial={{ opacity: 0, y: 80 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="lg:col-span-6 relative flex justify-center"
+          className="lg:col-span-6 relative flex justify-center items-center min-h-[560px] sm:min-h-[620px]"
         >
-          <div className={`relative w-full max-w-md p-6 rounded-3xl bg-slate-900/80 backdrop-blur-2xl border shadow-2xl space-y-4 transition-colors duration-500 ${meta.ring}`}>
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2 text-slate-400">
-                <ChannelIcon className={`w-4 h-4 ${meta.text}`} />
-                <span className="text-xs font-mono">{meta.handle}</span>
-              </div>
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={`status-${channel}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className={`text-xs font-mono flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${meta.text} bg-white/5 border-white/10`}
-                >
-                  <Activity className="w-3 h-3 animate-spin" />
-                  BroFInAi Bot Live
-                </motion.span>
-              </AnimatePresence>
-            </div>
+          {/* Soft glow behind the phone */}
+          <div
+            className={`absolute w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] rounded-full blur-[100px] opacity-30 bg-gradient-to-br ${meta.from} ${meta.to} transition-colors duration-500`}
+          />
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`chat-${channel}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-3 font-sans text-xs sm:text-sm pt-2"
-              >
-                <div
-                  className={`p-3 rounded-2xl rounded-tr-none max-w-[85%] ml-auto shadow-md border ${
-                    channel === "whatsapp"
-                      ? "bg-emerald-600/30 border-emerald-500/30 text-emerald-100"
-                      : "bg-sky-600/30 border-sky-500/30 text-sky-100"
-                  }`}
+          {/* Floating dashboard cards — orbit the phone, hidden on the
+              smallest screens to keep the mockup uncluttered. */}
+          <motion.div
+            initial={{ opacity: 0, x: -20, y: -10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="hidden sm:block absolute left-0 top-6 z-20"
+          >
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-0.5 w-[168px]"
+            >
+              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">💰 Monthly Spending</div>
+              <div className="text-lg font-bold text-white">$1,240</div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20, y: -10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.75 }}
+            className="hidden sm:block absolute right-0 top-16 z-20"
+          >
+            <motion.div
+              animate={{ y: [0, 9, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-0.5 w-[152px]"
+            >
+              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">🍔 Food</div>
+              <div className="text-lg font-bold text-white">$180</div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -20, y: 10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+            className="hidden sm:block absolute left-2 bottom-24 z-20"
+          >
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-1.5 w-[172px]"
+            >
+              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">📊 Budget Used</div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className={`h-full w-[64%] rounded-full bg-gradient-to-r ${meta.from} ${meta.to}`} />
+                </div>
+                <span className="text-xs font-bold text-white">64%</span>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20, y: 10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.05 }}
+            className="hidden sm:block absolute right-1 bottom-8 z-20"
+          >
+            <motion.div
+              animate={{ y: [0, -7, 0] }}
+              transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 0.9 }}
+              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl flex items-center gap-2 w-[168px]"
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-white/5 ${meta.text}`}>
+                <Receipt className="w-3.5 h-3.5" />
+              </div>
+              <div className="text-[11px] font-semibold text-slate-200 leading-tight">Receipt Scanned</div>
+            </motion.div>
+          </motion.div>
+
+          {/* Phone frame */}
+          <div className={`relative z-10 w-[280px] sm:w-[300px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow} shadow-2xl`}>
+            {/* Dynamic island / notch */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-b-2xl z-30" />
+
+            <div className="relative rounded-[2.25rem] overflow-hidden bg-slate-900">
+              {/* Chat app header */}
+              <div className="flex items-center justify-between px-4 pt-8 pb-3 bg-slate-950/60 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 ${meta.text}`}>
+                    <ChannelIcon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-white">BroFInAi Bot</div>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`handle-${channel}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[10px] font-mono text-slate-500"
+                      >
+                        {meta.handle}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+                <span className={`w-2 h-2 rounded-full ${meta.dot} shadow-[0_0_8px] shadow-current`} />
+              </div>
+
+              {/* Chat body */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`chat-${channel}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="px-3.5 py-4 space-y-2.5 font-sans text-[11.5px] min-h-[260px]"
                 >
-                  {meta.exampleMessage}
-                </div>
-                <div className="bg-slate-800/90 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-none max-w-[90%] space-y-2 shadow-lg">
-                  <div className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wider ${meta.text}`}>
-                    <CheckCircle2 className="w-4 h-4" /> Expense Logged!
+                  <div
+                    className={`p-2.5 rounded-2xl rounded-tr-sm max-w-[80%] ml-auto shadow-md border ${
+                      channel === "whatsapp"
+                        ? "bg-emerald-600/30 border-emerald-500/30 text-emerald-100"
+                        : "bg-sky-600/30 border-sky-500/30 text-sky-100"
+                    }`}
+                  >
+                    Spent $25 on lunch
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-slate-300 pt-1 text-xs">
-                    <div className="bg-white/5 p-2 rounded-lg">💵 Amount: <b className="text-white">$45.50</b></div>
-                    <div className="bg-white/5 p-2 rounded-lg">🏷️ Category: <b className="text-white">Dining</b></div>
+
+                  <div className="bg-slate-800/90 border border-white/10 text-slate-200 p-3 rounded-2xl rounded-tl-sm max-w-[85%] space-y-1.5 shadow-lg">
+                    <div className={`flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider ${meta.text}`}>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Expense recorded
+                    </div>
+                    <div className="text-slate-300">
+                      Lunch — <b className="text-white">$25</b>
+                    </div>
+                    <div className="pt-1 mt-1 border-t border-white/10 text-[10px] text-slate-400">
+                      Today's total: <b className="text-white">$42</b>
+                    </div>
                   </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Fake input bar for realism */}
+              <div className="px-3.5 pb-4 pt-1">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-950/70 border border-white/10 text-[10px] text-slate-500">
+                  <span className="flex-1">Message</span>
+                  <Mic className="w-3 h-3" />
                 </div>
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.section>
 
-      {/* FEATURES SECTION */}
-      <section id="features" className="scroll-mt-24">
+      {/* FEATURES SECTION — asymmetric product showcase. The left panel is a
+          live, channel-aware chat mockup (follows the same `channel` state
+          as the rest of the page); the right stack demonstrates voice,
+          receipt OCR, and the dashboard. Only real, shipped capabilities. */}
+      <section id="features" className="scroll-mt-24 relative overflow-hidden">
+        {/* Ambient background glow — subtle, not the visual focus */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 left-1/4 w-[520px] h-[520px] rounded-full bg-emerald-500/10 blur-[140px]" />
+          <div className="absolute top-1/3 -right-20 w-[480px] h-[480px] rounded-full bg-cyan-500/10 blur-[140px]" />
+        </div>
+
         <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
+          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
         >
-          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-purple-400">Core Features</div>
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">Everything You Need to Save More</h2>
-            <p className="text-slate-500 text-sm flex items-center justify-center gap-2 pt-1">
-              <WhatsAppIcon className="w-4 h-4 text-emerald-400" />
-              <span>Identical on WhatsApp and</span>
-              <TelegramIcon className="w-4 h-4 text-sky-400" />
-              <span>Telegram — pick one, or use both.</span>
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <div className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-400/90">Core Features</div>
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1]">
+              Everything You Need to
+              <br />
+              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                Manage Your Money
+              </span>
+            </h2>
+            <p className="text-slate-500 text-sm sm:text-base max-w-md mx-auto">
+              Simple tools that turn everyday messages into organized financial data.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 transition-all shadow-xl">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6">
-                <MessageSquare className="w-6 h-6" />
+          {/* Floating ambient icons around the showcase — very subtle, blurred */}
+          <div className="pointer-events-none absolute inset-0 hidden lg:block">
+            <motion.div
+              animate={{ y: [0, -14, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-[18%] left-[2%] w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/10 backdrop-blur-sm flex items-center justify-center opacity-40 blur-[0.5px]"
+            >
+              <DollarSign className="w-4 h-4 text-emerald-300" />
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, 12, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+              className="absolute top-[8%] right-[6%] w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-400/10 backdrop-blur-sm flex items-center justify-center opacity-40 blur-[0.5px]"
+            >
+              <Receipt className="w-4 h-4 text-cyan-300" />
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.4 }}
+              className="absolute bottom-[10%] right-[3%] w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-400/10 backdrop-blur-sm flex items-center justify-center opacity-40 blur-[0.5px]"
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-300" />
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 relative">
+            {/* LEFT — AI Chat Logging showcase (large, channel-aware) */}
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className={`lg:col-span-3 group relative rounded-[28px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-emerald-400/40 shadow-2xl overflow-hidden transition-colors duration-300`}
+            >
+              {/* inner glow on hover */}
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-emerald-500/[0.06] via-transparent to-cyan-500/[0.06]" />
+
+              <div className="relative p-6 sm:p-8 space-y-5">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+                    <MessageSquare className="w-4 h-4" />
+                    AI Chat Logging
+                  </div>
+                  <ChannelSwitch channel={channel} onChange={setChannel} layoutId="features-chat-pill" />
+                </div>
+
+                {/* Chat window */}
+                <div className={`rounded-2xl bg-slate-950/70 border transition-colors duration-500 ${meta.ring} overflow-hidden`}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 ${meta.text}`}>
+                        <ChannelIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-white leading-tight">BroFInAi</div>
+                        <div className="text-[11px] text-slate-500 leading-tight">AI Money Manager</div>
+                      </div>
+                    </div>
+                    <span className={`flex items-center gap-1.5 text-[11px] font-medium ${meta.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot} shadow-[0_0_6px] shadow-current`} />
+                      Online
+                    </span>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`features-chat-${channel}`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="p-4 sm:p-5 space-y-3 min-h-[210px]"
+                    >
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.4, delay: 0.15 }}
+                        className={`p-3 rounded-2xl rounded-tr-sm max-w-[75%] ml-auto text-sm shadow-md border ${
+                          channel === "whatsapp"
+                            ? "bg-emerald-600/25 border-emerald-500/30 text-emerald-100"
+                            : "bg-sky-600/25 border-sky-500/30 text-sky-100"
+                        }`}
+                      >
+                        Spent $25 on lunch
+                      </motion.div>
+
+                      {/* typing indicator */}
+                      <motion.div
+                        initial={{ opacity: 1 }}
+                        whileInView={{ opacity: [1, 1, 0] }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.8, delay: 0.55, times: [0, 0.7, 1] }}
+                        className="flex items-center gap-1 bg-slate-800/70 border border-white/10 w-fit px-3.5 py-2.5 rounded-2xl rounded-tl-sm"
+                      >
+                        {[0, 1, 2].map((i) => (
+                          <motion.span
+                            key={i}
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
+                            className="w-1.5 h-1.5 rounded-full bg-slate-400"
+                          />
+                        ))}
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.4, delay: 0.9 }}
+                        className="bg-slate-800/80 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-sm max-w-[92%] space-y-3 shadow-lg"
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Expense recorded
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <div className="text-slate-500 text-[10px] mb-0.5">Category</div>
+                            <div className="text-white font-semibold">Lunch</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-500 text-[10px] mb-0.5">Amount</div>
+                            <div className="text-white font-semibold">$25</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-500 text-[10px] mb-0.5">Status</div>
+                            <div className="text-emerald-400 font-semibold">Added</div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: 1.1 }}
+                  className="flex items-center gap-2 text-xs text-slate-500"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Transaction synced to dashboard
+                </motion.div>
               </div>
-              <h3 className="font-bold text-xl mb-3">💬 Unlimited Chat Logging</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">No daily limits! Send a normal WhatsApp or Telegram message anytime to log expenses naturally.</p>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-orange-500/50 transition-all shadow-xl">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center mb-6">
-                <Mic className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold text-xl mb-3">🎤 Track by Voice</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Just say what you spent in a voice note — AI transcribes and logs it instantly, no typing needed.</p>
-            </motion.div>
+            {/* RIGHT — Voice / Receipt OCR / Dashboard stack */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              {/* VOICE */}
+              <motion.div
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="group relative p-6 rounded-[24px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-orange-400/40 shadow-xl overflow-hidden transition-colors duration-300"
+              >
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-orange-500/[0.06] to-transparent" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-11 h-11 shrink-0 rounded-xl bg-orange-500/15 text-orange-400 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <Mic className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base text-white mb-1">Track by Voice</h3>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                      Send a voice note and AI turns it into a structured transaction.
+                    </p>
+                    <div className="rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2.5 flex items-center gap-3 transition-colors duration-300 group-hover:bg-slate-950/80">
+                      <div className="flex items-end gap-[2.5px] h-4">
+                        {[4, 9, 6, 13, 7, 10, 5, 8, 4].map((h, i) => (
+                          <span
+                            key={i}
+                            className="w-[2.5px] rounded-full bg-orange-400/70"
+                            style={{ height: `${h}px` }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500">00:08</span>
+                      <span className="ml-auto text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+                        Groceries · $18 <Check className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-purple-500/50 transition-all shadow-xl">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-6">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold text-xl mb-3">🧾 AI Receipt OCR Scanner</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Snap photos of receipts. Smart AI extracts merchant name, date, and exact amounts automatically.</p>
-            </motion.div>
+              {/* RECEIPT OCR */}
+              <motion.div
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="group relative p-6 rounded-[24px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-purple-400/40 shadow-xl overflow-hidden transition-colors duration-300"
+              >
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-purple-500/[0.06] to-transparent" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-11 h-11 shrink-0 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base text-white mb-1">AI Receipt OCR</h3>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                      Send a receipt photo and AI extracts the details automatically.
+                    </p>
+                    <div className="rounded-xl bg-slate-950/60 border border-white/10 p-2.5 flex items-center gap-3 transition-colors duration-300 group-hover:bg-slate-950/80">
+                      <div className="relative w-10 h-12 shrink-0 rounded-md bg-white/5 border border-white/10 overflow-hidden">
+                        <div className="absolute inset-x-1 top-1.5 space-y-1">
+                          <div className="h-[3px] bg-white/20 rounded-full" />
+                          <div className="h-[3px] bg-white/15 rounded-full w-3/4" />
+                          <div className="h-[3px] bg-white/15 rounded-full w-full" />
+                          <div className="h-[3px] bg-white/15 rounded-full w-2/3" />
+                        </div>
+                        <motion.div
+                          animate={{ top: ["10%", "90%", "10%"] }}
+                          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute left-0 right-0 h-[2px] bg-purple-400/80 shadow-[0_0_6px] shadow-purple-400/70"
+                        />
+                      </div>
+                      <div className="text-[11px] space-y-1 min-w-0">
+                        <div className="flex gap-1.5">
+                          <span className="text-slate-500 shrink-0">Merchant</span>
+                          <span className="text-white font-semibold truncate">Cafe Nero</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <span className="text-slate-500 shrink-0">Category</span>
+                          <span className="text-white font-semibold truncate">Food & Dining</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <span className="text-slate-500 shrink-0">Total</span>
+                          <span className="text-purple-300 font-semibold">$42.80</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 transition-all shadow-xl">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-6">
-                <PieChart className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold text-xl mb-3">📊 Dashboard & Excel Export</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Real-time sync with full web dashboard access and one-click structured Excel file downloads.</p>
-            </motion.div>
+              {/* DASHBOARD & EXPORT */}
+              <motion.div
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="group relative p-6 rounded-[24px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-cyan-400/40 shadow-xl overflow-hidden transition-colors duration-300"
+              >
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-cyan-500/[0.06] to-transparent" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-11 h-11 shrink-0 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <PieChart className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base text-white mb-1">Dashboard & Excel Export</h3>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                      See your finances clearly and export your data whenever you need.
+                    </p>
+                    <div className="rounded-xl bg-slate-950/60 border border-white/10 p-3 space-y-2.5 transition-colors duration-300 group-hover:bg-slate-950/80">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500">Monthly spending</span>
+                        <span className="text-xs font-bold text-white">$1,240</span>
+                      </div>
+                      <div className="flex items-end gap-1 h-8">
+                        {[40, 65, 30, 80, 55, 90, 45].map((h, i) => (
+                          <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-cyan-500/70 to-emerald-400/70" style={{ height: `${h}%` }} />
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                        <span className="text-[10px] text-slate-500">Recent: Lunch, Uber, Groceries</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-300">
+                          <Download className="w-3 h-3" /> .xlsx
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section id="how-it-works" className="scroll-mt-24">
+      {/* HOW IT WORKS — a connected onboarding journey (register → connect →
+          manage), not three generic cards. Channel choice is de-emphasized
+          here (no big toggle) but Step 02's preview still quietly follows
+          the shared `channel` state so WhatsApp and Telegram both feel at
+          home in the flow. */}
+      <section id="how-it-works" className="scroll-mt-24 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-10 left-1/3 w-[480px] h-[480px] rounded-full bg-emerald-500/10 blur-[140px]" />
+          <div className="absolute bottom-0 right-1/4 w-[420px] h-[420px] rounded-full bg-cyan-500/10 blur-[140px]" />
+          <div className="absolute top-1/2 left-10 w-[300px] h-[300px] rounded-full bg-purple-500/[0.06] blur-[120px]" />
+        </div>
+
         <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
+          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
         >
-          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-emerald-400">Step-by-Step</div>
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <div className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-400/90">Step-by-Step</div>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">How It Works</h2>
+            <p className="text-slate-500 text-sm sm:text-base max-w-md mx-auto pt-1">
+              Start managing your money in just three simple steps.
+            </p>
+            <p className="text-slate-600 text-xs pt-1">WhatsApp recommended · Telegram also available</p>
           </motion.div>
 
-          <motion.div variants={fadeInUp} className="flex justify-center mb-14">
-            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="how-it-works-pill" size="lg" />
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 font-black flex items-center justify-center text-xl">1</div>
-              <AnimatePresence mode="wait">
-                <motion.div key={`step1-${channel}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <h3 className="text-xl font-bold">{meta.connectTitle}</h3>
-                  <p className="text-slate-400 text-sm mt-1">{meta.connectDesc}</p>
-                </motion.div>
-              </AnimatePresence>
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Desktop connector line — subtle purple → emerald → cyan,
+                with a small glow traveling along it to signal progression. */}
+            <motion.div
+              initial={{ opacity: 0, scaleX: 0 }}
+              whileInView={{ opacity: 1, scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+              className="hidden md:block absolute left-[16%] right-[16%] top-[60px] h-px origin-left bg-gradient-to-r from-purple-400/40 via-emerald-400/40 to-cyan-400/40"
+            >
+              <motion.div
+                animate={{ left: ["0%", "100%"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-300 shadow-[0_0_10px_4px] shadow-emerald-400/50"
+              />
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-xl">2</div>
-              <h3 className="text-xl font-bold">Text, Talk, or Send a Photo</h3>
-              <p className="text-slate-400 text-sm">Type "Spent $15 for Groceries", send a voice note, or upload a receipt photo — all work instantly.</p>
+            {/* Mobile connector — vertical, between stacked cards */}
+            <div className="md:hidden absolute left-[43px] top-[60px] bottom-[60px] w-px bg-gradient-to-b from-purple-400/30 via-emerald-400/30 to-cyan-400/30" />
+
+            {/* STEP 01 — Create Your Account */}
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -5, scale: 1.01 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="group relative rounded-[28px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-purple-400/40 shadow-xl overflow-hidden transition-colors duration-300 p-8 space-y-5"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-purple-500/[0.07] to-transparent" />
+
+              <div className="relative flex items-center gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-purple-500/15 border border-purple-400/20 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110">
+                  <span className="text-[9px] font-black tracking-widest text-purple-300/70">01</span>
+                  <UserPlus className="w-5 h-5 text-purple-300" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Step 01</div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">Create Your Account</h3>
+                </div>
+              </div>
+
+              <p className="relative text-slate-400 text-sm leading-relaxed">
+                Register in seconds and get your BroFInAi account ready.
+              </p>
+
+              {/* Mini registration preview */}
+              <div className="relative rounded-2xl bg-slate-950/60 border border-white/10 p-4 space-y-2.5 transition-colors duration-300 group-hover:bg-slate-950/80">
+                <div className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+                  <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-[11px] text-slate-400">Name</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+                  <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-[11px] text-slate-400">Email</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+                  <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-[11px] text-slate-400">Password</span>
+                </div>
+                <div className="w-full text-center rounded-lg bg-gradient-to-r from-purple-400/90 to-purple-300/90 text-slate-950 text-[11px] font-bold py-2 mt-1">
+                  Create Account
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold pt-0.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Account ready
+                </div>
+              </div>
+
+              <Link
+                href="/register"
+                className="relative inline-flex items-center gap-1.5 text-xs font-bold text-purple-300 hover:text-purple-200 transition-colors group/link"
+              >
+                Register Free
+                <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
+              </Link>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="p-8 rounded-[28px] bg-slate-900/40 border border-white/10 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 font-black flex items-center justify-center text-xl">3</div>
-              <h3 className="text-xl font-bold">Instant Web Sync</h3>
-              <p className="text-slate-400 text-sm">Watch real-time visual charts update and export full financial reports easily.</p>
+            {/* STEP 02 — Connect & Start Tracking */}
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -5, scale: 1.01 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="group relative rounded-[28px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-emerald-400/40 shadow-xl overflow-hidden transition-colors duration-300 p-8 space-y-5"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-emerald-500/[0.07] to-transparent" />
+
+              <div className="relative flex items-center gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-emerald-500/15 border border-emerald-400/20 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110">
+                  <span className="text-[9px] font-black tracking-widest text-emerald-300/70">02</span>
+                  <MessageCircle className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Step 02</div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">Connect & Start Tracking</h3>
+                </div>
+              </div>
+
+              <p className="relative text-slate-400 text-sm leading-relaxed">
+                Connect WhatsApp and send a text, voice note, or receipt.
+              </p>
+
+              {/* Mini chat preview — quietly follows the active channel */}
+              <div className={`relative rounded-2xl bg-slate-950/60 border transition-colors duration-500 ${meta.ring} overflow-hidden`}>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/10 bg-white/[0.02]">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center bg-white/5 ${meta.text}`}>
+                    <ChannelIcon className="w-3 h-3" />
+                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={`hiw-label-${channel}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-[10px] font-mono text-slate-500"
+                    >
+                      {meta.label}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+
+                <div className="p-3.5 space-y-2">
+                  <div
+                    className={`p-2.5 rounded-2xl rounded-tr-sm max-w-[80%] ml-auto text-[11.5px] shadow-md border ${
+                      channel === "whatsapp"
+                        ? "bg-emerald-600/25 border-emerald-500/30 text-emerald-100"
+                        : "bg-sky-600/25 border-sky-500/30 text-sky-100"
+                    }`}
+                  >
+                    Spent $15 on groceries
+                  </div>
+                  <div className="bg-slate-800/80 border border-white/10 text-slate-200 p-3 rounded-2xl rounded-tl-sm max-w-[85%] space-y-1 shadow-lg">
+                    <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider text-emerald-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                    </div>
+                    <div className="text-[11px] text-slate-300">
+                      Groceries — <b className="text-white">$15</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 px-3.5 pb-3 pt-1">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+                    <Mic className="w-3 h-3" /> Voice
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+                    <Receipt className="w-3 h-3" /> Receipt
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* STEP 03 — See Your Money Clearly */}
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -5, scale: 1.01 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="group relative rounded-[28px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-cyan-400/40 shadow-xl overflow-hidden transition-colors duration-300 p-8 space-y-5"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-cyan-500/[0.07] to-transparent" />
+
+              <div className="relative flex items-center gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-cyan-500/15 border border-cyan-400/20 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110">
+                  <span className="text-[9px] font-black tracking-widest text-cyan-300/70">03</span>
+                  <BarChart3 className="w-5 h-5 text-cyan-300" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Step 03</div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">See Your Money Clearly</h3>
+                </div>
+              </div>
+
+              <p className="relative text-slate-400 text-sm leading-relaxed">
+                Your transactions sync to your dashboard so you can review and manage everything.
+              </p>
+
+              {/* Mini dashboard preview */}
+              <div className="relative rounded-2xl bg-slate-950/60 border border-white/10 p-4 space-y-3 transition-colors duration-300 group-hover:bg-slate-950/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500">Monthly Spending</span>
+                  <span className="text-sm font-bold text-white">$428.50</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Food", value: "$180", pct: 42, color: "from-cyan-400 to-emerald-400" },
+                    { label: "Transport", value: "$92", pct: 21, color: "from-cyan-400/80 to-emerald-400/80" },
+                    { label: "Other", value: "$156.50", pct: 37, color: "from-cyan-400/60 to-emerald-400/60" },
+                  ].map((row) => (
+                    <div key={row.label} className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400">{row.label}</span>
+                        <span className="text-slate-300 font-semibold">{row.value}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                        <div className={`h-full rounded-full bg-gradient-to-r ${row.color}`} style={{ width: `${row.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <span className="text-[10px] text-slate-500">Full report</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-300">
+                    <Download className="w-3 h-3" /> Export .xlsx
+                  </span>
+                </div>
+              </div>
             </motion.div>
           </div>
         </motion.div>
