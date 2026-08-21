@@ -353,6 +353,13 @@ export default function BrooDashboard() {
   const [editCategory, setEditCategory] = useState<string>("");
   const [editAmount, setEditAmount] = useState<string>("");
   const [editType, setEditType] = useState<"income" | "expense">("expense");
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addItem, setAddItem] = useState<string>("");
+  const [addCategory, setAddCategory] = useState<string>(CATEGORY_OPTIONS[0]);
+  const [addAmount, setAddAmount] = useState<string>("");
+  const [addType, setAddType] = useState<"income" | "expense">("expense");
+  const [addLoading, setAddLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ tx: Transaction; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
 
@@ -591,6 +598,59 @@ export default function BrooDashboard() {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+  };
+
+  const handleOpenAddModal = () => {
+    setAddItem("");
+    setAddCategory(CATEGORY_OPTIONS[0]);
+    setAddAmount("");
+    setAddType("expense");
+    setShowAddModal(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+  };
+
+  const handleAddTransaction = async () => {
+    if (!addItem.trim() || !addAmount || isNaN(Number(addAmount)) || Number(addAmount) <= 0) {
+      alert("Please enter a valid description and amount.");
+      return;
+    }
+
+    setAddLoading(true);
+
+    try {
+      const { error, data: insertedRows } = await supabase
+        .from("transactions")
+        .insert([{
+          user_id: dbUserId,
+          item: addItem.trim(),
+          category: addCategory,
+          amount: Number(addAmount),
+          type: addType,
+          currency,
+          entry_type: "manual",
+        }])
+        .select();
+
+      if (error) throw error;
+      if (!insertedRows || insertedRows.length === 0) {
+        throw new Error("Transaction could not be saved.");
+      }
+
+      setTransactions(prev =>
+        [...prev, insertedRows[0]].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      );
+      setShowAddModal(false);
+    } catch (err: any) {
+      console.error("Error adding transaction:", err);
+      alert("Failed to add transaction: " + err.message);
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -1569,6 +1629,13 @@ export default function BrooDashboard() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleOpenAddModal}
+                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition shadow-md shadow-emerald-500/10"
+                  >
+                    <Sparkles size={14} /> Add Transaction
+                  </button>
+
                   <div className="flex items-center gap-2 bg-black/40 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
                     <div className="flex items-center gap-1.5 px-2">
                       <Calendar size={14} className="text-emerald-400" />
@@ -2068,6 +2135,75 @@ export default function BrooDashboard() {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-slate-900 border border-white/10 rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-white">Add Transaction</h3>
+              <button onClick={handleCloseAddModal} className="p-1.5 text-slate-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-400 font-bold block mb-1.5">Description</label>
+              <input
+                type="text"
+                value={addItem}
+                onChange={(e) => setAddItem(e.target.value)}
+                placeholder="e.g. Bus fare"
+                className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-400 font-bold block mb-1.5">Category</label>
+              <select
+                value={addCategory}
+                onChange={(e) => setAddCategory(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+              >
+                {CATEGORY_OPTIONS.map(c => (
+                  <option key={c} value={c} className="bg-slate-950 text-slate-100">{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-400 font-bold block mb-1.5">Amount</label>
+                <input
+                  type="number"
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-bold block mb-1.5">Type</label>
+                <select
+                  value={addType}
+                  onChange={(e) => setAddType(e.target.value as "income" | "expense")}
+                  className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+                >
+                  <option value="expense" className="bg-slate-950 text-slate-100">Expense</option>
+                  <option value="income" className="bg-slate-950 text-slate-100">Income</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddTransaction}
+              disabled={addLoading}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10 disabled:opacity-60"
+            >
+              {addLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Transaction"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {pendingDelete && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900/95 border border-white/10 text-slate-100 text-xs font-semibold px-4 py-3 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl">
