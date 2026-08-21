@@ -158,7 +158,7 @@ const PRICING_PLANS = [
     highlight: false,
     buttonText: "GET STARTED FREE",
     buttonClass: "bg-slate-800 hover:bg-slate-700 text-white border border-white/10",
-    trialNote: { whatsapp: "7-day free trial", telegram: "Permanent free tier" },
+    trialNote: { whatsapp: "7-day free trial, then upgrade to continue", telegram: "Free forever — no subscription required" },
     features: [
       { text: "3 Daily Expense & Income Logs", included: true },
       { text: "Real-time Web Dashboard Access", included: true },
@@ -1382,25 +1382,111 @@ export default function BroFInAiLandingPage() {
           transition={{ duration: 0.8 }}
           className="max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
         >
-          <div className="text-center space-y-3 mb-12">
+          <div className="text-center space-y-3 mb-14">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold tracking-wider uppercase">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              Flexible Plans
+              Plans That Fit How You Use BroFInAi
             </div>
             <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white">
-              Simple, Transparent Pricing
+              Choose How You Want to Track
             </h2>
             <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
-              Pick the perfect plan for your budgeting and tracking needs.
+              Start free, then choose the experience that works best for you.
             </p>
           </div>
 
-          {/* Channel Toggle — WhatsApp / Telegram. Selecting a channel here
-              swaps the price shown on all 3 cards and carries through to the
-              register link, and stays in sync with the switcher in the nav. */}
-          <div className="flex items-center justify-center mb-10">
-            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="pricing-channel-pill" size="lg" />
+          {/* Channel chooser — two premium cards that double as the channel
+              toggle. Selecting one updates `channel`, which drives the price
+              shown on every plan card below. WhatsApp is positioned as the
+              recommended, full-featured experience with its 7-day trial;
+              Telegram as a genuinely free, permanent alternative — neither
+              is framed as a discount or a downgrade. */}
+          <div className="max-w-3xl mx-auto mb-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* WhatsApp option */}
+            <button
+              type="button"
+              onClick={() => setChannel("whatsapp")}
+              aria-pressed={channel === "whatsapp"}
+              className={`group relative text-left rounded-[26px] border backdrop-blur-xl p-6 transition-all duration-300 ${
+                channel === "whatsapp"
+                  ? "border-emerald-400/60 bg-slate-900/80 shadow-[0_0_40px_rgba(52,211,153,0.15)]"
+                  : "border-white/10 bg-slate-900/40 hover:border-emerald-400/30 hover:bg-slate-900/60"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest">
+                  <Sparkles className="w-3 h-3" /> Recommended
+                </span>
+                {channel === "whatsapp" && (
+                  <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-slate-950" strokeWidth={3} />
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <WhatsAppIcon className="w-5 h-5 text-emerald-400" />
+                <span className="text-lg font-bold text-white">WhatsApp</span>
+              </div>
+
+              <div className="text-2xl font-black text-emerald-400 tracking-tight mb-1">7 DAYS FREE</div>
+              <p className="text-slate-400 text-xs leading-relaxed">Try BroFInAi free on WhatsApp for 7 days.</p>
+              <p className="text-slate-500 text-xs leading-relaxed mt-1">Then choose a paid plan to continue.</p>
+
+              <Link
+                href="/register?plan=free&channel=whatsapp&type=direct"
+                onClick={(e) => e.stopPropagation()}
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                Start Free on WhatsApp
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </button>
+
+            {/* Telegram option */}
+            <button
+              type="button"
+              onClick={() => setChannel("telegram")}
+              aria-pressed={channel === "telegram"}
+              className={`group relative text-left rounded-[26px] border backdrop-blur-xl p-6 transition-all duration-300 ${
+                channel === "telegram"
+                  ? "border-sky-400/60 bg-slate-900/80 shadow-[0_0_40px_rgba(56,189,248,0.15)]"
+                  : "border-white/10 bg-slate-900/40 hover:border-sky-400/30 hover:bg-slate-900/60"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-bold uppercase tracking-widest">
+                  <Sparkles className="w-3 h-3" /> Free Forever
+                </span>
+                {channel === "telegram" && (
+                  <span className="w-5 h-5 rounded-full bg-sky-400 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-slate-950" strokeWidth={3} />
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <TelegramIcon className="w-5 h-5 text-sky-400" />
+                <span className="text-lg font-bold text-white">Telegram</span>
+              </div>
+
+              <div className="text-2xl font-black text-sky-400 tracking-tight mb-1">$0</div>
+              <p className="text-slate-400 text-xs leading-relaxed">Track your money on Telegram with no subscription required.</p>
+
+              <Link
+                href="/register?plan=free&channel=telegram&type=direct"
+                onClick={(e) => e.stopPropagation()}
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
+              >
+                Start Free on Telegram
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </button>
           </div>
+
+          <p className="max-w-lg mx-auto text-center text-[11px] text-slate-600 leading-relaxed mb-14">
+            WhatsApp messaging has higher operating costs, while Telegram bot messaging is significantly cheaper to operate. That's why pricing differs by channel.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-6xl mx-auto">
             {PRICING_PLANS.map((plan) => (
@@ -1456,32 +1542,18 @@ export default function BroFInAiLandingPage() {
                         </motion.div>
                       </AnimatePresence>
                     </div>
-                    {plan.prices.telegram !== plan.prices.whatsapp && (
-                      <AnimatePresence mode="wait" initial={false}>
-                        <motion.p
-                          key={`save-${plan.id}-${channel}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="text-[11px] font-semibold mt-0.5"
-                        >
-                          {channel === "telegram" ? (
-                            <span className="text-emerald-400">
-                              Save ${(
-                                parseFloat(plan.prices.whatsapp.replace("$", "")) -
-                                parseFloat(plan.prices.telegram.replace("$", ""))
-                              ).toFixed(2)}/mo vs WhatsApp
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">
-                              Cheaper on Telegram — from {plan.prices.telegram}/mo
-                            </span>
-                          )}
-                        </motion.p>
-                      </AnimatePresence>
+                    {plan.id === "free" ? (
+                      <p className="text-[11px] font-medium mt-0.5 text-emerald-400">
+                        {channel === "whatsapp" ? "7-Day Trial" : "Free Forever"}
+                      </p>
+                    ) : (
+                      plan.prices.telegram !== plan.prices.whatsapp && (
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          Price varies by channel
+                        </p>
+                      )
                     )}
-                    {!plan.highlight && (
+                    {!plan.highlight && plan.id !== "free" && (
                       <p className="text-[11px] text-purple-300 font-medium mt-1">
                         {plan.badge}
                       </p>
