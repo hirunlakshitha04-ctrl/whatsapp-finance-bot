@@ -52,17 +52,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Send Email via Nodemailer
+    // 4. Send Email via Nodemailer — Namecheap Private Email SMTP
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "mail.privateemail.com",
+      port: 465,
+      secure: true, // true for port 465 (SSL)
       auth: {
-        user: process.env.EMAIL_SERVER_USER,
-        pass: process.env.EMAIL_SERVER_PASSWORD,
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
       },
     });
 
     const mailOptions = {
-      from: `"Broo AI Support" <${process.env.EMAIL_SERVER_USER}>`,
+      from: `"BroFInAi Support" <${process.env.EMAIL_SERVER_USER}>`,
       to: user.email,
       subject: "Your Password Reset OTP Code",
       html: `
