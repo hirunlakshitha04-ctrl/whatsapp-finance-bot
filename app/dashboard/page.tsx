@@ -25,15 +25,41 @@ interface Transaction {
   entry_type?: "ocr" | "text" | "manual";
 }
 
+// NOTE: These strings must match EXACTLY what extractTransaction() /
+// extractFromImageBuffer() in finance-logic.ts return, otherwise the
+// same real-world category (e.g. Transport) gets split into two rows
+// in the dashboard breakdown because grouping is done by exact string match.
 const CATEGORY_COLORS: { [key: string]: string } = {
-  Food: "#F59E0B", Groceries: "#10B981", Transport: "#3B82F6", Bills: "#EF4444", 
-  Shopping: "#EC4899", Entertainment: "#8B5CF6", Medical: "#06B6D4",
-  Salary: "#10B981", "Starting Balance": "#6366F1", Other: "#64748B"
+  "Food & Groceries": "#F59E0B",
+  "Transport (Bus, Train, Fuel, Taxi)": "#3B82F6",
+  "Utilities (Bills, Internet, Phone)": "#EF4444",
+  "Rent/Housing": "#22C55E",
+  "Personal Care (Medical, Saloon, Hygiene)": "#06B6D4",
+  "Shopping (Clothes, Gadgets)": "#EC4899",
+  "Entertainment (Movies, Subscriptions, Outings)": "#8B5CF6",
+  "Education (Books, Courses)": "#0EA5E9",
+  "Debt/Loans": "#F97316",
+  "Savings/Investments": "#10B981",
+  "Gifts & Charity": "#D946EF",
+  "Miscellaneous (Unexpected)": "#64748B",
+  Salary: "#10B981",
+  "Starting Balance": "#6366F1",
+  Other: "#64748B"
 };
 
 const CATEGORY_OPTIONS = [
-  "Food", "Groceries", "Transport", "Bills", 
-  "Shopping", "Entertainment", "Medical", "Salary", "Other"
+  "Food & Groceries",
+  "Transport (Bus, Train, Fuel, Taxi)",
+  "Utilities (Bills, Internet, Phone)",
+  "Rent/Housing",
+  "Personal Care (Medical, Saloon, Hygiene)",
+  "Shopping (Clothes, Gadgets)",
+  "Entertainment (Movies, Subscriptions, Outings)",
+  "Education (Books, Courses)",
+  "Debt/Loans",
+  "Savings/Investments",
+  "Gifts & Charity",
+  "Miscellaneous (Unexpected)",
 ];
 
 const AVATAR_OPTIONS = [
