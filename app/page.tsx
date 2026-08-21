@@ -634,7 +634,7 @@ export default function BroFInAiLandingPage() {
           </h1>
 
           <p className="text-slate-400 text-lg max-w-lg font-normal leading-relaxed">
-            Track spending, understand your money, and ask questions about your finances — without opening another complicated app.
+            Track spending, organize your transactions, and manage your money — all through chat.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -1723,7 +1723,7 @@ export default function BroFInAiLandingPage() {
             Ready to Master Your Finances Globally?
           </h2>
           <p className="text-slate-300 text-sm md:text-base max-w-xl mx-auto">
-            Join thousands of smart spenders tracking expenses directly inside WhatsApp and Telegram.
+            Be one of the first to experience smarter money management.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
