@@ -63,7 +63,7 @@ export async function getLocalizedMessages(
   lang: string,
   nickname: string,
   currency: string,
-  websiteUrl: string,
+  websiteUrl: string='https://brofinai.com', // මෙන්න මෙහෙම දාන්න
   contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string } = {}
 ): Promise<LocalizedMessages> {
   const targetLang = (lang || "English").trim();
