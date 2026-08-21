@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { 
   Wallet, TrendingUp, TrendingDown, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
@@ -877,72 +877,227 @@ export default function BrooDashboard() {
     });
   }, [transactions, searchTerm, selectedType, startDate, endDate]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (subscriptionPlan === "lite") {
       alert("Excel export is available for Core & Max users only. Please upgrade!");
       return;
     }
 
-    if (filteredTransactions.length === 0) return;
+    if (transactions.length === 0) return;
 
-    const workbook = XLSX.utils.book_new();
-    const monthGroups: { [key: string]: Transaction[] } = {};
+    // ---------- palette ----------
+    const INCOME_HEADER = "FF1E8449";
+    const INCOME_FILL = "FFD5F5E3";
+    const EXPENSE_HEADER = "FFC0392B";
+    const EXPENSE_FILL = "FFFADBD8";
+    const BUDGET_HEADER = "FF1F618D";
+    const BUDGET_FILL = "FFD6EAF8";
+    const TITLE_FILL = "FF2C3E50";
+    const SUMMARY_FILL = "FFECF0F1";
+    const WHITE = "FFFFFFFF";
+    const FONT_NAME = "Arial";
+    const CURRENCY_FMT = `"${currency} "#,##0.00`;
 
-    filteredTransactions.forEach(t => {
-      const monthKey = t.created_at 
-        ? new Date(t.created_at).toISOString().slice(0, 7) 
-        : "Unknown_Month";
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Smart Finance Dashboard";
+    workbook.created = new Date();
 
-      if (!monthGroups[monthKey]) monthGroups[monthKey] = [];
-      monthGroups[monthKey].push(t);
-    });
+    const thinBorder = { style: "thin" as const, color: { argb: "FFB0B0B0" } };
+    const cellBorder = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder };
 
-    Object.keys(monthGroups).sort().reverse().forEach((month) => {
-      const monthTxList = monthGroups[month];
-      const incomeList = monthTxList.filter(t => t.type === "income");
-      const expenseList = monthTxList.filter(t => t.type === "expense");
+    const styleTitle = (ws: ExcelJS.Worksheet, row: number, mergeRange: string, text: string, fillArgb: string) => {
+      ws.mergeCells(mergeRange);
+      const cell = ws.getCell(`A${row}`);
+      cell.value = text;
+      cell.font = { name: FONT_NAME, size: 13, bold: true, color: { argb: WHITE } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillArgb } };
+      cell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+      ws.getRow(row).height = 22;
+    };
 
-      const monthIncome = incomeList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
-      const monthExpense = expenseList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
-      const monthBalance = monthIncome - monthExpense;
-
-      const sheetData: any[][] = [
-        ["MONTHLY SUMMARY", "", "", "", "", "REPORT DATE", new Date().toLocaleDateString()],
-        ["Total Income", `${currency} ${monthIncome.toFixed(2)}`, "", "Total Expense", `${currency} ${monthExpense.toFixed(2)}`, "Net Balance", `${currency} ${monthBalance.toFixed(2)}`],
-        [],
-        ["INCOME TRANSACTIONS", "", "", "", "", "EXPENSE TRANSACTIONS", "", "", ""],
-        ["Date", "Item / Description", "Category", "Amount", "", "Date", "Item / Description", "Category", "Amount"]
-      ];
-
-      const maxRows = Math.max(incomeList.length, expenseList.length);
-
-      for (let i = 0; i < maxRows; i++) {
-        const inc = incomeList[i];
-        const exp = expenseList[i];
-
-        sheetData.push([
-          inc ? new Date(inc.created_at).toLocaleDateString() : "",
-          inc ? inc.item : "",
-          inc ? (inc.category || "General") : "",
-          inc ? inc.amount : "",
-          "", 
-          exp ? new Date(exp.created_at).toLocaleDateString() : "",
-          exp ? exp.item : "",
-          exp ? (exp.category || "General") : "",
-          exp ? exp.amount : ""
-        ]);
+    const styleHeaderRow = (ws: ExcelJS.Worksheet, row: number, colCount: number, fillArgb: string) => {
+      for (let c = 1; c <= colCount; c++) {
+        const cell = ws.getRow(row).getCell(c);
+        cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillArgb } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = cellBorder;
       }
+    };
 
-      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-      worksheet["!cols"] = [
-        { wch: 12 }, { wch: 22 }, { wch: 15 }, { wch: 12 }, { wch: 5 },
-        { wch: 12 }, { wch: 22 }, { wch: 15 }, { wch: 12 }  
-      ];
+    const styleDataRow = (ws: ExcelJS.Worksheet, row: number, colCount: number, fillArgb: string, amountCol: number) => {
+      for (let c = 1; c <= colCount; c++) {
+        const cell = ws.getRow(row).getCell(c);
+        cell.font = { name: FONT_NAME, size: 10 };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillArgb } };
+        cell.border = cellBorder;
+        cell.alignment = { horizontal: c === amountCol ? "right" : c === 1 ? "center" : "left", vertical: "middle" };
+        if (c === amountCol) cell.numFmt = CURRENCY_FMT;
+      }
+    };
 
-      XLSX.utils.book_append_sheet(workbook, worksheet, `Month_${month}`);
+    const styleTotalRow = (ws: ExcelJS.Worksheet, row: number, colCount: number, fillArgb: string, amountCols: number[]) => {
+      for (let c = 1; c <= colCount; c++) {
+        const cell = ws.getRow(row).getCell(c);
+        cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillArgb } };
+        cell.border = cellBorder;
+        cell.alignment = { horizontal: amountCols.includes(c) ? "right" : "left", vertical: "middle" };
+        if (amountCols.includes(c)) cell.numFmt = CURRENCY_FMT;
+      }
+    };
+
+    const writeIncomeExpenseTable = (
+      ws: ExcelJS.Worksheet,
+      startRow: number,
+      title: string,
+      headerLabel: string,
+      headerFill: string,
+      rowFill: string,
+      list: Transaction[],
+      totalLabel: string
+    ) => {
+      styleTitle(ws, startRow, `A${startRow}:D${startRow}`, title, headerFill);
+      const headerRow = startRow + 1;
+      ["Date", headerLabel, "Category", "Amount"].forEach((h, i) => {
+        ws.getRow(headerRow).getCell(i + 1).value = h;
+      });
+      styleHeaderRow(ws, headerRow, 4, headerFill);
+
+      const firstDataRow = headerRow + 1;
+      list.forEach((t, i) => {
+        const r = firstDataRow + i;
+        ws.getRow(r).getCell(1).value = t.created_at ? new Date(t.created_at).toLocaleDateString() : "";
+        ws.getRow(r).getCell(2).value = t.item || "";
+        ws.getRow(r).getCell(3).value = t.category || "General";
+        ws.getRow(r).getCell(4).value = Number(t.amount || 0);
+        styleDataRow(ws, r, 4, rowFill, 4);
+      });
+      // two blank editable rows for manual additions
+      for (let i = 0; i < 2; i++) {
+        const r = firstDataRow + list.length + i;
+        styleDataRow(ws, r, 4, rowFill, 4);
+      }
+      const lastDataRow = firstDataRow + list.length + 1;
+      const totalRow = lastDataRow + 1;
+      ws.getRow(totalRow).getCell(3).value = totalLabel;
+      ws.getRow(totalRow).getCell(4).value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})` };
+      styleTotalRow(ws, totalRow, 4, headerFill, [4]);
+
+      return { headerRow, firstDataRow, lastDataRow, totalRow, nextRow: totalRow + 2 };
+    };
+
+    // =====================================================================
+    // SHEET 1: This Month — Income, Expenses, Budget Handling
+    // =====================================================================
+    const now = new Date();
+    const monthLabel = now.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const thisMonthTx = transactions.filter(t => {
+      if (!t.created_at) return false;
+      const d = new Date(t.created_at);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    const monthIncomeList = thisMonthTx.filter(t => t.type === "income");
+    const monthExpenseList = thisMonthTx.filter(t => t.type === "expense");
+
+    const ws1 = workbook.addWorksheet("This Month", { views: [{ showGridLines: false }] });
+    ws1.columns = [{ width: 14 }, { width: 26 }, { width: 18 }, { width: 16 }];
+
+    ws1.mergeCells("A1:D1");
+    ws1.getCell("A1").value = `MONTHLY BUDGET TRACKER — ${monthLabel}`;
+    ws1.getCell("A1").font = { name: FONT_NAME, size: 16, bold: true, color: { argb: WHITE } };
+    ws1.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    ws1.getCell("A1").alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    ws1.getRow(1).height = 30;
+
+    const incomeResult = writeIncomeExpenseTable(ws1, 3, "INCOME", "Source", INCOME_HEADER, INCOME_FILL, monthIncomeList, "TOTAL INCOME");
+    const expenseResult = writeIncomeExpenseTable(ws1, incomeResult.nextRow, "EXPENSES", "Item", EXPENSE_HEADER, EXPENSE_FILL, monthExpenseList, "TOTAL EXPENSES");
+
+    // ---- Budget Handling table ----
+    const budgetTitleRow = expenseResult.nextRow;
+    styleTitle(ws1, budgetTitleRow, `A${budgetTitleRow}:D${budgetTitleRow}`, "BUDGET HANDLING", BUDGET_HEADER);
+    const budgetHeaderRow = budgetTitleRow + 1;
+    ["Category", "Budgeted", "Actual Spent", "Remaining"].forEach((h, i) => {
+      ws1.getRow(budgetHeaderRow).getCell(i + 1).value = h;
+    });
+    styleHeaderRow(ws1, budgetHeaderRow, 4, BUDGET_HEADER);
+
+    const budgetCategories = Object.keys(categoryBudgets).length > 0 ? Object.keys(categoryBudgets) : CATEGORY_OPTIONS;
+    const budgetFirstRow = budgetHeaderRow + 1;
+    budgetCategories.forEach((cat, i) => {
+      const r = budgetFirstRow + i;
+      ws1.getRow(r).getCell(1).value = cat;
+      ws1.getRow(r).getCell(2).value = Number(categoryBudgets[cat] || 0);
+      ws1.getRow(r).getCell(3).value = {
+        formula: `SUMIFS(D${expenseResult.firstDataRow}:D${expenseResult.lastDataRow},C${expenseResult.firstDataRow}:C${expenseResult.lastDataRow},A${r})`
+      };
+      ws1.getRow(r).getCell(4).value = { formula: `B${r}-C${r}` };
+      styleDataRow(ws1, r, 4, BUDGET_FILL, 2);
+      styleDataRow(ws1, r, 4, BUDGET_FILL, 3);
+      styleDataRow(ws1, r, 4, BUDGET_FILL, 4);
+      ws1.getRow(r).getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+    });
+    const budgetLastRow = budgetFirstRow + budgetCategories.length - 1;
+    const budgetTotalRow = budgetLastRow + 1;
+    ws1.getRow(budgetTotalRow).getCell(1).value = "TOTAL";
+    ws1.getRow(budgetTotalRow).getCell(2).value = { formula: `SUM(B${budgetFirstRow}:B${budgetLastRow})` };
+    ws1.getRow(budgetTotalRow).getCell(3).value = { formula: `SUM(C${budgetFirstRow}:C${budgetLastRow})` };
+    ws1.getRow(budgetTotalRow).getCell(4).value = { formula: `SUM(D${budgetFirstRow}:D${budgetLastRow})` };
+    styleTotalRow(ws1, budgetTotalRow, 4, BUDGET_HEADER, [2, 3, 4]);
+
+    // ---- Summary box ----
+    const summaryTitleRow = budgetTotalRow + 2;
+    styleTitle(ws1, summaryTitleRow, `A${summaryTitleRow}:D${summaryTitleRow}`, "SUMMARY", TITLE_FILL);
+    const summaryEntries: [string, string][] = [
+      ["Total Income", `D${incomeResult.totalRow}`],
+      ["Total Expenses", `D${expenseResult.totalRow}`],
+      ["Net Balance", `D${incomeResult.totalRow}-D${expenseResult.totalRow}`]
+    ];
+    summaryEntries.forEach(([label, formula], i) => {
+      const r = summaryTitleRow + 1 + i;
+      ws1.mergeCells(`B${r}:D${r}`);
+      ws1.getRow(r).getCell(1).value = label;
+      ws1.getRow(r).getCell(2).value = { formula };
+      [1, 2].forEach(c => {
+        const cell = ws1.getRow(r).getCell(c);
+        cell.font = { name: FONT_NAME, size: 10, bold: true };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: SUMMARY_FILL } };
+        cell.border = cellBorder;
+        cell.alignment = { horizontal: c === 2 ? "right" : "left", vertical: "middle" };
+        if (c === 2) cell.numFmt = CURRENCY_FMT;
+      });
     });
 
-    XLSX.writeFile(workbook, `Broo_Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    // =====================================================================
+    // SHEET 2: All Records — All Income, All Expenses
+    // =====================================================================
+    const allIncomeList = transactions.filter(t => t.type === "income");
+    const allExpenseList = transactions.filter(t => t.type === "expense");
+
+    const ws2 = workbook.addWorksheet("All Records", { views: [{ showGridLines: false }] });
+    ws2.columns = [{ width: 14 }, { width: 26 }, { width: 18 }, { width: 16 }];
+
+    ws2.mergeCells("A1:D1");
+    ws2.getCell("A1").value = "ALL RECORDS — Full History";
+    ws2.getCell("A1").font = { name: FONT_NAME, size: 16, bold: true, color: { argb: WHITE } };
+    ws2.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    ws2.getCell("A1").alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    ws2.getRow(1).height = 30;
+
+    const allIncomeResult = writeIncomeExpenseTable(ws2, 3, "ALL INCOME", "Source", INCOME_HEADER, INCOME_FILL, allIncomeList, "TOTAL");
+    writeIncomeExpenseTable(ws2, allIncomeResult.nextRow, "ALL EXPENSES", "Item", EXPENSE_HEADER, EXPENSE_FILL, allExpenseList, "TOTAL");
+
+    // ---------- download ----------
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Broo_Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -954,15 +1109,18 @@ export default function BrooDashboard() {
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <img 
-                src={avatarUrl} 
-                alt="Profile Avatar" 
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/10"
-              />
-              <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg">
-                <Zap size={10} className="fill-slate-950" />
-              </span>
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative">
+                <img 
+                  src={avatarUrl} 
+                  alt="Profile Avatar" 
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/10"
+                />
+                <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg">
+                  <Zap size={10} className="fill-slate-950" />
+                </span>
+              </div>
+              <span className="text-sm font-bold text-white">{nickname}</span>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -984,54 +1142,16 @@ export default function BrooDashboard() {
                     {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"}
                   </span>
                 )}
-                <span className="text-[10px] text-slate-300 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10 backdrop-blur-md">
-                  User: <strong className="text-white">{nickname}</strong>
-                </span>
               </div>
               <h1 className="text-xl font-extrabold text-white tracking-wide">Smart Finance Dashboard</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button onClick={fetchData} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition shadow-md">
-              <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} /> Sync
-            </button>
-            <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-md shadow-md">
-              <LogOut size={14} /> Sign Out
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-slate-900/40 border border-white/10 p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-          <div className="flex items-center gap-3.5">
-            <div className={`p-3 rounded-2xl border backdrop-blur-md ${
-              subscriptionPlan === "max" 
-                ? "bg-purple-500/20 border-purple-400/30 text-purple-300" 
-                : subscriptionPlan === "core" 
-                ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-300" 
-                : "bg-amber-500/20 border-amber-400/30 text-amber-300"
-            }`}>
-              <Zap size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                  Subscription Status: <span className="text-emerald-400">{subscriptionPlan.toUpperCase()} PLAN</span>
-                </h4>
-              </div>
-              <p className="text-[11px] text-slate-300/80 mt-0.5">
-                {subscriptionPlan === "lite" && "Upgrade to Core or Max to unlock Budget Chart and Excel Export."}
-                {subscriptionPlan === "core" && "You have Core Access. Upgrade to Max for full AI features."}
-                {subscriptionPlan === "max" && "You are on the highest plan! Enjoy full unlimited feature access."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3">
             {subscriptionPlan === "lite" && (
               <a
                 href={`/pricing?user_id=${userId}&mode=upgrade&current_channel=${linkedChannel || ""}&current_plan=${subscriptionPlan}`}
-                className="w-full md:w-auto bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 text-center"
+                className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 text-center"
               >
                 <Zap size={14} className="fill-slate-950" /> Upgrade Plan 🚀
               </a>
@@ -1040,7 +1160,7 @@ export default function BrooDashboard() {
             {subscriptionPlan === "core" && (
               <a
                 href={`/pricing?plan=max&user_id=${userId}&mode=upgrade&current_channel=${linkedChannel || ""}&current_plan=${subscriptionPlan}`}
-                className="w-full md:w-auto bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 text-center"
+                className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 text-center"
               >
                 <Sparkles size={14} /> Upgrade to Max 🚀
               </a>
@@ -1049,7 +1169,7 @@ export default function BrooDashboard() {
             {subscriptionPlan === "max" && (
               <button
                 disabled
-                className="w-full md:w-auto bg-purple-500/20 border border-purple-400/30 text-purple-300 font-bold text-xs px-4 py-2.5 rounded-xl cursor-default flex items-center justify-center gap-2"
+                className="bg-purple-500/20 border border-purple-400/30 text-purple-300 font-bold text-xs px-4 py-2.5 rounded-2xl cursor-default flex items-center justify-center gap-2"
               >
                 <Sparkles size={13} /> Max Plan Active
               </button>
@@ -1059,7 +1179,7 @@ export default function BrooDashboard() {
               type="button"
               onClick={handleManageSubscription}
               disabled={portalLoading}
-              className="w-full md:w-auto bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-xl transition backdrop-blur-md flex items-center justify-center gap-2 disabled:opacity-50"
+              className="bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-2xl transition backdrop-blur-md flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {portalLoading ? (
                 <RefreshCw size={13} className="animate-spin" />
@@ -1067,6 +1187,13 @@ export default function BrooDashboard() {
                 <Ban size={13} className="text-rose-400" />
               )}
               {portalLoading ? "Opening..." : "Manage / Cancel Subscription"}
+            </button>
+
+            <button onClick={fetchData} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition shadow-md">
+              <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} /> Sync
+            </button>
+            <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-md shadow-md">
+              <LogOut size={14} /> Sign Out
             </button>
           </div>
         </div>
