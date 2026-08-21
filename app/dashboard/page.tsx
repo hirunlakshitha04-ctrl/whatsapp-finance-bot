@@ -4,12 +4,13 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ExcelJS from "exceljs";
+import { motion } from "framer-motion";
 import { 
   Wallet, TrendingUp, TrendingDown, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
   Sparkles, LogOut, Settings, LayoutDashboard,
   Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban, Trash2,
-  User, Mail, Phone, Camera, Globe
+  User, Mail, Phone, Camera, Globe, DollarSign, Coins, Receipt, CreditCard
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
@@ -305,6 +306,105 @@ const WORLD_LANGUAGES = [
   { code: "zu", name: "isiZulu (Zulu)" }
 ];
 
+// Falling finance-icon background — same decorative effect used on the
+// landing page. Dollar signs, wallets, coins etc. drop in inside circular
+// badges and settle at a spot spread across the full height of the screen,
+// each on its own staggered delay/cycle, then fade back out and repeat.
+// Presets are hardcoded (not Math.random) so server-rendered and
+// client-hydrated markup match exactly.
+const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieIcon];
+
+const FALLING_ICON_PRESETS: {
+  icon: number;
+  left: number;
+  circleSize: number;
+  iconSize: number;
+  cycleDuration: number;
+  delay: number;
+  landY: string;
+}[] = [
+  { icon: 6, left: 2, circleSize: 58, iconSize: 25, cycleDuration: 14.8, delay: 6, landY: "87vh" },
+  { icon: 0, left: 5, circleSize: 56, iconSize: 23, cycleDuration: 14.9, delay: 9.5, landY: "72vh" },
+  { icon: 6, left: 9, circleSize: 42, iconSize: 18, cycleDuration: 15.7, delay: 1.6, landY: "25vh" },
+  { icon: 3, left: 9, circleSize: 55, iconSize: 21, cycleDuration: 13.4, delay: 7.6, landY: "50vh" },
+  { icon: 3, left: 15, circleSize: 62, iconSize: 26, cycleDuration: 10.4, delay: 8.8, landY: "20vh" },
+  { icon: 1, left: 16, circleSize: 45, iconSize: 17, cycleDuration: 16.8, delay: 1.9, landY: "71vh" },
+  { icon: 4, left: 23, circleSize: 55, iconSize: 21, cycleDuration: 9.5, delay: 4.2, landY: "34vh" },
+  { icon: 5, left: 26, circleSize: 51, iconSize: 20, cycleDuration: 16.5, delay: 6.1, landY: "40vh" },
+  { icon: 2, left: 27, circleSize: 59, iconSize: 25, cycleDuration: 15.1, delay: 9.8, landY: "55vh" },
+  { icon: 3, left: 31, circleSize: 54, iconSize: 23, cycleDuration: 10.5, delay: 4.9, landY: "35vh" },
+  { icon: 0, left: 31, circleSize: 48, iconSize: 19, cycleDuration: 16.7, delay: 0.6, landY: "47vh" },
+  { icon: 2, left: 36, circleSize: 53, iconSize: 21, cycleDuration: 9.8, delay: 4.7, landY: "50vh" },
+  { icon: 5, left: 39, circleSize: 52, iconSize: 22, cycleDuration: 15.7, delay: 9, landY: "44vh" },
+  { icon: 0, left: 41, circleSize: 51, iconSize: 22, cycleDuration: 10.1, delay: 1.5, landY: "34vh" },
+  { icon: 0, left: 49, circleSize: 52, iconSize: 23, cycleDuration: 16.3, delay: 5.7, landY: "49vh" },
+  { icon: 3, left: 52, circleSize: 45, iconSize: 19, cycleDuration: 16.5, delay: 5.5, landY: "55vh" },
+  { icon: 5, left: 51, circleSize: 57, iconSize: 24, cycleDuration: 12.2, delay: 8, landY: "73vh" },
+  { icon: 3, left: 58, circleSize: 55, iconSize: 22, cycleDuration: 9.8, delay: 1.9, landY: "46vh" },
+  { icon: 3, left: 58, circleSize: 57, iconSize: 22, cycleDuration: 12.1, delay: 3.7, landY: "61vh" },
+  { icon: 1, left: 65, circleSize: 39, iconSize: 16, cycleDuration: 14.2, delay: 9.1, landY: "80vh" },
+  { icon: 4, left: 64, circleSize: 57, iconSize: 25, cycleDuration: 13.8, delay: 2.6, landY: "34vh" },
+  { icon: 5, left: 68, circleSize: 60, iconSize: 26, cycleDuration: 9.9, delay: 2.7, landY: "56vh" },
+  { icon: 1, left: 72, circleSize: 45, iconSize: 19, cycleDuration: 15.6, delay: 4.1, landY: "46vh" },
+  { icon: 1, left: 79, circleSize: 59, iconSize: 26, cycleDuration: 11.5, delay: 6.8, landY: "86vh" },
+  { icon: 1, left: 83, circleSize: 53, iconSize: 21, cycleDuration: 9.3, delay: 1.6, landY: "33vh" },
+  { icon: 4, left: 82, circleSize: 49, iconSize: 21, cycleDuration: 15.6, delay: 2.1, landY: "45vh" },
+  { icon: 1, left: 88, circleSize: 56, iconSize: 24, cycleDuration: 10.4, delay: 3.8, landY: "35vh" },
+  { icon: 5, left: 88, circleSize: 59, iconSize: 26, cycleDuration: 9.5, delay: 9.7, landY: "66vh" },
+  { icon: 2, left: 96, circleSize: 48, iconSize: 21, cycleDuration: 13.6, delay: 2.3, landY: "71vh" },
+  { icon: 4, left: 99, circleSize: 48, iconSize: 22, cycleDuration: 9.6, delay: 2.8, landY: "36vh" },
+];
+
+function FallingIcons() {
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10" aria-hidden>
+      {FALLING_ICON_PRESETS.map((p, i) => {
+        const Icon = FALLING_ICON_SET[p.icon];
+        // Small per-item variety so the fall doesn't look like a rigid straight
+        // drop — a touch of sideways drift and rotation that reverses direction
+        // based on index, plus a landing bounce that eases into a smooth,
+        // bounce-free fade.
+        const drift = (i % 2 === 0 ? 1 : -1) * (6 + (p.circleSize % 5));
+        const spin = (i % 2 === 0 ? 1 : -1) * (8 + (p.iconSize % 6));
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute"
+            style={{ left: `${p.left}%`, top: "-14%" }}
+            initial={{ y: "-10vh", x: 0, opacity: 0, scale: 0.4, rotate: 0 }}
+            animate={{
+              y: ["-10vh", p.landY, p.landY, "-8vh"],
+              x: [0, drift, drift, 0],
+              opacity: [0, 1, 1, 0],
+              scale: [0.4, 1, 1, 0.5],
+              rotate: [0, spin, spin, spin * 1.4],
+            }}
+            transition={{
+              duration: p.cycleDuration,
+              delay: p.delay,
+              repeat: Infinity,
+              times: [0, 0.18, 0.82, 1], // quick fall in, long hold, gentle fade out
+              ease: [
+                [0.34, 1.56, 0.64, 1], // fall-in: slight overshoot, like settling on landing
+                "easeInOut",           // hold: values are static here, so this segment is inert
+                [0.4, 0, 0.2, 1],      // fade-out: smooth ease, no bounce
+              ],
+            }}
+          >
+            <div
+              className="rounded-full bg-white/5 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white/30"
+              style={{ width: p.circleSize, height: p.circleSize }}
+            >
+              <Icon style={{ width: p.iconSize, height: p.iconSize }} />
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BrooDashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
 
@@ -333,6 +433,11 @@ export default function BrooDashboard() {
   const [isEditingBudget, setIsEditingBudget] = useState<boolean>(false);
   const [tempBudget, setTempBudget] = useState<string>("0");
   const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({});
+
+  const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
+  const [addBudgetCategory, setAddBudgetCategory] = useState<string>("");
+  const [addBudgetAmount, setAddBudgetAmount] = useState<string>("");
+  const [addBudgetLoading, setAddBudgetLoading] = useState(false);
 
   const now = new Date();
   const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -585,6 +690,63 @@ export default function BrooDashboard() {
         .eq("email", userEmail);
     } catch (err) {
       console.error("Error saving budget:", err);
+    }
+  };
+
+  // Categories that don't have a budget row yet — only these can be added.
+  const availableBudgetCategories = useMemo(
+    () => CATEGORY_OPTIONS.filter(c => !(c in categoryBudgets)),
+    [categoryBudgets]
+  );
+
+  const handleOpenAddBudgetModal = () => {
+    setAddBudgetCategory(availableBudgetCategories[0] || "");
+    setAddBudgetAmount("");
+    setShowAddBudgetModal(true);
+  };
+
+  const handleCloseAddBudgetModal = () => {
+    setShowAddBudgetModal(false);
+  };
+
+  // Inserts into the "budgets" table — the same table the WhatsApp/Telegram
+  // bot's set_budget action writes to (see saveExtractedDirect /
+  // handleConfirmTransaction in finance-logic.ts), so a budget added here
+  // shows up the same way a budget set via chat would.
+  const handleAddBudget = async () => {
+    const amt = Number(addBudgetAmount);
+    if (!addBudgetCategory || !addBudgetAmount || isNaN(amt) || amt <= 0) {
+      alert("Please choose a category and enter a valid limit.");
+      return;
+    }
+
+    setAddBudgetLoading(true);
+
+    try {
+      const { error, data: insertedRows } = await supabase
+        .from("budgets")
+        .insert([{
+          user_id: dbUserId,
+          category: addBudgetCategory,
+          amount_limit: amt,
+        }])
+        .select();
+
+      if (error) throw error;
+      if (!insertedRows || insertedRows.length === 0) {
+        throw new Error("Budget could not be saved.");
+      }
+
+      setCategoryBudgets(prev => ({ ...prev, [addBudgetCategory]: amt }));
+      setTempCatBudgets(prev => ({ ...prev, [addBudgetCategory]: amt.toString() }));
+      setMonthlyBudget(prev => prev + amt);
+      setTempBudget(prev => (Number(prev) + amt).toString());
+      setShowAddBudgetModal(false);
+    } catch (err: any) {
+      console.error("Error adding budget:", err);
+      alert("Failed to add budget: " + err.message);
+    } finally {
+      setAddBudgetLoading(false);
     }
   };
 
@@ -1246,9 +1408,18 @@ export default function BrooDashboard() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 font-sans p-4 sm:p-6 md:p-10 relative overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
-      <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[180px] pointer-events-none" />
-      <div className="absolute top-[30%] right-[-10%] w-[650px] h-[650px] bg-emerald-500/15 rounded-full blur-[200px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[180px] pointer-events-none" />
+      {/* Background layer — pinned at z-0, strictly below the "relative z-10"
+          content wrapper further down. FallingIcons' own div used -z-10
+          directly under this outer div, which put it BEHIND this div's own
+          background-color paint and made it invisible; wrapping it (and the
+          glow blobs) at z-0 with an explicit z-10 content wrapper guarantees
+          they render above the page background but below every section. */}
+      <div className="fixed inset-0 -z-0 pointer-events-none">
+        <FallingIcons />
+        <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[180px]" />
+        <div className="absolute top-[30%] right-[-10%] w-[650px] h-[650px] bg-emerald-500/15 rounded-full blur-[200px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[180px]" />
+      </div>
 
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
@@ -1540,15 +1711,27 @@ export default function BrooDashboard() {
                     </h3>
 
                     {subscriptionPlan !== "lite" && (
-                      isEditingBudget ? (
-                        <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md">
-                          Save
-                        </button>
-                      ) : (
-                        <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
-                          <Edit2 size={12} /> Edit Targets
-                        </button>
-                      )
+                      <div className="flex items-center gap-2">
+                        {!isEditingBudget && (
+                          <button
+                            onClick={handleOpenAddBudgetModal}
+                            disabled={availableBudgetCategories.length === 0}
+                            title={availableBudgetCategories.length === 0 ? "Every category already has a budget" : "Add a budget for a new category"}
+                            className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-300"
+                          >
+                            <Sparkles size={12} /> Add Budget
+                          </button>
+                        )}
+                        {isEditingBudget ? (
+                          <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md">
+                            Save
+                          </button>
+                        ) : (
+                          <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
+                            <Edit2 size={12} /> Edit Targets
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -1611,7 +1794,15 @@ export default function BrooDashboard() {
                             );
                           })
                         ) : (
-                          <div className="text-center py-10 text-slate-500 text-xs">No category budgets set</div>
+                          <div className="text-center py-10 text-slate-500 text-xs space-y-2">
+                            <p>No category budgets set</p>
+                            <button
+                              onClick={handleOpenAddBudgetModal}
+                              className="text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2"
+                            >
+                              Add your first budget
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2200,6 +2391,57 @@ export default function BrooDashboard() {
             >
               {addLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Transaction"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAddBudgetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-slate-900 border border-white/10 rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-white">Add Budget</h3>
+              <button onClick={handleCloseAddBudgetModal} className="p-1.5 text-slate-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+
+            {availableBudgetCategories.length === 0 ? (
+              <p className="text-xs text-slate-400">Every category already has a budget — edit its limit from "Edit Targets" instead.</p>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Category</label>
+                  <select
+                    value={addBudgetCategory}
+                    onChange={(e) => setAddBudgetCategory(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+                  >
+                    {availableBudgetCategories.map(c => (
+                      <option key={c} value={c} className="bg-slate-950 text-slate-100">{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Monthly Limit ({currency})</label>
+                  <input
+                    type="number"
+                    value={addBudgetAmount}
+                    onChange={(e) => setAddBudgetAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+
+                <button
+                  onClick={handleAddBudget}
+                  disabled={addBudgetLoading}
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10 disabled:opacity-60"
+                >
+                  {addBudgetLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Budget"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
