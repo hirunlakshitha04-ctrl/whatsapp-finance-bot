@@ -1019,12 +1019,16 @@ export default function BrooDashboard() {
     setPasswordLoading(true);
 
     try {
-      // Sends a 6-digit OTP code to the user's registered email (Supabase Auth email OTP)
-      const { error } = await supabase.auth.signInWithOtp({
-        email: userEmail,
-        options: { shouldCreateUser: false },
+      // Sends a 6-digit OTP code to the user's registered email via our own
+      // Nodemailer/Namecheap route (same one used by the login page's
+      // Forgot Password flow), instead of Supabase's built-in auth email.
+      const res = await fetch("/api/send-email-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
       });
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to send verification code.");
 
       setOtpStep("verify");
       setOtpCode("");
@@ -1050,15 +1054,17 @@ export default function BrooDashboard() {
     setOtpLoading(true);
 
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: userEmail,
-        token: otpCode.trim(),
-        type: "email",
+      const res = await fetch("/api/verify-password-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          otp: otpCode.trim(),
+          newPassword: newPassword,
+        }),
       });
-      if (verifyError) throw verifyError;
-
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateError) throw updateError;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Invalid or expired code.");
 
       setPasswordMsg({ type: "success", text: "Password updated successfully!" });
       setNewPassword("");
@@ -1077,11 +1083,14 @@ export default function BrooDashboard() {
     setPasswordMsg(null);
     setOtpLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: userEmail,
-        options: { shouldCreateUser: false },
+      const res = await fetch("/api/send-email-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
       });
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to resend code.");
+
       setOtpResendCooldown(30);
       setPasswordMsg({ type: "success", text: "A new code has been sent to your email." });
     } catch (err: any) {
