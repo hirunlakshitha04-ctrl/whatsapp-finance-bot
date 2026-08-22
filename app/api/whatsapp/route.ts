@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       userProfile.trial_ends_at &&
       new Date(userProfile.trial_ends_at) < new Date()
     ) {
-      const checkoutUrl = `https://brofinai.com/checkout?phone=${encodeURIComponent(from)}`;
+      const checkoutUrl = `${websiteUrl}/checkout?phone=${encodeURIComponent(from)}`;
       await send(
         `⏳ *Trial Ended*\n\nHey ${nickname}, your 7-day free trial on Brofinai WhatsApp has ended.\n\n🚀 Upgrade to Broo Core or Max to keep tracking:\n👉 ${checkoutUrl}`
       );
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     // ---------------- EXCEL / BUDGET COMMAND CHECK ----------------
     if (body.toUpperCase() === "EXCEL" || body.toUpperCase() === "BUDGET") {
       if (userPlan === "lite") {
-        await send(getExcelLockedMessage(nickname));
+        await send(getExcelLockedMessage(nickname, websiteUrl));
         return new NextResponse("OK", { status: 200 });
       }
       // Logic for Core & Max users to send Excel File...

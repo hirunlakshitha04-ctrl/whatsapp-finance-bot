@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
     // ---------------- EXCEL / BUDGET COMMAND CHECK ----------------
     if (body.toUpperCase() === "EXCEL" || body.toUpperCase() === "BUDGET") {
       if (userPlan === "lite") {
-        await send(getExcelLockedMessage(nickname));
+        await send(getExcelLockedMessage(nickname, websiteUrl));
         return new NextResponse("OK", { status: 200 });
       }
       // Logic for Core & Max users to send Excel File...

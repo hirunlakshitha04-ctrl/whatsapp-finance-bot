@@ -238,7 +238,6 @@ const FEATURE_COMPARISON: {
   { label: "Voice note logging", free: false, core: "5/day", max: "Unlimited" },
   { label: "Budget setting", free: false, core: true, max: true },
   { label: "Excel export", free: false, core: true, max: true },
-  { label: "Loan tracking (given/taken/settled)", free: true, core: true, max: true },
   { label: "Multi-language (Sinhala/Singlish/auto-translate)", free: true, core: true, max: true },
   { label: "Web dashboard access", free: true, core: true, max: true },
 ];

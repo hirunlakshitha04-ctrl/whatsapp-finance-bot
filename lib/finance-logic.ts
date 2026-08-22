@@ -513,6 +513,6 @@ export function getLinkMessage(nickname: string, websiteUrl: string): string {
   return `🔗 Hey ${nickname}, here's your Brofinai login link:\n👉 ${websiteUrl}/login`;
 }
 
-export function getExcelLockedMessage(nickname: string): string {
-  return `📊 *Excel Exports & Budget Handling - Locked*\n\n${nickname}, Excel Export එක Instant Download කිරීමයි, Monthly Budget Limits සකසීමයි Broo LITE Plan එකේ ලබාගත නොහැක.\n\n🔓 *Unlock Core Features - $2.55/mo:*\n• One-Click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Upgrade Now: https://brofinai.com/register?plan=core`;
+export function getExcelLockedMessage(nickname: string, websiteUrl: string = "https://brofinai.com"): string {
+  return `📊 *Excel Exports & Budget Handling - Locked*\n\n${nickname}, Excel Export එක Instant Download කිරීමයි, Monthly Budget Limits සකසීමයි Broo LITE Plan එකේ ලබාගත නොහැක.\n\n🔓 *Unlock Core Features - $2.55/mo:*\n• One-Click Excel Export\n• Smart Budget Handling\n• 10 Daily Logs + Voice Tracking\n\n🔗 Upgrade Now: ${websiteUrl}/register?plan=core`;
 }
