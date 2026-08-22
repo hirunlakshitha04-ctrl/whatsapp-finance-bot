@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Bot,
   Phone,
@@ -20,6 +21,13 @@ import {
   ArrowRight,
   Tag,
   Loader2,
+  DollarSign,
+  Wallet,
+  Coins,
+  TrendingUp,
+  Receipt,
+  CreditCard,
+  PieChart,
 } from "lucide-react";
 
 type Channel = "whatsapp" | "telegram";
@@ -70,6 +78,105 @@ function FeatureCell({ value }: { value: string }) {
   if (value === "✓") return <Check className="w-4 h-4 text-emerald-400 mx-auto" />;
   if (value === "—") return <X className="w-4 h-4 text-slate-600 mx-auto" />;
   return <span className="text-xs text-slate-300">{value}</span>;
+}
+
+// Falling finance-icon background — same decorative effect used on the
+// landing page and dashboard. Dollar signs, wallets, coins etc. drop in
+// inside circular badges and settle at a spot spread across the full height
+// of the screen, each on its own staggered delay/cycle, then fade back out
+// and repeat. Presets are hardcoded (not Math.random) so server-rendered and
+// client-hydrated markup match exactly.
+const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieChart];
+
+const FALLING_ICON_PRESETS: {
+  icon: number;
+  left: number;
+  circleSize: number;
+  iconSize: number;
+  cycleDuration: number;
+  delay: number;
+  landY: string;
+}[] = [
+  { icon: 6, left: 2, circleSize: 58, iconSize: 25, cycleDuration: 14.8, delay: 6, landY: "87vh" },
+  { icon: 0, left: 5, circleSize: 56, iconSize: 23, cycleDuration: 14.9, delay: 9.5, landY: "72vh" },
+  { icon: 6, left: 9, circleSize: 42, iconSize: 18, cycleDuration: 15.7, delay: 1.6, landY: "25vh" },
+  { icon: 3, left: 9, circleSize: 55, iconSize: 21, cycleDuration: 13.4, delay: 7.6, landY: "50vh" },
+  { icon: 3, left: 15, circleSize: 62, iconSize: 26, cycleDuration: 10.4, delay: 8.8, landY: "20vh" },
+  { icon: 1, left: 16, circleSize: 45, iconSize: 17, cycleDuration: 16.8, delay: 1.9, landY: "71vh" },
+  { icon: 4, left: 23, circleSize: 55, iconSize: 21, cycleDuration: 9.5, delay: 4.2, landY: "34vh" },
+  { icon: 5, left: 26, circleSize: 51, iconSize: 20, cycleDuration: 16.5, delay: 6.1, landY: "40vh" },
+  { icon: 2, left: 27, circleSize: 59, iconSize: 25, cycleDuration: 15.1, delay: 9.8, landY: "55vh" },
+  { icon: 3, left: 31, circleSize: 54, iconSize: 23, cycleDuration: 10.5, delay: 4.9, landY: "35vh" },
+  { icon: 0, left: 31, circleSize: 48, iconSize: 19, cycleDuration: 16.7, delay: 0.6, landY: "47vh" },
+  { icon: 2, left: 36, circleSize: 53, iconSize: 21, cycleDuration: 9.8, delay: 4.7, landY: "50vh" },
+  { icon: 5, left: 39, circleSize: 52, iconSize: 22, cycleDuration: 15.7, delay: 9, landY: "44vh" },
+  { icon: 0, left: 41, circleSize: 51, iconSize: 22, cycleDuration: 10.1, delay: 1.5, landY: "34vh" },
+  { icon: 0, left: 49, circleSize: 52, iconSize: 23, cycleDuration: 16.3, delay: 5.7, landY: "49vh" },
+  { icon: 3, left: 52, circleSize: 45, iconSize: 19, cycleDuration: 16.5, delay: 5.5, landY: "55vh" },
+  { icon: 5, left: 51, circleSize: 57, iconSize: 24, cycleDuration: 12.2, delay: 8, landY: "73vh" },
+  { icon: 3, left: 58, circleSize: 55, iconSize: 22, cycleDuration: 9.8, delay: 1.9, landY: "46vh" },
+  { icon: 3, left: 58, circleSize: 57, iconSize: 22, cycleDuration: 12.1, delay: 3.7, landY: "61vh" },
+  { icon: 1, left: 65, circleSize: 39, iconSize: 16, cycleDuration: 14.2, delay: 9.1, landY: "80vh" },
+  { icon: 4, left: 64, circleSize: 57, iconSize: 25, cycleDuration: 13.8, delay: 2.6, landY: "34vh" },
+  { icon: 5, left: 68, circleSize: 60, iconSize: 26, cycleDuration: 9.9, delay: 2.7, landY: "56vh" },
+  { icon: 1, left: 72, circleSize: 45, iconSize: 19, cycleDuration: 15.6, delay: 4.1, landY: "46vh" },
+  { icon: 1, left: 79, circleSize: 59, iconSize: 26, cycleDuration: 11.5, delay: 6.8, landY: "86vh" },
+  { icon: 1, left: 83, circleSize: 53, iconSize: 21, cycleDuration: 9.3, delay: 1.6, landY: "33vh" },
+  { icon: 4, left: 82, circleSize: 49, iconSize: 21, cycleDuration: 15.6, delay: 2.1, landY: "45vh" },
+  { icon: 1, left: 88, circleSize: 56, iconSize: 24, cycleDuration: 10.4, delay: 3.8, landY: "35vh" },
+  { icon: 5, left: 88, circleSize: 59, iconSize: 26, cycleDuration: 9.5, delay: 9.7, landY: "66vh" },
+  { icon: 2, left: 96, circleSize: 48, iconSize: 21, cycleDuration: 13.6, delay: 2.3, landY: "71vh" },
+  { icon: 4, left: 99, circleSize: 48, iconSize: 22, cycleDuration: 9.6, delay: 2.8, landY: "36vh" },
+];
+
+function FallingIcons() {
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10" aria-hidden>
+      {FALLING_ICON_PRESETS.map((p, i) => {
+        const Icon = FALLING_ICON_SET[p.icon];
+        // Small per-item variety so the fall doesn't look like a rigid straight
+        // drop — a touch of sideways drift and rotation that reverses direction
+        // based on index, plus a landing bounce that eases into a smooth,
+        // bounce-free fade.
+        const drift = (i % 2 === 0 ? 1 : -1) * (6 + (p.circleSize % 5));
+        const spin = (i % 2 === 0 ? 1 : -1) * (8 + (p.iconSize % 6));
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute"
+            style={{ left: `${p.left}%`, top: "-14%" }}
+            initial={{ y: "-10vh", x: 0, opacity: 0, scale: 0.4, rotate: 0 }}
+            animate={{
+              y: ["-10vh", p.landY, p.landY, "-8vh"],
+              x: [0, drift, drift, 0],
+              opacity: [0, 1, 1, 0],
+              scale: [0.4, 1, 1, 0.5],
+              rotate: [0, spin, spin, spin * 1.4],
+            }}
+            transition={{
+              duration: p.cycleDuration,
+              delay: p.delay,
+              repeat: Infinity,
+              times: [0, 0.18, 0.82, 1], // quick fall in, long hold, gentle fade out
+              ease: [
+                [0.34, 1.56, 0.64, 1], // fall-in: slight overshoot, like settling on landing
+                "easeInOut",           // hold: values are static here, so this segment is inert
+                [0.4, 0, 0.2, 1],      // fade-out: smooth ease, no bounce
+              ],
+            }}
+          >
+            <div
+              className="rounded-full bg-white/5 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white/30"
+              style={{ width: p.circleSize, height: p.circleSize }}
+            >
+              <Icon style={{ width: p.iconSize, height: p.iconSize }} />
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
 }
 
 function PricingContent() {
@@ -129,9 +236,18 @@ function PricingContent() {
 
   return (
     <main className="min-h-screen relative bg-[#07090e] overflow-hidden font-sans text-white py-16 px-4">
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/3 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
+      {/* Background layer — pinned at z-0, strictly below the "relative z-10"
+          content wrapper further down. FallingIcons' own div uses -z-10
+          internally, which would sit BEHIND this element's own background
+          paint if rendered as a direct child — wrapping it (and the glow
+          blobs) at z-0 with an explicit z-10 content wrapper guarantees they
+          render above the page background but below every section. */}
+      <div className="fixed inset-0 -z-0 pointer-events-none">
+        <FallingIcons />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px]" />
+        <div className="absolute top-1/3 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px]" />
+        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px]" />
+      </div>
 
       <div className="relative z-10 max-w-5xl mx-auto">
         {/* Site Logo */}
