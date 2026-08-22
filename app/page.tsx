@@ -32,6 +32,7 @@ import {
   User,
   MessageCircle,
   Lock,
+  Menu,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -387,6 +388,7 @@ export default function BroFInAiLandingPage() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [showComparison, setShowComparison] = useState(false);
   const [showDiscountToast, setShowDiscountToast] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { scrollYProgress } = useScroll();
 
   const meta = CHANNEL_META[channel];
@@ -494,7 +496,7 @@ export default function BroFInAiLandingPage() {
             accent blocks, closer to a cinematic generative-AI canvas than a
             flat SaaS gradient. One bloom now tracks the active channel. */}
         <div className="fixed top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[170px] pointer-events-none" />
-        <div className="fixed top-[35%] right-[-10%] w-[650px] h-[650px] bg-pink-600/15 rounded-full blur-[190px] pointer-events-none" />
+        <div className="fixed top-[35%] right-[-10%] w-[500px] h-[500px] bg-pink-600/8 rounded-full blur-[190px] pointer-events-none" />
         <motion.div
           animate={{ opacity: 1 }}
           className={`fixed bottom-[-10%] left-[20%] w-[550px] h-[550px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${
@@ -539,8 +541,77 @@ export default function BroFInAiLandingPage() {
               <span className="hidden sm:inline">Get Started</span>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:border-white/20 transition"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+
+        {/* MOBILE NAV DRAWER — the section links above are "hidden lg:flex",
+            so below the lg breakpoint this is the only way to reach
+            Features / How It Works / Pricing / FAQ / Contact from the nav. */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="lg:hidden overflow-hidden"
+            >
+              <div className="max-w-7xl mx-auto px-2 pt-4 pb-2 flex flex-col gap-1 text-sm font-medium text-slate-300">
+                <a
+                  href="#features"
+                  onClick={(e) => { scrollToSection(e, "features"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Features
+                </a>
+                <a
+                  href="#how-it-works"
+                  onClick={(e) => { scrollToSection(e, "how-it-works"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  How It Works
+                </a>
+                <a
+                  href="#pricing"
+                  onClick={(e) => { scrollToSection(e, "pricing"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Pricing
+                </a>
+                <a
+                  href="#faq"
+                  onClick={(e) => { scrollToSection(e, "faq"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  FAQ
+                </a>
+                <a
+                  href="#contact"
+                  onClick={(e) => { scrollToSection(e, "contact"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Contact
+                </a>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="sm:hidden px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors border-t border-white/5 mt-1 pt-4"
+                >
+                  Login
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* TELEGRAM DISCOUNT POPUP — shows while browsing on WhatsApp to nudge
@@ -637,7 +708,7 @@ export default function BroFInAiLandingPage() {
             </motion.div>
           </AnimatePresence>
 
-          <h1 className="text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.08]">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.08]">
             Your AI Money Manager.
             <br />
             Inside{" "}
@@ -775,7 +846,7 @@ export default function BroFInAiLandingPage() {
           </motion.div>
 
           {/* Phone frame */}
-          <div className={`relative z-10 w-[280px] sm:w-[300px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow} shadow-2xl`}>
+          <div className={`relative z-10 w-[min(280px,80vw)] sm:w-[300px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow} shadow-2xl`}>
             {/* Dynamic island / notch */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-b-2xl z-30" />
 
