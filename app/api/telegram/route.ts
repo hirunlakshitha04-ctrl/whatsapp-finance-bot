@@ -32,15 +32,35 @@ const ID_COLUMN = "telegram_chat_id" as const;
 // ---------------------- Telegram-specific send/receive helpers ----------------------
 
 async function sendTelegramMessage(chatId: string | number, text: string) {
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "Markdown", // Telegram legacy Markdown — *bold* matches the WhatsApp templates as-is
-    }),
-  });
+  try {
+    const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "Markdown", // Telegram legacy Markdown — *bold* matches the WhatsApp templates as-is
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error(`❌ Telegram sendMessage failed [${res.status}] chatId=${chatId}:`, errBody);
+
+      // Legacy "Markdown" parse_mode is strict about unmatched/nested entities
+      // (unescaped _ * [ ] ( ) ` in the text will 400 with "can't parse entities").
+      // Retry once as plain text so the user still gets *a* reply instead of nothing.
+      if (res.status === 400 && errBody.includes("can't parse entities")) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text }), // no parse_mode
+        });
+      }
+    }
+  } catch (err) {
+    console.error(`❌ Telegram sendMessage network error chatId=${chatId}:`, err);
+  }
 }
 
 // Resolve a Telegram file_id -> a downloadable Buffer
