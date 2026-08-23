@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence, useScroll, useTransform, Variants } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring, Variants } from "framer-motion";
 import {
   ArrowUpRight,
   Zap,
@@ -33,6 +33,13 @@ import {
   MessageCircle,
   Lock,
   Menu,
+  ArrowLeft,
+  MoreVertical,
+  Utensils,
+  Car,
+  ShoppingBag,
+  Paperclip,
+  Languages,
 } from "lucide-react";
 
 // Lucide dropped trademarked brand icons (Twitter/X, Instagram, LinkedIn, Facebook),
@@ -410,6 +417,26 @@ export default function BroFInAiLandingPage() {
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.98]);
 
+  // Hero phone tilt — the phone rotates in 3D as the cursor moves across
+  // its container, easing back to a resting tilt when the mouse leaves.
+  const phoneRotateX = useMotionValue(6);
+  const phoneRotateY = useMotionValue(-22);
+  const springRotateX = useSpring(phoneRotateX, { stiffness: 120, damping: 18, mass: 0.6 });
+  const springRotateY = useSpring(phoneRotateY, { stiffness: 120, damping: 18, mass: 0.6 });
+
+  const handlePhoneMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width; // 0 -> 1
+    const py = (e.clientY - rect.top) / rect.height; // 0 -> 1
+    phoneRotateY.set((px - 0.5) * 360); // full spin left/right
+    phoneRotateX.set((0.5 - py) * 140); // deep tilt up/down
+  };
+
+  const handlePhoneMouseLeave = () => {
+    phoneRotateX.set(6);
+    phoneRotateY.set(-22);
+  };
+
   const toggleFaq = (index: number) => {
     setActiveFaq(activeFaq === index ? null : index);
   };
@@ -521,6 +548,7 @@ export default function BroFInAiLandingPage() {
 
           <div className="hidden lg:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-white transition-colors">Features</a>
+            <a href="#language" onClick={(e) => scrollToSection(e, "language")} className="hover:text-white transition-colors">Language</a>
             <a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a>
             <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a>
@@ -571,6 +599,13 @@ export default function BroFInAiLandingPage() {
                   className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
                 >
                   Features
+                </a>
+                <a
+                  href="#language"
+                  onClick={(e) => { scrollToSection(e, "language"); setMobileMenuOpen(false); }}
+                  className="px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Language
                 </a>
                 <a
                   href="#how-it-works"
@@ -756,167 +791,173 @@ export default function BroFInAiLandingPage() {
           </div>
         </motion.div>
 
-        {/* Dynamic Phone Mockup — a realistic device frame running the chat,
-            with small glass "dashboard" cards orbiting it. Chrome, accent,
-            and copy all swap with the active channel so the preview never
-            lies about which app it's simulating. */}
+        {/* Phone Mockup — tilted 3D device sitting inside a glowing neon
+            ring, echoing the reference screenshot: chat bubbles up top,
+            a weekly-spend bar chart, and a category breakdown below.
+            Chrome, accent, and copy all swap with the active channel so
+            the preview never lies about which app it's simulating. */}
         <motion.div
           initial={{ opacity: 0, y: 80 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="lg:col-span-6 relative flex justify-center items-center min-h-[560px] sm:min-h-[620px]"
+          onMouseMove={handlePhoneMouseMove}
+          onMouseLeave={handlePhoneMouseLeave}
+          className="lg:col-span-6 relative flex justify-center items-center min-h-[480px] sm:min-h-[560px]"
+          style={{ perspective: "1400px" }}
         >
-          {/* Soft glow behind the phone */}
+          {/* Soft ambient glow behind the phone */}
           <div
-            className={`absolute w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] rounded-full blur-[100px] opacity-30 bg-gradient-to-br ${meta.from} ${meta.to} transition-colors duration-500`}
+            className={`absolute w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full blur-[100px] opacity-30 bg-gradient-to-br ${meta.from} ${meta.to} transition-colors duration-500`}
           />
 
-          {/* Floating dashboard cards — orbit the phone, hidden on the
-              smallest screens to keep the mockup uncluttered. */}
+          {/* Glowing neon ring arcing behind the phone */}
+          <div
+            className={`absolute w-[320px] h-[320px] sm:w-[440px] sm:h-[440px] rounded-full blur-2xl opacity-80 transition-colors duration-500 ${meta.text}`}
+            style={{
+              background:
+                "conic-gradient(from 120deg, transparent 0%, currentColor 12%, transparent 32%, transparent 58%, currentColor 78%, transparent 94%)",
+              WebkitMask:
+                "radial-gradient(closest-side, transparent 72%, black 76%, black 90%, transparent 94%)",
+              mask: "radial-gradient(closest-side, transparent 72%, black 76%, black 90%, transparent 94%)",
+            }}
+          />
+          <div
+            className={`hidden sm:block absolute w-[280px] h-[280px] rounded-full blur-xl opacity-40 transition-colors duration-500 ${meta.text}`}
+            style={{
+              background: "conic-gradient(from -50deg, transparent 0%, currentColor 10%, transparent 28%)",
+              WebkitMask:
+                "radial-gradient(closest-side, transparent 66%, black 70%, black 84%, transparent 88%)",
+              mask: "radial-gradient(closest-side, transparent 66%, black 70%, black 84%, transparent 88%)",
+            }}
+          />
+
+          {/* Grounding shadow beneath the phone, like a reflection */}
+          <div className="absolute bottom-4 sm:bottom-8 w-[200px] h-[30px] rounded-full bg-black/70 blur-2xl opacity-60" />
+
+          {/* Phone frame, tilted for depth and following the cursor */}
           <motion.div
-            initial={{ opacity: 0, x: -20, y: -10 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="hidden sm:block absolute left-0 top-6 z-20"
+            className="relative z-10"
+            style={{
+              transformStyle: "preserve-3d",
+              rotateX: springRotateX,
+              rotateY: springRotateY,
+              rotateZ: -3,
+            }}
           >
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-0.5 w-[168px]"
+            <div
+              className={`w-[min(300px,82vw)] sm:w-[320px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow}`}
             >
-              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">💰 Monthly Spending</div>
-              <div className="text-lg font-bold text-white">$1,240</div>
-            </motion.div>
-          </motion.div>
+              {/* Dynamic island / notch */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-b-2xl z-30" />
 
-          <motion.div
-            initial={{ opacity: 0, x: 20, y: -10 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.75 }}
-            className="hidden sm:block absolute right-0 top-16 z-20"
-          >
-            <motion.div
-              animate={{ y: [0, 9, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-0.5 w-[152px]"
-            >
-              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">🍔 Food</div>
-              <div className="text-lg font-bold text-white">$180</div>
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: -20, y: 10 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-            className="hidden sm:block absolute left-2 bottom-24 z-20"
-          >
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl space-y-1.5 w-[172px]"
-            >
-              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">📊 Budget Used</div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                  <div className={`h-full w-[64%] rounded-full bg-gradient-to-r ${meta.from} ${meta.to}`} />
-                </div>
-                <span className="text-xs font-bold text-white">64%</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20, y: 10 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.05 }}
-            className="hidden sm:block absolute right-1 bottom-8 z-20"
-          >
-            <motion.div
-              animate={{ y: [0, -7, 0] }}
-              transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 0.9 }}
-              className="px-4 py-3 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/10 shadow-xl flex items-center gap-2 w-[168px]"
-            >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-white/5 ${meta.text}`}>
-                <Receipt className="w-3.5 h-3.5" />
-              </div>
-              <div className="text-[11px] font-semibold text-slate-200 leading-tight">Receipt Scanned</div>
-            </motion.div>
-          </motion.div>
-
-          {/* Phone frame */}
-          <div className={`relative z-10 w-[min(280px,80vw)] sm:w-[300px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow} shadow-2xl`}>
-            {/* Dynamic island / notch */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-b-2xl z-30" />
-
-            <div className="relative rounded-[2.25rem] overflow-hidden bg-slate-900">
-              {/* Chat app header */}
-              <div className="flex items-center justify-between px-4 pt-8 pb-3 bg-slate-950/60 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 ${meta.text}`}>
-                    <ChannelIcon className="w-4 h-4" />
+              <div className="relative rounded-[2.25rem] overflow-hidden bg-slate-900">
+                {/* Chat app header */}
+                <div className="flex items-center justify-between px-4 pt-8 pb-3 bg-slate-950/70 border-b border-white/10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ArrowLeft className="w-4 h-4 text-slate-500 shrink-0" />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 shrink-0 ${meta.text}`}>
+                      <ChannelIcon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 text-xs font-semibold text-white truncate">
+                        BroFInAi
+                        <CheckCircle2 className={`w-3 h-3 shrink-0 ${meta.text}`} />
+                      </div>
+                      <div className="text-[10px] text-slate-500">online</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs font-semibold text-white">BroFInAi Bot</div>
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={`handle-${channel}`}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="text-[10px] font-mono text-slate-500"
-                      >
-                        {meta.handle}
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
+                  <MoreVertical className="w-4 h-4 text-slate-500 shrink-0" />
                 </div>
-                <span className={`w-2 h-2 rounded-full ${meta.dot} shadow-[0_0_8px] shadow-current`} />
-              </div>
 
-              {/* Chat body */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={`chat-${channel}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="px-3.5 py-4 space-y-2.5 font-sans text-[11.5px] min-h-[260px]"
-                >
-                  <div
-                    className={`p-2.5 rounded-2xl rounded-tr-sm max-w-[80%] ml-auto shadow-md border ${
-                      channel === "whatsapp"
-                        ? "bg-emerald-600/30 border-emerald-500/30 text-emerald-100"
-                        : "bg-sky-600/30 border-sky-500/30 text-sky-100"
-                    }`}
+                {/* Chat + dashboard body */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`chat-${channel}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="px-3.5 pt-4 pb-3 space-y-2 font-sans text-[11px]"
                   >
-                    Spent $25 on lunch
-                  </div>
+                    <div
+                      className={`p-2.5 rounded-2xl rounded-tr-sm max-w-[82%] ml-auto shadow-md border ${
+                        channel === "whatsapp"
+                          ? "bg-emerald-600/30 border-emerald-500/30 text-emerald-100"
+                          : "bg-sky-600/30 border-sky-500/30 text-sky-100"
+                      }`}
+                    >
+                      How much did I spend this week?
+                    </div>
 
-                  <div className="bg-slate-800/90 border border-white/10 text-slate-200 p-3 rounded-2xl rounded-tl-sm max-w-[85%] space-y-1.5 shadow-lg">
-                    <div className={`flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider ${meta.text}`}>
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Expense recorded
+                    <div className="bg-slate-800/90 border border-white/10 text-slate-200 px-3 py-2 rounded-2xl rounded-tl-sm max-w-[85%] shadow-lg">
+                      You spent <b className="text-white">$96.50</b> on food this week.
                     </div>
-                    <div className="text-slate-300">
-                      Lunch — <b className="text-white">$25</b>
-                    </div>
-                    <div className="pt-1 mt-1 border-t border-white/10 text-[10px] text-slate-400">
-                      Today's total: <b className="text-white">$42</b>
-                    </div>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
 
-              {/* Fake input bar for realism */}
-              <div className="px-3.5 pb-4 pt-1">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-950/70 border border-white/10 text-[10px] text-slate-500">
-                  <span className="flex-1">Message</span>
-                  <Mic className="w-3 h-3" />
+                    {/* Weekly spend card */}
+                    <div className="mt-0.5 p-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-lg">
+                      <div className="text-[10px] text-slate-400">This Week</div>
+                      <div className="text-xl font-bold text-white mb-2">$1,260.00</div>
+                      <div className="flex items-end justify-between gap-1.5">
+                        {[
+                          { d: "Mon", h: 38 },
+                          { d: "Tue", h: 46 },
+                          { d: "Wed", h: 30 },
+                          { d: "Thu", h: 100 },
+                          { d: "Fri", h: 34 },
+                          { d: "Sat", h: 44 },
+                          { d: "Sun", h: 26 },
+                        ].map((bar) => (
+                          <div key={bar.d} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full h-14 flex items-end">
+                              <div
+                                className={`w-full rounded-md transition-colors duration-500 ${
+                                  bar.d === "Thu" ? `bg-gradient-to-t ${meta.from} ${meta.to}` : "bg-white/10"
+                                }`}
+                                style={{ height: `${bar.h}%` }}
+                              />
+                            </div>
+                            <span className={`text-[8px] ${bar.d === "Thu" ? "text-white font-semibold" : "text-slate-500"}`}>
+                              {bar.d}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Category breakdown */}
+                    <div className="rounded-2xl bg-white/[0.03] border border-white/10 divide-y divide-white/5 overflow-hidden">
+                      {[
+                        { icon: Utensils, label: "Food & Dining", amount: "$96.50", bg: "bg-sky-500" },
+                        { icon: Car, label: "Transport", amount: "$45.20", bg: "bg-emerald-500" },
+                        { icon: ShoppingBag, label: "Shopping", amount: "$120.00", bg: "bg-violet-500" },
+                      ].map((row) => (
+                        <div key={row.label} className="flex items-center justify-between px-3 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${row.bg}`}>
+                              <row.icon className="w-3 h-3 text-white" />
+                            </div>
+                            <span className="text-slate-200">{row.label}</span>
+                          </div>
+                          <span className="font-semibold text-white">{row.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Fake input bar for realism */}
+                <div className="px-3.5 pb-4 pt-1">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-950/70 border border-white/10 text-[10px] text-slate-500">
+                    <span className="flex-1">Message</span>
+                    <Paperclip className="w-3 h-3 shrink-0" />
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.from} ${meta.to}`}>
+                      <Mic className="w-3 h-3 text-slate-950" />
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       </motion.section>
 
@@ -1225,6 +1266,93 @@ export default function BroFInAiLandingPage() {
               </motion.div>
             </div>
           </div>
+        </motion.div>
+      </section>
+
+      {/* LANGUAGE & VOICE — multilingual voice + text logging is the single
+          biggest differentiator against every English-only expense bot, so
+          it gets its own dedicated moment instead of being buried inside
+          the features grid. */}
+      <section id="language" className="scroll-mt-24 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-sky-500/10 blur-[150px]" />
+          <div className="absolute bottom-0 left-1/4 w-[460px] h-[460px] rounded-full bg-emerald-500/10 blur-[140px]" />
+        </div>
+
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
+        >
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-14 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/15 text-xs font-bold uppercase tracking-[0.25em] text-sky-300">
+              <Languages className="w-3.5 h-3.5" /> Speak Any Language
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1]">
+              Speak Naturally.
+              <br />
+              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent">
+                BroFinAI Understands.
+              </span>
+            </h2>
+            <p className="text-slate-500 text-sm sm:text-base max-w-lg mx-auto">
+              Type or talk in whatever language feels natural — our AI understands the context, currency, and category no matter how you phrase it.
+            </p>
+
+            {/* Language chips */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              {["English", "Sinhala", "Tamil", "+ More"].map((lang) => (
+                <span
+                  key={lang}
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-slate-300"
+                >
+                  {lang}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Voice-to-dashboard flow */}
+          <motion.div variants={fadeInUp} className="max-w-4xl mx-auto">
+            <div className="relative rounded-[28px] bg-slate-900/50 backdrop-blur-xl border border-white/10 shadow-2xl p-6 sm:p-8">
+              {/* Voice message bubble */}
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-400 via-teal-300 to-sky-400 text-slate-950 shadow-lg shadow-emerald-500/25">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 text-sm text-slate-200 max-w-md">
+                  <span className="font-mono">"Spent 850 on lunch today."</span>
+                </div>
+              </div>
+
+              {/* Flow steps */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-3">
+                {[
+                  { icon: Sparkles, label: "AI understands", desc: "Any language, any phrasing" },
+                  { icon: PieChart, label: "Categorizes", desc: "Food & Dining, auto-tagged" },
+                  { icon: CheckCircle2, label: "Records", desc: "Saved in a split second" },
+                  { icon: BarChart3, label: "Updates dashboard", desc: "Totals refresh instantly" },
+                ].map((step, i, arr) => (
+                  <React.Fragment key={step.label}>
+                    <div className="flex items-start md:flex-col gap-3 md:gap-2 md:flex-1">
+                      <div className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400">
+                        <step.icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white">{step.label}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{step.desc}</div>
+                      </div>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <ArrowRight className="hidden md:block w-4 h-4 text-slate-600 shrink-0 mt-4" />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -1757,6 +1885,98 @@ export default function BroFInAiLandingPage() {
         </motion.div>
       </section>
 
+      {/* TRUST & PRIVACY — a finance product asking people to hand over
+          spending data needs to earn that trust explicitly, not imply it.
+          Calls out security, data control, and exactly where AI stops and
+          the user's own decision takes over. */}
+      <section id="trust" className="scroll-mt-24 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-10 left-1/4 w-[460px] h-[460px] rounded-full bg-emerald-500/10 blur-[140px]" />
+          <div className="absolute bottom-0 right-1/4 w-[420px] h-[420px] rounded-full bg-cyan-500/10 blur-[140px]" />
+        </div>
+
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-white/5"
+        >
+          <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-14 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/15 text-xs font-bold uppercase tracking-[0.25em] text-emerald-300">
+              <Lock className="w-3.5 h-3.5" /> Built On Trust
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1]">
+              Your Money Data
+              <br />
+              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                Deserves Privacy.
+              </span>
+            </h2>
+            <p className="text-slate-500 text-sm sm:text-base max-w-lg mx-auto">
+              You're trusting us with real financial details. We take that seriously — with encryption, clear consent, and full control staying in your hands.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                icon: Lock,
+                emoji: "🔒",
+                title: "Secure by Design",
+                desc: "Every message is encrypted in transit and at rest — your spending data is never sent or stored in the clear.",
+                color: "text-emerald-400",
+              },
+              {
+                icon: ShieldCheck,
+                emoji: "🛡️",
+                title: "Privacy Focused",
+                desc: "We collect only what's needed to track your spending. Your data is never sold, and never shared with advertisers.",
+                color: "text-cyan-400",
+              },
+              {
+                icon: User,
+                emoji: "👤",
+                title: "You Control Your Data",
+                desc: "Export, correct, or delete your data any time — right from chat. Nothing is locked away from you.",
+                color: "text-sky-400",
+              },
+              {
+                icon: Sparkles,
+                emoji: "🤖",
+                title: "AI Assists — You Decide",
+                desc: "The AI categorizes and suggests, but every entry is editable and every decision is yours to confirm or change.",
+                color: "text-purple-300",
+              },
+            ].map((item) => (
+              <motion.div
+                key={item.title}
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="group relative p-6 rounded-[24px] bg-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-emerald-400/30 shadow-xl overflow-hidden transition-colors duration-300"
+              >
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-emerald-500/[0.06] to-transparent" />
+                <div className="relative space-y-3">
+                  <div className={`w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${item.color}`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                    <span>{item.emoji}</span> {item.title}
+                  </h3>
+                  <p className="text-slate-400 text-xs leading-relaxed">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div variants={fadeInUp} className="mt-10 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Bank-grade encryption on every message. You're always in control of your data.</span>
+          </motion.div>
+        </motion.div>
+      </section>
+
       {/* FAQ SECTION */}
       <section id="faq" className="scroll-mt-24 max-w-4xl mx-auto px-6 py-28 border-t border-white/5">
         <div className="text-center mb-16 space-y-3">
@@ -2021,6 +2241,7 @@ export default function BroFInAiLandingPage() {
               <h4 className="text-xs font-bold uppercase tracking-widest text-slate-300">Product</h4>
               <ul className="space-y-3 text-sm text-slate-400">
                 <li><a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#language" onClick={(e) => scrollToSection(e, "language")} className="hover:text-white transition-colors">Language</a></li>
                 <li><a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a></li>
                 <li><a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a></li>
@@ -2031,6 +2252,7 @@ export default function BroFInAiLandingPage() {
             <div className="md:col-span-4 space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-widest text-slate-300">Legal</h4>
               <ul className="space-y-3 text-sm text-slate-400">
+                <li><a href="#trust" onClick={(e) => scrollToSection(e, "trust")} className="hover:text-white transition-colors">Trust & Security</a></li>
                 <li><Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
                 <li><Link href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link></li>
               </ul>
