@@ -212,20 +212,6 @@ const PRICING_PLANS = [
   },
 ];
 
-// Telegram is cheaper than WhatsApp on every paid plan — this derives the
-// exact per-plan savings straight from PRICING_PLANS (never hardcoded), so
-// the discount popup always matches whatever the pricing cards show.
-const TELEGRAM_SAVINGS = PRICING_PLANS.map((plan) => {
-  const wa = parseFloat(plan.prices.whatsapp.replace("$", ""));
-  const tg = parseFloat(plan.prices.telegram.replace("$", ""));
-  return { name: plan.name, amount: wa - tg };
-}).filter((s) => s.amount > 0);
-
-const BEST_TELEGRAM_SAVING = TELEGRAM_SAVINGS.reduce(
-  (best, s) => (s.amount > best.amount ? s : best),
-  { name: "", amount: 0 }
-);
-
 // Full row-by-row feature comparison (collapsible table under the cards).
 // Values are either a string (shown as-is) or a boolean (rendered as check/x).
 const FEATURE_COMPARISON: {
@@ -387,26 +373,11 @@ export default function BroFInAiLandingPage() {
   const [contactError, setContactError] = useState<string | null>(null);
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [showComparison, setShowComparison] = useState(false);
-  const [showDiscountToast, setShowDiscountToast] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { scrollYProgress } = useScroll();
 
   const meta = CHANNEL_META[channel];
   const ChannelIcon = meta.icon;
-
-  // Discount popup — fires while the visitor is browsing on WhatsApp, to
-  // nudge them toward the cheaper Telegram plans. Hides itself the moment
-  // they actually switch to Telegram (nothing left to nudge them into).
-  // Savings are calculated live from the same numbers shown on the
-  // pricing cards below.
-  useEffect(() => {
-    if (channel !== "whatsapp") {
-      setShowDiscountToast(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowDiscountToast(true), 1200);
-    return () => clearTimeout(timer);
-  }, [channel]);
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.98]);
@@ -642,73 +613,6 @@ export default function BroFInAiLandingPage() {
           )}
         </AnimatePresence>
       </nav>
-
-      {/* TELEGRAM DISCOUNT POPUP — shows while browsing on WhatsApp to nudge
-          toward the cheaper Telegram plans; disappears once they switch. */}
-      <AnimatePresence>
-        {showDiscountToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -24, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -16, scale: 0.94 }}
-            transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[90] w-[94%] max-w-xl"
-          >
-            <div className="relative">
-              {/* Soft gradient glow behind the glass card */}
-              <div
-                aria-hidden
-                className="absolute -inset-6 rounded-[36px] bg-gradient-to-r from-sky-500/35 via-blue-400/25 to-cyan-400/35 blur-3xl pointer-events-none"
-              />
-
-              {/* Gradient border wrapper */}
-              <div className="relative rounded-[28px] p-[1.5px] bg-gradient-to-br from-sky-400/70 via-white/10 to-cyan-400/50 shadow-2xl shadow-sky-500/25">
-                <div className="relative overflow-hidden rounded-[26.5px] bg-slate-950/85 backdrop-blur-2xl px-6 py-7 sm:px-10 sm:py-9 text-center">
-                  {/* subtle inner sheen + glow accents */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-sky-500/[0.08] pointer-events-none" />
-                  <div aria-hidden className="absolute -top-14 -right-14 w-40 h-40 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
-                  <div aria-hidden className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full bg-cyan-400/15 blur-3xl pointer-events-none" />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowDiscountToast(false)}
-                    aria-label="Dismiss"
-                    className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-
-                  <div className="relative flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-400 text-slate-950 flex items-center justify-center shadow-lg shadow-sky-500/30 mb-4">
-                      <Send className="w-8 h-8" />
-                    </div>
-
-                    <p className="text-lg sm:text-xl font-black text-white leading-snug">
-                      Save more on Telegram 🎉
-                    </p>
-
-                    <p className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent mt-2 tracking-tight">
-                      Up to ${BEST_TELEGRAM_SAVING.amount.toFixed(2)}/mo
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setChannel("telegram");
-                        setShowDiscountToast(false);
-                      }}
-                      className="group inline-flex items-center gap-2 mt-5 text-sm font-bold text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 transition-colors px-6 py-3 rounded-full shadow-md shadow-sky-500/25"
-                    >
-                      Switch to Telegram
-                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* HERO SECTION */}
       <motion.section
