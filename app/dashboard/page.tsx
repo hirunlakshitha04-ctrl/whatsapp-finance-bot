@@ -1466,11 +1466,17 @@ export default function BrooDashboard() {
       }
       const lastDataRow = firstDataRow + list.length + 1;
       const totalRow = lastDataRow + 1;
+      const total = list.reduce((sum, t) => sum + Number(t.amount || 0), 0);
       ws.getRow(totalRow).getCell(3).value = totalLabel;
-      ws.getRow(totalRow).getCell(4).value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})` };
+      // Cache the computed result alongside the formula: viewers that
+      // recalculate (desktop Excel) still respect any rows the user adds
+      // manually to the two blank rows above, while viewers that don't
+      // recalculate (mobile/WPS/quick-preview) still show the right number
+      // immediately instead of a blank cell.
+      ws.getRow(totalRow).getCell(4).value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})`, result: total };
       styleTotalRow(ws, totalRow, 4, headerFill, [4]);
 
-      return { headerRow, firstDataRow, lastDataRow, totalRow, nextRow: totalRow + 2 };
+      return { headerRow, firstDataRow, lastDataRow, totalRow, nextRow: totalRow + 2, total };
     };
 
     // =====================================================================
@@ -1549,16 +1555,20 @@ export default function BrooDashboard() {
     // ---- Summary box ----
     const summaryTitleRow = budgetTotalRow + 2;
     styleTitle(ws1, summaryTitleRow, `A${summaryTitleRow}:D${summaryTitleRow}`, "SUMMARY", TITLE_FILL);
-    const summaryEntries: [string, string][] = [
-      ["Total Income", `D${incomeResult.totalRow}`],
-      ["Total Expenses", `D${expenseResult.totalRow}`],
-      ["Net Balance", `D${incomeResult.totalRow}-D${expenseResult.totalRow}`]
+    // Plain computed values instead of formulas referencing the TOTAL rows
+    // above — those totals are themselves formula cells, so chaining a
+    // formula off a formula compounds the "blank until recalculated" risk
+    // in non-Excel viewers. Summary numbers are always correct this way.
+    const summaryEntries: [string, number][] = [
+      ["Total Income", incomeResult.total],
+      ["Total Expenses", expenseResult.total],
+      ["Net Balance", incomeResult.total - expenseResult.total]
     ];
-    summaryEntries.forEach(([label, formula], i) => {
+    summaryEntries.forEach(([label, value], i) => {
       const r = summaryTitleRow + 1 + i;
       ws1.mergeCells(`B${r}:D${r}`);
       ws1.getRow(r).getCell(1).value = label;
-      ws1.getRow(r).getCell(2).value = { formula };
+      ws1.getRow(r).getCell(2).value = value;
       [1, 2].forEach(c => {
         const cell = ws1.getRow(r).getCell(c);
         cell.font = { name: FONT_NAME, size: 10, bold: true };
