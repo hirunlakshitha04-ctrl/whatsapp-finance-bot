@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       const trialEnd = new Date(user.trial_ends_at);
       const daysUntilEnd = daysBetween(trialEnd, now); // positive = still in trial
       const nickname = user.how_to_call_you || user.nickname || user.name || "Bro";
-      const checkoutUrl = `https://brofinai.com/checkout?phone=${encodeURIComponent(user.phone_number)}`;
+      const checkoutUrl = `https://brofinai.com/#pricing`;
 
       let stage: Stage | null = null;
 
