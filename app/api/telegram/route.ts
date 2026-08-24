@@ -116,10 +116,10 @@ export async function POST(req: NextRequest) {
     // Telegram turns that into a "/start <token>" message automatically.)
     if (normalizedBody.startsWith("/start")) {
       const linkToken = body.split(" ")[1]?.trim();
-      const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
 
       if (!linkToken) {
         // Plain "/start" with no token — user opened the bot directly, not via a link
+        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
         await send(getRegisterMessage(websiteUrl));
         return new NextResponse("OK", { status: 200 });
       }
@@ -150,8 +150,6 @@ export async function POST(req: NextRequest) {
       }
 
       const linkNickname = pendingUser.how_to_call_you || pendingUser.nickname || pendingUser.name || "Bro";
-      const linkedLang = pendingUser.language || pendingUser.preferred_language || "English";
-      const linkedCurrency = pendingUser.base_currency || pendingUser.currency || "LKR";
 
       // Was this account already active on another channel (e.g. registered
       // via WhatsApp, with real transaction history)? If so, they already
@@ -190,15 +188,8 @@ export async function POST(req: NextRequest) {
           `✅ *Connected!*\n\nHey ${linkNickname}, Telegram is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
         );
       } else {
-        // NOTE: requires a UNIQUE constraint on user_sessions.telegram_chat_id
-        // for onConflict to work — mirrors the WhatsApp route's identical note.
-        await supabase
-          .from("user_sessions")
-          .upsert({ [ID_COLUMN]: from, step: "AWAITING_STARTING_BALANCE" }, { onConflict: ID_COLUMN });
         await supabase.from("users").update({ active_channel: "telegram" }).eq("id", pendingUser.id);
-
-        const welcomeMsgs = await getLocalizedMessages(linkedLang, linkNickname, linkedCurrency, websiteUrl);
-        await send(welcomeMsgs.welcome);
+        await send(`✅ *Connected!*\n\nHey ${linkNickname}, your Telegram is now linked to Brofinai. 🚀\n\nSend your **Starting Balance** to begin tracking — e.g. *"50000"*`);
       }
 
       return new NextResponse("OK", { status: 200 });
