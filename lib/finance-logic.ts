@@ -19,11 +19,10 @@ export type UserIdColumn = "phone_number" | "telegram_chat_id";
 // ---------------------- Types ----------------------
 export interface ExtractedData {
   action: "log_transaction" | "set_budget" | "set_starting_balance";
-  type: "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null;
+  type: "expense" | "income" | null;
   item: string;
   category: string;
   amount: number;
-  person: string | null;
   currency: string;
   confirmation_message?: string;
 }
@@ -77,7 +76,7 @@ export async function getLocalizedMessages(
     limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\nHey {NICKNAME}, you've used up all your scans for this month. Upgrade to BROO MAX for unlimited scanning:\n👉 {WEBSITE}/#pricing`,
     noPending: `⚠️ Hey {NICKNAME}, there's no pending transaction to confirm right now!`,
     budgetSaved: `🎯 Nice one, {NICKNAME}! Your *{CATEGORY}* budget is now set to *{CURRENCY} {AMOUNT}*. 🎉`,
-    savedMsg: `✅ Got it, {NICKNAME}! Saved *{CURRENCY} {AMOUNT}* for *{ITEM}* under *{CATEGORY}*. 🚀`,
+    savedMsg: `✅ *Saved!*\n\n📝 Description: *{ITEM}*\n🏷️ Type: *{TYPETAG}*\n🗂️ Category: *{CATEGORY}*\n💰 Amount: *{CURRENCY} {AMOUNT}*`,
     autoSavedMsg: `⚡ *Auto-Saved!*\n\nNice, {NICKNAME}! I've saved *{CURRENCY} {AMOUNT}* for *{ITEM}*. 🚀`,
     dbError: `🚨 Oops, something went wrong while saving that. Please try again in a moment.`,
     directError: `🚨 Something went wrong during the auto-save. Please try again.`,
@@ -101,7 +100,7 @@ export async function getLocalizedMessages(
       limitReached: `⚠️ *Monthly Receipt Limit Reached (30/30 Scans)*\n\n{NICKNAME}, මේ මාසෙට ඔබේ Scans ඔක්කොම භාවිත වෙලා ඉවරයි. Unlimited Scans සඳහා **BROO MAX** එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       noPending: `⚠️ {NICKNAME}, දැනට Confirm කරන්න පොරොත්තු Transaction එකක් නෑ!`,
       budgetSaved: `🎯 සුභ පැතුම්, {NICKNAME}! ඔබේ *{CATEGORY}* Budget එක *{CURRENCY} {AMOUNT}* ලෙස සකසා ඇත. 🎉`,
-      savedMsg: `✅ හරි, {NICKNAME}! *{ITEM}* (*{CATEGORY}*) සඳහා *{CURRENCY} {AMOUNT}* Save කරගත්තා. 🚀`,
+      savedMsg: `✅ *Save උනා!*\n\n📝 විස්තරය: *{ITEM}*\n🏷️ වර්ගය: *{TYPETAG}*\n🗂️ කාණ්ඩය: *{CATEGORY}*\n💰 ගාණ: *{CURRENCY} {AMOUNT}*`,
       autoSavedMsg: `⚡ *Auto Saved!* (Broo Max Feature)\n\nහරි, {NICKNAME}! *{ITEM}* සඳහා *{CURRENCY} {AMOUNT}* Save කරගත්තා. 🚀`,
       dbError: `🚨 Database එකට Save කරද්දී අවුලක් සිදුවුණා, {NICKNAME}. කරුණාකර ටිකකින් ආයෙත් Try කරන්න.`,
       directError: `🚨 Auto-Save කරද්දී අවුලක් සිදුවුණා. කරුණාකර ආයෙත් Try කරන්න.`,
@@ -271,7 +270,7 @@ export async function extractTransaction(
 User Settings -> Selected Language: "${language}", Call User As: "${nickname}", Currency: "${nativeCurrency}".
 
 INSTRUCTIONS:
-- Translate the extracted "item" description string strictly into the user's selected language (${language}).
+- CRITICAL ITEM RULE: The "item" description MUST be kept EXACTLY as the user wrote it — do NOT translate it into ${language} or any other language. Only trim whitespace / fix obvious casing; never reword or translate.
 - CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories into other languages:
   - Food & Groceries
   - Transport (Bus, Train, Fuel, Taxi)
@@ -290,11 +289,10 @@ INSTRUCTIONS:
 Return pure JSON:
 {
   "action": "log_transaction" | "set_budget" | "set_starting_balance",
-  "type": "expense" | "income" | "loan_given" | "loan_taken" | "loan_settled" | null,
-  "item": "description string in ${language}",
+  "type": "expense" | "income" | null,
+  "item": "description string EXACTLY as the user typed it, no translation",
   "category": "Strictly choose ONE from the allowed English category list above",
   "amount": number,
-  "person": "string" | null,
   "currency": "${nativeCurrency}"
 }`,
         },
@@ -346,7 +344,6 @@ Return pure JSON:
   "item": "Merchant/Store Name translated in ${language}",
   "category": "Strictly choose ONE from the allowed English category list above",
   "amount": number,
-  "person": null,
   "currency": "${nativeCurrency}"
 }`,
         },
@@ -384,7 +381,9 @@ export async function saveExtractedDirect(
   websiteUrl: string
 ): Promise<string> {
   const formattedAmount = Number(tx.amount).toLocaleString();
-  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount, category: tx.category });
+  const baseMsgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
+  const typeTag = tx.type === "income" ? baseMsgs.typeIncome : baseMsgs.typeExpense;
+  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, { item: tx.item, amount: formattedAmount, category: tx.category, typeTag });
 
   try {
     if (tx.action === "set_budget") {
@@ -415,7 +414,6 @@ export async function saveExtractedDirect(
         item: tx.item,
         category: tx.category,
         amount: tx.amount,
-        person: tx.person,
         currency: tx.currency || userProfile.currency,
       },
     ]);
@@ -460,11 +458,14 @@ export async function handleConfirmTransaction(
     const formattedAmount = Number(tx.amount).toLocaleString();
     const isIncome = tx.type === "income";
 
+    const typeTag = isIncome ? emptyMsgs.typeIncome : emptyMsgs.typeExpense;
+
     const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl, {
       item: tx.item,
       amount: formattedAmount,
       isIncome,
       category: tx.category,
+      typeTag,
     });
 
     if (tx.action === "set_budget") {
@@ -495,7 +496,6 @@ export async function handleConfirmTransaction(
         item: tx.item,
         category: tx.category,
         amount: tx.amount,
-        person: tx.person,
         currency: tx.currency || userProfile.currency,
       },
     ]);
