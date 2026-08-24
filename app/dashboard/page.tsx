@@ -1493,7 +1493,7 @@ export default function BrooDashboard() {
     const monthExpenseList = thisMonthTx.filter(t => t.type === "expense");
 
     // "MMM YYYY" key (e.g. "Aug 2026") used both as the dropdown's option
-    // text and as the value stamped on every row of the Raw Data sheet, so
+    // text and as the value stamped on every hidden row on All Records, so
     // SUMIFS can match a transaction to whichever month is picked.
     const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthKeyOf = (d: Date) => `${MONTH_ABBR[d.getMonth()]} ${d.getFullYear()}`;
@@ -1503,32 +1503,20 @@ export default function BrooDashboard() {
       monthKeyOf(new Date(now.getFullYear(), now.getMonth() - i, 1))
     );
 
-    // ---- Hidden "Raw Data" sheet — powers the month picker ----
-    // Full, unfiltered transaction history plus a plain-text MonthKey per
-    // row (not a formula — so it's correct even in viewers that don't
-    // recalculate). Budget Handling & Summary on "This Month" use SUMIFS
-    // against this sheet, filtered by whichever month is selected in the
-    // picker cell.
-    const wsRaw = workbook.addWorksheet("Raw Data", { state: "hidden" });
-    wsRaw.columns = [{ width: 14 }, { width: 26 }, { width: 22 }, { width: 10 }, { width: 14 }, { width: 12 }];
-    ["Date", "Item/Source", "Category", "Type", "Amount", "MonthKey"].forEach((h, i) => {
-      wsRaw.getRow(1).getCell(i + 1).value = h;
-    });
-    transactions.forEach((t, i) => {
-      const r = i + 2;
-      const d = t.created_at ? new Date(t.created_at) : null;
-      wsRaw.getRow(r).getCell(1).value = d ? d.toLocaleDateString() : "";
-      wsRaw.getRow(r).getCell(2).value = t.item || "";
-      wsRaw.getRow(r).getCell(3).value = t.category || "General";
-      wsRaw.getRow(r).getCell(4).value = t.type || "expense";
-      wsRaw.getRow(r).getCell(5).value = Number(t.amount || 0);
-      wsRaw.getRow(r).getCell(6).value = d ? monthKeyOf(d) : "";
-    });
+    // No separate "Raw Data" sheet. Instead, the full transaction history
+    // (+ MonthKey per row) that powers the month picker's SUMIFS formulas
+    // is tucked into hidden columns H:M of the "All Records" sheet further
+    // below (see RAW_* constants), so it doesn't clutter the workbook with
+    // an extra tab while the picker still works.
     const rawDataLastRow = Math.max(2, transactions.length + 1);
-    // Picker's dropdown source list, tucked in column H of the same sheet.
-    monthPickerOptions.forEach((m, i) => {
-      wsRaw.getRow(i + 2).getCell(8).value = m;
-    });
+    const RAW_SHEET = "All Records";
+    const RAW_COL_DATE = "H";
+    const RAW_COL_ITEM = "I";
+    const RAW_COL_CATEGORY = "J";
+    const RAW_COL_TYPE = "K";
+    const RAW_COL_AMOUNT = "L";
+    const RAW_COL_MONTHKEY = "M";
+    const RAW_COL_OPTIONS = "O";
 
     const ws1 = workbook.addWorksheet("This Month", { views: [{ showGridLines: false }] });
     ws1.columns = [{ width: 14 }, { width: 26 }, { width: 18 }, { width: 16 }];
@@ -1559,7 +1547,7 @@ export default function BrooDashboard() {
     pickerCell.dataValidation = {
       type: "list",
       allowBlank: false,
-      formulae: [`'Raw Data'!$H$2:$H$${1 + monthPickerOptions.length}`],
+      formulae: [`'${RAW_SHEET}'!$${RAW_COL_OPTIONS}$2:$${RAW_COL_OPTIONS}$${1 + monthPickerOptions.length}`],
       showErrorMessage: true,
       errorTitle: "Invalid month",
       error: "Please pick a month from the dropdown.",
@@ -1582,7 +1570,7 @@ export default function BrooDashboard() {
 
     const budgetCategories = Object.keys(categoryBudgets).length > 0 ? Object.keys(categoryBudgets) : CATEGORY_OPTIONS;
     const budgetFirstRow = budgetHeaderRow + 1;
-    // "Actual Spent" / "Remaining" are SUMIFS formulas against Raw Data so
+    // "Actual Spent" / "Remaining" are SUMIFS formulas against the hidden data so
     // they respond to the month picker above. Each also carries a cached
     // `result` (computed here in JS for the current month, matching the
     // picker's default) so the sheet still shows correct numbers the
@@ -1603,7 +1591,7 @@ export default function BrooDashboard() {
       ws1.getRow(r).getCell(1).value = cat;
       ws1.getRow(r).getCell(2).value = budgeted;
       ws1.getRow(r).getCell(3).value = {
-        formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"expense",'Raw Data'!$C$2:$C$${rawDataLastRow},A${r},'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+        formula: `SUMIFS('${RAW_SHEET}'!$${RAW_COL_AMOUNT}$2:$${RAW_COL_AMOUNT}$${rawDataLastRow},'${RAW_SHEET}'!$${RAW_COL_TYPE}$2:$${RAW_COL_TYPE}$${rawDataLastRow},"expense",'${RAW_SHEET}'!$${RAW_COL_CATEGORY}$2:$${RAW_COL_CATEGORY}$${rawDataLastRow},A${r},'${RAW_SHEET}'!$${RAW_COL_MONTHKEY}$2:$${RAW_COL_MONTHKEY}$${rawDataLastRow},$C$${pickerRow})`,
         result: spentNow,
       };
       ws1.getRow(r).getCell(4).value = { formula: `B${r}-C${r}`, result: budgeted - spentNow };
@@ -1637,7 +1625,7 @@ export default function BrooDashboard() {
         row: summaryIncomeRow,
         label: "Total Income",
         value: {
-          formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"income",'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+          formula: `SUMIFS('${RAW_SHEET}'!$${RAW_COL_AMOUNT}$2:$${RAW_COL_AMOUNT}$${rawDataLastRow},'${RAW_SHEET}'!$${RAW_COL_TYPE}$2:$${RAW_COL_TYPE}$${rawDataLastRow},"income",'${RAW_SHEET}'!$${RAW_COL_MONTHKEY}$2:$${RAW_COL_MONTHKEY}$${rawDataLastRow},$C$${pickerRow})`,
           result: incomeResult.total,
         },
       },
@@ -1645,7 +1633,7 @@ export default function BrooDashboard() {
         row: summaryExpenseRow,
         label: "Total Expenses",
         value: {
-          formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"expense",'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+          formula: `SUMIFS('${RAW_SHEET}'!$${RAW_COL_AMOUNT}$2:$${RAW_COL_AMOUNT}$${rawDataLastRow},'${RAW_SHEET}'!$${RAW_COL_TYPE}$2:$${RAW_COL_TYPE}$${rawDataLastRow},"expense",'${RAW_SHEET}'!$${RAW_COL_MONTHKEY}$2:$${RAW_COL_MONTHKEY}$${rawDataLastRow},$C$${pickerRow})`,
           result: expenseResult.total,
         },
       },
@@ -1690,6 +1678,39 @@ export default function BrooDashboard() {
 
     const allIncomeResult = writeIncomeExpenseTable(ws2, 3, "ALL INCOME", "Source", INCOME_HEADER, INCOME_FILL, allIncomeList, "TOTAL");
     writeIncomeExpenseTable(ws2, allIncomeResult.nextRow, "ALL EXPENSES", "Item", EXPENSE_HEADER, EXPENSE_FILL, allExpenseList, "TOTAL");
+
+    // ---- Hidden data (columns H:O) — powers the "This Month" month picker ----
+    // Full, unfiltered transaction history plus a plain-text MonthKey per
+    // row (not a formula — so it's correct even in viewers that don't
+    // recalculate), tucked into hidden columns on this sheet instead of a
+    // separate "Raw Data" tab. Budget Handling & Summary on "This Month"
+    // run SUMIFS against these columns, filtered by whichever month is
+    // selected in the picker cell.
+    ws2.getCell(`${RAW_COL_DATE}1`).value = "Date";
+    ws2.getCell(`${RAW_COL_ITEM}1`).value = "Item/Source";
+    ws2.getCell(`${RAW_COL_CATEGORY}1`).value = "Category";
+    ws2.getCell(`${RAW_COL_TYPE}1`).value = "Type";
+    ws2.getCell(`${RAW_COL_AMOUNT}1`).value = "Amount";
+    ws2.getCell(`${RAW_COL_MONTHKEY}1`).value = "MonthKey";
+    transactions.forEach((t, i) => {
+      const r = i + 2;
+      const d = t.created_at ? new Date(t.created_at) : null;
+      ws2.getCell(`${RAW_COL_DATE}${r}`).value = d ? d.toLocaleDateString() : "";
+      ws2.getCell(`${RAW_COL_ITEM}${r}`).value = t.item || "";
+      ws2.getCell(`${RAW_COL_CATEGORY}${r}`).value = t.category || "General";
+      ws2.getCell(`${RAW_COL_TYPE}${r}`).value = t.type || "expense";
+      ws2.getCell(`${RAW_COL_AMOUNT}${r}`).value = Number(t.amount || 0);
+      ws2.getCell(`${RAW_COL_MONTHKEY}${r}`).value = d ? monthKeyOf(d) : "";
+    });
+    // Picker's dropdown source list.
+    monthPickerOptions.forEach((m, i) => {
+      ws2.getCell(`${RAW_COL_OPTIONS}${i + 2}`).value = m;
+    });
+    // Keep columns H:O out of sight — they're formula plumbing, not a
+    // sheet meant to be browsed.
+    ["H", "I", "J", "K", "L", "M", "N", "O"].forEach(col => {
+      ws2.getColumn(col).hidden = true;
+    });
 
     // ---------- download ----------
     const buffer = await workbook.xlsx.writeBuffer();
