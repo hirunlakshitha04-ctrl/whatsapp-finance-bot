@@ -31,13 +31,14 @@ export async function GET(req: NextRequest) {
     targetEnd.setHours(23, 59, 59, 999);
 
     // 3. 🔍 DB Query: Active Subscription එකක් තිබෙන, Renewal එක තව දවස් 3කින් එන Users ලා
+    //    🆕 subscription_ends_at වෙනුවට subscription_renews_at (LemonSqueezy webhook එකෙන් save වෙන column එක) use කරයි
     const { data: activeUsers, error } = await supabase
       .from("users")
-      .select("phone_number, subscription_ends_at")
+      .select("phone_number, subscription_renews_at")
       .eq("is_paid", true)
       .eq("subscription_status", "active")
-      .gte("subscription_ends_at", targetStart.toISOString())
-      .lte("subscription_ends_at", targetEnd.toISOString());
+      .gte("subscription_renews_at", targetStart.toISOString())
+      .lte("subscription_renews_at", targetEnd.toISOString());
 
     if (error) {
       console.error("❌ Error fetching active users for monthly reminder:", error);

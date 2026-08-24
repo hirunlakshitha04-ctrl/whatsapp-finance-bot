@@ -116,7 +116,10 @@ export async function POST(req: Request) {
     // Subscription status එක ලබා ගැනීම (active, on_trial, expired, cancelled ආදී වශයෙන්)
     const subscriptionStatus = attributes?.status;
 
-    console.log(`⚡ Webhook Event: ${eventName} | Status: ${subscriptionStatus} | Email: ${userEmail} | Variant ID: ${variantId}`);
+    // 🆕 Subscription එක ඊළඟට renew වෙන දිනය (monthly-reminder cron එකට අවශ්‍යයි)
+    const renewsAt = attributes?.renews_at || null;
+
+    console.log(`⚡ Webhook Event: ${eventName} | Status: ${subscriptionStatus} | Email: ${userEmail} | Variant ID: ${variantId} | Renews At: ${renewsAt}`);
 
     if (
       eventName === "subscription_created" ||
@@ -150,6 +153,10 @@ export async function POST(req: Request) {
         }
         if (customerId) {
           updateData.lemon_squeezy_customer_id = customerId;
+        }
+        // 🆕 Renewal date එක save කිරීම — monthly-reminder cron එකට ම මේ column එකෙන්ම data ලැබෙනවා
+        if (renewsAt) {
+          updateData.subscription_renews_at = renewsAt;
         }
 
         const applyIdentityFilter = (q: any) => {
@@ -201,6 +208,7 @@ export async function POST(req: Request) {
         plan: "LITE",
         payment_status: "EXPIRED",
         is_active: false,
+        subscription_renews_at: null, // 🆕 downgrade වුනාම renewal date එක clear කරන්න
         updated_at: new Date().toISOString(),
       };
 
