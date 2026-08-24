@@ -433,6 +433,13 @@ export default function BrooDashboard() {
   const [isEditingBudget, setIsEditingBudget] = useState<boolean>(false);
   const [tempBudget, setTempBudget] = useState<string>("0");
   const [tempCatBudgets, setTempCatBudgets] = useState<{ [key: string]: string }>({});
+  // Maps a category name -> its row id in the "budgets" table, so edits/renames/
+  // deletes can target the exact Supabase row instead of guessing by category text.
+  const [budgetRowIds, setBudgetRowIds] = useState<{ [key: string]: string }>({});
+  // While editing, holds { originalCategory: newlyChosenCategory } for any category
+  // the user re-labelled via the dropdown. Cleared on save/cancel.
+  const [tempCatNames, setTempCatNames] = useState<{ [key: string]: string }>({});
+  const [deletingBudgetCat, setDeletingBudgetCat] = useState<string | null>(null);
 
   const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
   const [addBudgetCategory, setAddBudgetCategory] = useState<string>("");
@@ -569,16 +576,19 @@ export default function BrooDashboard() {
 
     if (budgetData && budgetData.length > 0) {
       const catMap: { [key: string]: number } = {};
+      const idMap: { [key: string]: string } = {};
       let totalB = 0;
       budgetData.forEach((b: any) => {
         const amt = Number(b.amount_limit || 0);
         catMap[b.category] = amt;
+        if (b.id) idMap[b.category] = b.id;
         totalB += amt;
       });
 
       setMonthlyBudget(totalB);
       setTempBudget(totalB.toString());
       setCategoryBudgets(catMap);
+      setBudgetRowIds(idMap);
       
       const tempMap: { [key: string]: string } = {};
       Object.keys(catMap).forEach(k => {
@@ -672,15 +682,39 @@ export default function BrooDashboard() {
     if (isNaN(val) || val < 0) return;
 
     const newCatBudgetsMap: { [key: string]: number } = {};
-    Object.keys(tempCatBudgets).forEach(cat => {
-      newCatBudgetsMap[cat] = Number(tempCatBudgets[cat]) || 0;
+    const newBudgetRowIds: { [key: string]: string } = {};
+    const dbUpdates: PromiseLike<any>[] = [];
+
+    Object.keys(tempCatBudgets).forEach(origCat => {
+      const newCat = (tempCatNames[origCat] || origCat).trim();
+      const amt = Number(tempCatBudgets[origCat]) || 0;
+      newCatBudgetsMap[newCat] = amt;
+
+      const rowId = budgetRowIds[origCat];
+      if (rowId) {
+        newBudgetRowIds[newCat] = rowId;
+        // Persist both the (possibly renamed) category and the new amount to
+        // the same "budgets" row the bot writes to.
+        dbUpdates.push(
+          supabase.from("budgets").update({ category: newCat, amount_limit: amt }).eq("id", rowId)
+        );
+      }
+    });
+
+    const newTempCatBudgets: { [key: string]: string } = {};
+    Object.keys(newCatBudgetsMap).forEach(k => {
+      newTempCatBudgets[k] = newCatBudgetsMap[k].toString();
     });
 
     setMonthlyBudget(val);
     setCategoryBudgets(newCatBudgetsMap);
+    setTempCatBudgets(newTempCatBudgets);
+    setBudgetRowIds(newBudgetRowIds);
+    setTempCatNames({});
     setIsEditingBudget(false);
 
     try {
+      await Promise.all(dbUpdates);
       await supabase
         .from("users")
         .update({ 
@@ -690,6 +724,73 @@ export default function BrooDashboard() {
         .eq("email", userEmail);
     } catch (err) {
       console.error("Error saving budget:", err);
+    }
+  };
+
+  const handleCancelEditBudget = () => {
+    // Revert any in-progress category renames / amount edits back to what's
+    // currently saved, without touching Supabase.
+    const tempMap: { [key: string]: string } = {};
+    Object.keys(categoryBudgets).forEach(k => {
+      tempMap[k] = categoryBudgets[k].toString();
+    });
+    setTempCatBudgets(tempMap);
+    setTempBudget(monthlyBudget.toString());
+    setTempCatNames({});
+    setIsEditingBudget(false);
+  };
+
+  // Removes a category's budget entirely — deletes the Supabase row (matched
+  // by its id when known, falling back to user_id + category) and updates
+  // local totals so the overall monthly budget stays in sync.
+  const handleDeleteBudgetCategory = async (cat: string) => {
+    if (!window.confirm(`Remove the budget for "${cat}"? This can't be undone.`)) return;
+
+    const amt = categoryBudgets[cat] || 0;
+    const rowId = budgetRowIds[cat];
+    setDeletingBudgetCat(cat);
+
+    try {
+      if (rowId) {
+        await supabase.from("budgets").delete().eq("id", rowId);
+      } else if (dbUserId) {
+        await supabase.from("budgets").delete().eq("user_id", dbUserId).eq("category", cat);
+      }
+
+      setCategoryBudgets(prev => {
+        const next = { ...prev };
+        delete next[cat];
+        return next;
+      });
+      setTempCatBudgets(prev => {
+        const next = { ...prev };
+        delete next[cat];
+        return next;
+      });
+      setBudgetRowIds(prev => {
+        const next = { ...prev };
+        delete next[cat];
+        return next;
+      });
+      setTempCatNames(prev => {
+        const next = { ...prev };
+        delete next[cat];
+        return next;
+      });
+      setMonthlyBudget(prev => Math.max(0, prev - amt));
+      setTempBudget(prev => Math.max(0, Number(prev) - amt).toString());
+
+      try {
+        await supabase
+          .from("users")
+          .update({ monthly_budget: Math.max(0, monthlyBudget - amt) })
+          .eq("email", userEmail);
+      } catch { /* non-critical fallback sync */ }
+    } catch (err) {
+      console.error("Error deleting budget category:", err);
+      alert("Failed to remove that budget. Please try again.");
+    } finally {
+      setDeletingBudgetCat(null);
     }
   };
 
@@ -739,6 +840,9 @@ export default function BrooDashboard() {
 
       setCategoryBudgets(prev => ({ ...prev, [addBudgetCategory]: amt }));
       setTempCatBudgets(prev => ({ ...prev, [addBudgetCategory]: amt.toString() }));
+      if (insertedRows[0]?.id) {
+        setBudgetRowIds(prev => ({ ...prev, [addBudgetCategory]: insertedRows[0].id }));
+      }
       setMonthlyBudget(prev => prev + amt);
       setTempBudget(prev => (Number(prev) + amt).toString());
       setShowAddBudgetModal(false);
@@ -1140,6 +1244,47 @@ export default function BrooDashboard() {
   [rangeFilteredTransactions]);
 
   const accountBalance = totalIncome - totalExpense;
+
+  // Independent of the "From date / To date" summary filter above — always
+  // the current calendar month, so "Overall Monthly Budget" stays accurate
+  // even when the user is viewing a different range elsewhere on the page.
+  const currentMonthExpense = useMemo(() => {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return transactions
+      .filter(t => t.type === "expense" && t.created_at)
+      .filter(t => {
+        const txDate = new Date(t.created_at);
+        return txDate >= start && txDate <= end;
+      })
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  }, [transactions, now.getFullYear(), now.getMonth()]);
+
+  // Per-category current-month spend — kept in step with currentMonthExpense
+  // above so every number in the Budget & Remaining card reflects the same
+  // "this calendar month" window, regardless of the dashboard's date filter.
+  const categoryMonthExpenses = useMemo(() => {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const map: { [key: string]: number } = {};
+    transactions
+      .filter(t => t.type === "expense" && t.created_at)
+      .filter(t => {
+        const txDate = new Date(t.created_at);
+        return txDate >= start && txDate <= end;
+      })
+      .forEach(t => {
+        const cat = t.category || "Other";
+        map[cat] = (map[cat] || 0) + Number(t.amount || 0);
+      });
+    return map;
+  }, [transactions, now.getFullYear(), now.getMonth()]);
 
   const categoryExpenses = useMemo(() => {
     const map: { [key: string]: number } = {};
@@ -1750,9 +1895,14 @@ export default function BrooDashboard() {
                           </button>
                         )}
                         {isEditingBudget ? (
-                          <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md">
-                            Save
-                          </button>
+                          <>
+                            <button onClick={handleCancelEditBudget} className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
+                              <X size={12} /> Cancel
+                            </button>
+                            <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1">
+                              <Check size={12} strokeWidth={3} /> Save
+                            </button>
+                          </>
                         ) : (
                           <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
                             <Edit2 size={12} /> Edit Targets
@@ -1763,8 +1913,8 @@ export default function BrooDashboard() {
                   </div>
 
                   {subscriptionPlan !== "lite" && monthlyBudget > 0 && (() => {
-                    const overallRemaining = monthlyBudget - totalExpense;
-                    const overallPct = Math.min(100, (totalExpense / monthlyBudget) * 100);
+                    const overallRemaining = monthlyBudget - currentMonthExpense;
+                    const overallPct = Math.min(100, (currentMonthExpense / monthlyBudget) * 100);
                     const overallOver = overallRemaining < 0;
                     return (
                       <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl backdrop-blur-md mb-3 space-y-2">
@@ -1785,11 +1935,12 @@ export default function BrooDashboard() {
                           />
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-slate-400">
-                          <span>Spent: <strong className="text-rose-400">{currency} {totalExpense.toFixed(2)}</strong> / {currency} {monthlyBudget.toFixed(2)}</span>
+                          <span>Spent: <strong className="text-rose-400">{currency} {currentMonthExpense.toFixed(2)}</strong> / {currency} {monthlyBudget.toFixed(2)}</span>
                           <span>
                             {overallOver ? "Over by" : "Remaining"}: <strong className={overallOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(overallRemaining).toFixed(2)}</strong>
                           </span>
                         </div>
+                        <p className="text-[10px] text-slate-500 pt-0.5">Tracks {now.toLocaleString("default", { month: "long", year: "numeric" })} only, regardless of the date filter above.</p>
                       </div>
                     );
                   })()}
@@ -1812,13 +1963,13 @@ export default function BrooDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-3 mt-2">
-                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances:</p>
+                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances (current month):</p>
                       
                       <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
                         {Object.keys(categoryBudgets).length > 0 ? (
                           Object.keys(categoryBudgets).map((cat) => {
                             const limit = categoryBudgets[cat] || 0;
-                            const spent = categoryExpenses[cat] || 0;
+                            const spent = categoryMonthExpenses[cat] || 0;
                             const remaining = limit - spent;
                             const isOver = remaining < 0;
                             const catPct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
@@ -1826,23 +1977,57 @@ export default function BrooDashboard() {
 
                             return (
                               <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-bold text-slate-200 flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: catColor }} />
-                                    {cat}
-                                  </span>
+                                <div className="flex items-center justify-between gap-2 text-xs">
                                   {isEditingBudget ? (
-                                    <input 
-                                      type="number"
-                                      value={tempCatBudgets[cat] ?? limit}
-                                      onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
-                                      className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
-                                    />
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                      <select
+                                        value={tempCatNames[cat] ?? cat}
+                                        onChange={(e) => setTempCatNames({ ...tempCatNames, [cat]: e.target.value })}
+                                        className="min-w-0 flex-1 bg-slate-950 border border-white/10 text-[11px] text-slate-200 font-bold px-2 py-1 rounded-lg focus:border-emerald-500 focus:outline-none"
+                                      >
+                                        <option value={cat}>{cat}</option>
+                                        {availableBudgetCategories.map((c) => (
+                                          <option key={c} value={c}>{c}</option>
+                                        ))}
+                                      </select>
+                                    </div>
                                   ) : (
-                                    <span className="text-[11px] text-slate-400 font-medium">
-                                      Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                                    <span className="font-bold text-slate-200 flex items-center gap-2 min-w-0">
+                                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                      <span className="truncate">{cat}</span>
                                     </span>
                                   )}
+
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {isEditingBudget ? (
+                                      <input 
+                                        type="number"
+                                        value={tempCatBudgets[cat] ?? limit}
+                                        onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
+                                        className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
+                                      />
+                                    ) : (
+                                      <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                                        Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                                      </span>
+                                    )}
+                                    {isEditingBudget && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteBudgetCategory(cat)}
+                                        disabled={deletingBudgetCat === cat}
+                                        title={`Remove ${cat} budget`}
+                                        className="text-slate-400 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition disabled:opacity-40"
+                                      >
+                                        {deletingBudgetCat === cat ? (
+                                          <RefreshCw size={12} className="animate-spin" />
+                                        ) : (
+                                          <Trash2 size={12} />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {!isEditingBudget && limit > 0 && (
