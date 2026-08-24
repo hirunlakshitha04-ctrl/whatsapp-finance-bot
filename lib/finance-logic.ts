@@ -388,14 +388,21 @@ export async function saveExtractedDirect(
 
   try {
     if (tx.action === "set_budget") {
-      const { error: budgetErr } = await supabase.from("budgets").insert([
-        {
-          [idColumn]: idValue,
-          user_id: userProfile.id,
-          category: tx.category || "General",
-          amount_limit: tx.amount,
-        },
-      ]);
+      // upsert (not insert): if this user already has a budget row for this
+      // category, UPDATE its amount_limit instead of creating a duplicate
+      // row — duplicates make the dashboard's "Overall Monthly Budget" total
+      // silently inflate every time a budget is re-set via chat.
+      const { error: budgetErr } = await supabase.from("budgets").upsert(
+        [
+          {
+            [idColumn]: idValue,
+            user_id: userProfile.id,
+            category: tx.category || "General",
+            amount_limit: tx.amount,
+          },
+        ],
+        { onConflict: "user_id,category" }
+      );
       if (budgetErr) throw budgetErr;
       return msgs.budgetSaved;
     }
@@ -461,14 +468,19 @@ export async function handleConfirmTransaction(
     });
 
     if (tx.action === "set_budget") {
-      const { error: budgetErr } = await supabase.from("budgets").insert([
-        {
-          [idColumn]: idValue,
-          user_id: userProfile.id,
-          category: tx.category || "General",
-          amount_limit: tx.amount,
-        },
-      ]);
+      // Same upsert fix as saveExtractedDirect — avoids duplicate budget
+      // rows when a category budget is re-set through the confirm flow.
+      const { error: budgetErr } = await supabase.from("budgets").upsert(
+        [
+          {
+            [idColumn]: idValue,
+            user_id: userProfile.id,
+            category: tx.category || "General",
+            amount_limit: tx.amount,
+          },
+        ],
+        { onConflict: "user_id,category" }
+      );
       if (budgetErr) throw budgetErr;
 
       await supabase.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
