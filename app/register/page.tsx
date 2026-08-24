@@ -950,15 +950,24 @@ function RegisterForm() {
           : String(authError);
 
         const lowerMsg = message.toLowerCase();
+        console.error("Supabase signUp error:", authError);
 
         const isPhoneDuplicate =
           lowerMsg.includes("phone") && lowerMsg.includes("duplicate key value");
+
+        // Only treat this as "email already registered" when the message is
+        // SPECIFICALLY about a duplicate email/user. Generic Supabase auth
+        // failures like "Database error saving new user" or
+        // "unexpected_failure" can be caused by an unrelated DB trigger /
+        // constraint issue and do NOT mean the email exists — treating them
+        // as a duplicate makes us try signInWithPassword() with a fresh
+        // email (which always fails) and wrongly tell the user their email
+        // is "registered" when it isn't.
         const isEmailDuplicate =
           lowerMsg.includes("user already registered") ||
-          lowerMsg.includes("already exists") ||
-          (lowerMsg.includes("duplicate key value") && !isPhoneDuplicate) ||
-          lowerMsg.includes("database error saving new user") ||
-          lowerMsg.includes("unexpected_failure");
+          lowerMsg.includes("already registered") ||
+          (lowerMsg.includes("already exists") && lowerMsg.includes("email")) ||
+          (lowerMsg.includes("duplicate key value") && lowerMsg.includes("email") && !isPhoneDuplicate);
 
         if (isPhoneDuplicate) {
           setErrorMsg("This WhatsApp number is already registered with another account. Please use a different number, or log in with the original email.");
@@ -1009,7 +1018,15 @@ function RegisterForm() {
 
           userId = existingUserId;
         } else {
-          setErrorMsg(message);
+          const isGenericServerError =
+            lowerMsg.includes("database error saving new user") ||
+            lowerMsg.includes("unexpected_failure");
+
+          setErrorMsg(
+            isGenericServerError
+              ? "Something went wrong while creating your account. Please try again in a moment — if it keeps happening, contact support."
+              : message
+          );
           setLoading(false);
           return;
         }
