@@ -1480,7 +1480,7 @@ export default function BrooDashboard() {
     };
 
     // =====================================================================
-    // SHEET 1: This Month — Income, Expenses, Budget Handling
+    // SHEET 1: This Month — Income, Expenses, Budget Handling (+ Month Picker)
     // =====================================================================
     const now = new Date();
     const monthLabel = now.toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -1491,6 +1491,44 @@ export default function BrooDashboard() {
     });
     const monthIncomeList = thisMonthTx.filter(t => t.type === "income");
     const monthExpenseList = thisMonthTx.filter(t => t.type === "expense");
+
+    // "MMM YYYY" key (e.g. "Aug 2026") used both as the dropdown's option
+    // text and as the value stamped on every row of the Raw Data sheet, so
+    // SUMIFS can match a transaction to whichever month is picked.
+    const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthKeyOf = (d: Date) => `${MONTH_ABBR[d.getMonth()]} ${d.getFullYear()}`;
+    const currentMonthKey = monthKeyOf(now);
+    // Last 12 months, most recent (current) first — matches the dropdown order.
+    const monthPickerOptions = Array.from({ length: 12 }, (_, i) =>
+      monthKeyOf(new Date(now.getFullYear(), now.getMonth() - i, 1))
+    );
+
+    // ---- Hidden "Raw Data" sheet — powers the month picker ----
+    // Full, unfiltered transaction history plus a plain-text MonthKey per
+    // row (not a formula — so it's correct even in viewers that don't
+    // recalculate). Budget Handling & Summary on "This Month" use SUMIFS
+    // against this sheet, filtered by whichever month is selected in the
+    // picker cell.
+    const wsRaw = workbook.addWorksheet("Raw Data", { state: "hidden" });
+    wsRaw.columns = [{ width: 14 }, { width: 26 }, { width: 22 }, { width: 10 }, { width: 14 }, { width: 12 }];
+    ["Date", "Item/Source", "Category", "Type", "Amount", "MonthKey"].forEach((h, i) => {
+      wsRaw.getRow(1).getCell(i + 1).value = h;
+    });
+    transactions.forEach((t, i) => {
+      const r = i + 2;
+      const d = t.created_at ? new Date(t.created_at) : null;
+      wsRaw.getRow(r).getCell(1).value = d ? d.toLocaleDateString() : "";
+      wsRaw.getRow(r).getCell(2).value = t.item || "";
+      wsRaw.getRow(r).getCell(3).value = t.category || "General";
+      wsRaw.getRow(r).getCell(4).value = t.type || "expense";
+      wsRaw.getRow(r).getCell(5).value = Number(t.amount || 0);
+      wsRaw.getRow(r).getCell(6).value = d ? monthKeyOf(d) : "";
+    });
+    const rawDataLastRow = Math.max(2, transactions.length + 1);
+    // Picker's dropdown source list, tucked in column H of the same sheet.
+    monthPickerOptions.forEach((m, i) => {
+      wsRaw.getRow(i + 2).getCell(8).value = m;
+    });
 
     const ws1 = workbook.addWorksheet("This Month", { views: [{ showGridLines: false }] });
     ws1.columns = [{ width: 14 }, { width: 26 }, { width: 18 }, { width: 16 }];
@@ -1505,8 +1543,36 @@ export default function BrooDashboard() {
     const incomeResult = writeIncomeExpenseTable(ws1, 3, "INCOME", "Source", INCOME_HEADER, INCOME_FILL, monthIncomeList, "TOTAL INCOME");
     const expenseResult = writeIncomeExpenseTable(ws1, incomeResult.nextRow, "EXPENSES", "Item", EXPENSE_HEADER, EXPENSE_FILL, monthExpenseList, "TOTAL EXPENSES");
 
+    // ---- Month Picker ----
+    const pickerRow = expenseResult.nextRow;
+    ws1.mergeCells(`A${pickerRow}:B${pickerRow}`);
+    ws1.getRow(pickerRow).getCell(1).value = "📅 Viewing Month:";
+    ws1.getRow(pickerRow).getCell(1).font = { name: FONT_NAME, size: 10, bold: true };
+    ws1.getRow(pickerRow).getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+    const monthPickerCellRef = `C${pickerRow}`;
+    const pickerCell = ws1.getCell(monthPickerCellRef);
+    pickerCell.value = currentMonthKey;
+    pickerCell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: WHITE } };
+    pickerCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    pickerCell.alignment = { horizontal: "center", vertical: "middle" };
+    pickerCell.border = cellBorder;
+    pickerCell.dataValidation = {
+      type: "list",
+      allowBlank: false,
+      formulae: [`'Raw Data'!$H$2:$H$${1 + monthPickerOptions.length}`],
+      showErrorMessage: true,
+      errorTitle: "Invalid month",
+      error: "Please pick a month from the dropdown.",
+    };
+    const pickerNoteRow = pickerRow + 1;
+    ws1.mergeCells(`A${pickerNoteRow}:D${pickerNoteRow}`);
+    ws1.getRow(pickerNoteRow).getCell(1).value =
+      "Change the month above — Budget Handling & Summary below recalculate automatically (desktop Excel/Sheets). Income/Expenses tables above stay fixed to the export month.";
+    ws1.getRow(pickerNoteRow).getCell(1).font = { name: FONT_NAME, size: 8, italic: true, color: { argb: "FF888888" } };
+    ws1.getRow(pickerNoteRow).getCell(1).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
     // ---- Budget Handling table ----
-    const budgetTitleRow = expenseResult.nextRow;
+    const budgetTitleRow = pickerNoteRow + 1;
     styleTitle(ws1, budgetTitleRow, `A${budgetTitleRow}:D${budgetTitleRow}`, "BUDGET HANDLING", BUDGET_HEADER);
     const budgetHeaderRow = budgetTitleRow + 1;
     ["Category", "Budgeted", "Actual Spent", "Remaining"].forEach((h, i) => {
@@ -1516,29 +1582,31 @@ export default function BrooDashboard() {
 
     const budgetCategories = Object.keys(categoryBudgets).length > 0 ? Object.keys(categoryBudgets) : CATEGORY_OPTIONS;
     const budgetFirstRow = budgetHeaderRow + 1;
-    // NOTE: "Actual Spent" / "Remaining" used to be written as Excel formulas
-    // (SUMIFS / subtraction). Formula cells have no cached result, so any
-    // viewer that doesn't run a calc engine on open (mobile Excel/WPS quick
-    // preview, Google Sheets preview, file-manager thumbnails, etc.) shows
-    // them blank. Computing the numbers here in JS and writing plain values
-    // guarantees every viewer shows the real figures immediately.
+    // "Actual Spent" / "Remaining" are SUMIFS formulas against Raw Data so
+    // they respond to the month picker above. Each also carries a cached
+    // `result` (computed here in JS for the current month, matching the
+    // picker's default) so the sheet still shows correct numbers the
+    // instant it's opened, even in viewers that don't recalculate —
+    // switching the picker itself still needs a real recalculating app.
     let budgetTotalBudgeted = 0;
-    let budgetTotalSpent = 0;
+    let budgetTotalSpentNow = 0;
     budgetCategories.forEach((cat, i) => {
       const r = budgetFirstRow + i;
       const budgeted = Number(categoryBudgets[cat] || 0);
-      const spent = monthExpenseList
+      const spentNow = monthExpenseList
         .filter(t => t.category === cat)
         .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-      const remaining = budgeted - spent;
 
       budgetTotalBudgeted += budgeted;
-      budgetTotalSpent += spent;
+      budgetTotalSpentNow += spentNow;
 
       ws1.getRow(r).getCell(1).value = cat;
       ws1.getRow(r).getCell(2).value = budgeted;
-      ws1.getRow(r).getCell(3).value = spent;
-      ws1.getRow(r).getCell(4).value = remaining;
+      ws1.getRow(r).getCell(3).value = {
+        formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"expense",'Raw Data'!$C$2:$C$${rawDataLastRow},A${r},'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+        result: spentNow,
+      };
+      ws1.getRow(r).getCell(4).value = { formula: `B${r}-C${r}`, result: budgeted - spentNow };
       styleDataRow(ws1, r, 4, BUDGET_FILL, 2);
       styleDataRow(ws1, r, 4, BUDGET_FILL, 3);
       styleDataRow(ws1, r, 4, BUDGET_FILL, 4);
@@ -1548,24 +1616,49 @@ export default function BrooDashboard() {
     const budgetTotalRow = budgetLastRow + 1;
     ws1.getRow(budgetTotalRow).getCell(1).value = "TOTAL";
     ws1.getRow(budgetTotalRow).getCell(2).value = budgetTotalBudgeted;
-    ws1.getRow(budgetTotalRow).getCell(3).value = budgetTotalSpent;
-    ws1.getRow(budgetTotalRow).getCell(4).value = budgetTotalBudgeted - budgetTotalSpent;
+    ws1.getRow(budgetTotalRow).getCell(3).value = {
+      formula: `SUM(C${budgetFirstRow}:C${budgetLastRow})`,
+      result: budgetTotalSpentNow,
+    };
+    ws1.getRow(budgetTotalRow).getCell(4).value = {
+      formula: `SUM(D${budgetFirstRow}:D${budgetLastRow})`,
+      result: budgetTotalBudgeted - budgetTotalSpentNow,
+    };
     styleTotalRow(ws1, budgetTotalRow, 4, BUDGET_HEADER, [2, 3, 4]);
 
     // ---- Summary box ----
     const summaryTitleRow = budgetTotalRow + 2;
     styleTitle(ws1, summaryTitleRow, `A${summaryTitleRow}:D${summaryTitleRow}`, "SUMMARY", TITLE_FILL);
-    // Plain computed values instead of formulas referencing the TOTAL rows
-    // above — those totals are themselves formula cells, so chaining a
-    // formula off a formula compounds the "blank until recalculated" risk
-    // in non-Excel viewers. Summary numbers are always correct this way.
-    const summaryEntries: [string, number][] = [
-      ["Total Income", incomeResult.total],
-      ["Total Expenses", expenseResult.total],
-      ["Net Balance", incomeResult.total - expenseResult.total]
+    const summaryIncomeRow = summaryTitleRow + 1;
+    const summaryExpenseRow = summaryTitleRow + 2;
+    const summaryNetRow = summaryTitleRow + 3;
+    const summaryEntries: { row: number; label: string; value: { formula: string; result: number } }[] = [
+      {
+        row: summaryIncomeRow,
+        label: "Total Income",
+        value: {
+          formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"income",'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+          result: incomeResult.total,
+        },
+      },
+      {
+        row: summaryExpenseRow,
+        label: "Total Expenses",
+        value: {
+          formula: `SUMIFS('Raw Data'!$E$2:$E$${rawDataLastRow},'Raw Data'!$D$2:$D$${rawDataLastRow},"expense",'Raw Data'!$F$2:$F$${rawDataLastRow},$C$${pickerRow})`,
+          result: expenseResult.total,
+        },
+      },
+      {
+        row: summaryNetRow,
+        label: "Net Balance",
+        value: {
+          formula: `B${summaryIncomeRow}-B${summaryExpenseRow}`,
+          result: incomeResult.total - expenseResult.total,
+        },
+      },
     ];
-    summaryEntries.forEach(([label, value], i) => {
-      const r = summaryTitleRow + 1 + i;
+    summaryEntries.forEach(({ row: r, label, value }) => {
       ws1.mergeCells(`B${r}:D${r}`);
       ws1.getRow(r).getCell(1).value = label;
       ws1.getRow(r).getCell(2).value = value;
