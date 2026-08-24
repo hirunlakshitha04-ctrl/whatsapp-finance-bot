@@ -1310,7 +1310,7 @@ export default function BrooDashboard() {
         map[cat] = (map[cat] || 0) + Number(t.amount || 0);
       });
     return map;
-  }, [transactions, now.getFullYear(), now.getMonth()]);
+  }, [transactions, budgetViewDate]);
 
   const categoryExpenses = useMemo(() => {
     const map: { [key: string]: number } = {};
