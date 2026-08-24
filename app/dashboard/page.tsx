@@ -10,7 +10,7 @@ import {
   PieChart as PieIcon, Calendar, RotateCcw,
   Sparkles, LogOut, Settings, LayoutDashboard,
   Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban, Trash2,
-  User, Mail, Phone, Camera, Globe, DollarSign, Coins, Receipt, CreditCard
+  User, Mail, Phone, Camera, Globe, DollarSign, Coins, Receipt, CreditCard, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
@@ -446,6 +446,13 @@ export default function BrooDashboard() {
   const [addBudgetAmount, setAddBudgetAmount] = useState<string>("");
   const [addBudgetLoading, setAddBudgetLoading] = useState(false);
 
+  // Which month the "Budget & Remaining" card is showing. Defaults to the
+  // current month; the person can step back to review past months, but
+  // never forward past the current month.
+  const [budgetViewDate, setBudgetViewDate] = useState<Date>(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+
   const now = new Date();
   const pad2 = (n: number) => String(n).padStart(2, "0");
   const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -738,6 +745,24 @@ export default function BrooDashboard() {
     setTempBudget(monthlyBudget.toString());
     setTempCatNames({});
     setIsEditingBudget(false);
+  };
+
+  // Month navigation for the Budget & Remaining card. Budgets themselves are
+  // fixed per category (there's no historical "this was the target back in
+  // June" record), but the spend figures shown against them can be reviewed
+  // for any past month. Stepping forward is capped at the current month.
+  const isBudgetViewCurrentMonth = useMemo(() => {
+    const n = new Date();
+    return budgetViewDate.getFullYear() === n.getFullYear() && budgetViewDate.getMonth() === n.getMonth();
+  }, [budgetViewDate]);
+
+  const handleBudgetPrevMonth = () => {
+    setBudgetViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleBudgetNextMonth = () => {
+    if (isBudgetViewCurrentMonth) return;
+    setBudgetViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   // Removes a category's budget entirely — deletes the Supabase row (matched
@@ -1245,13 +1270,14 @@ export default function BrooDashboard() {
 
   const accountBalance = totalIncome - totalExpense;
 
-  // Independent of the "From date / To date" summary filter above — always
-  // the current calendar month, so "Overall Monthly Budget" stays accurate
-  // even when the user is viewing a different range elsewhere on the page.
+  // Independent of the "From date / To date" summary filter above — tracks
+  // whichever month is selected via budgetViewDate (defaults to the current
+  // calendar month), so "Overall Monthly Budget" stays accurate even when
+  // the person is viewing a different range elsewhere on the page.
   const currentMonthExpense = useMemo(() => {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const start = new Date(budgetViewDate.getFullYear(), budgetViewDate.getMonth(), 1);
     start.setHours(0, 0, 0, 0);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const end = new Date(budgetViewDate.getFullYear(), budgetViewDate.getMonth() + 1, 0);
     end.setHours(23, 59, 59, 999);
 
     return transactions
@@ -1261,15 +1287,15 @@ export default function BrooDashboard() {
         return txDate >= start && txDate <= end;
       })
       .reduce((acc, t) => acc + Number(t.amount || 0), 0);
-  }, [transactions, now.getFullYear(), now.getMonth()]);
+  }, [transactions, budgetViewDate]);
 
-  // Per-category current-month spend — kept in step with currentMonthExpense
-  // above so every number in the Budget & Remaining card reflects the same
-  // "this calendar month" window, regardless of the dashboard's date filter.
+  // Per-category spend for the selected month — kept in step with
+  // currentMonthExpense above so every number in the Budget & Remaining
+  // card reflects the same month, regardless of the dashboard's date filter.
   const categoryMonthExpenses = useMemo(() => {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const start = new Date(budgetViewDate.getFullYear(), budgetViewDate.getMonth(), 1);
     start.setHours(0, 0, 0, 0);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const end = new Date(budgetViewDate.getFullYear(), budgetViewDate.getMonth() + 1, 0);
     end.setHours(23, 59, 59, 999);
 
     const map: { [key: string]: number } = {};
@@ -1912,6 +1938,40 @@ export default function BrooDashboard() {
                     )}
                   </div>
 
+                  {subscriptionPlan !== "lite" && (
+                    <div className="flex items-center justify-center gap-3 mb-3 bg-black/30 border border-white/5 rounded-xl py-1.5 px-2">
+                      <button
+                        type="button"
+                        onClick={handleBudgetPrevMonth}
+                        title="Previous month"
+                        className="text-slate-400 hover:text-emerald-400 p-1 rounded-lg hover:bg-white/5 transition"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-xs font-extrabold text-white min-w-[110px] text-center">
+                        {budgetViewDate.toLocaleString("default", { month: "long", year: "numeric" })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleBudgetNextMonth}
+                        disabled={isBudgetViewCurrentMonth}
+                        title={isBudgetViewCurrentMonth ? "Already viewing the current month" : "Next month"}
+                        className="text-slate-400 hover:text-emerald-400 p-1 rounded-lg hover:bg-white/5 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                      {!isBudgetViewCurrentMonth && (
+                        <button
+                          type="button"
+                          onClick={() => setBudgetViewDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 ml-1"
+                        >
+                          Today
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {subscriptionPlan !== "lite" && monthlyBudget > 0 && (() => {
                     const overallRemaining = monthlyBudget - currentMonthExpense;
                     const overallPct = Math.min(100, (currentMonthExpense / monthlyBudget) * 100);
@@ -1940,7 +2000,7 @@ export default function BrooDashboard() {
                             {overallOver ? "Over by" : "Remaining"}: <strong className={overallOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(overallRemaining).toFixed(2)}</strong>
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 pt-0.5">Tracks {now.toLocaleString("default", { month: "long", year: "numeric" })} only, regardless of the date filter above.</p>
+                        <p className="text-[10px] text-slate-500 pt-0.5">Tracks {budgetViewDate.toLocaleString("default", { month: "long", year: "numeric" })} only, regardless of the date filter above.</p>
                       </div>
                     );
                   })()}
@@ -1963,7 +2023,7 @@ export default function BrooDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-3 mt-2">
-                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances (current month):</p>
+                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances ({budgetViewDate.toLocaleString("default", { month: "long" })}):</p>
                       
                       <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
                         {Object.keys(categoryBudgets).length > 0 ? (
