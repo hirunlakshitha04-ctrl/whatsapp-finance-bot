@@ -1510,14 +1510,29 @@ export default function BrooDashboard() {
 
     const budgetCategories = Object.keys(categoryBudgets).length > 0 ? Object.keys(categoryBudgets) : CATEGORY_OPTIONS;
     const budgetFirstRow = budgetHeaderRow + 1;
+    // NOTE: "Actual Spent" / "Remaining" used to be written as Excel formulas
+    // (SUMIFS / subtraction). Formula cells have no cached result, so any
+    // viewer that doesn't run a calc engine on open (mobile Excel/WPS quick
+    // preview, Google Sheets preview, file-manager thumbnails, etc.) shows
+    // them blank. Computing the numbers here in JS and writing plain values
+    // guarantees every viewer shows the real figures immediately.
+    let budgetTotalBudgeted = 0;
+    let budgetTotalSpent = 0;
     budgetCategories.forEach((cat, i) => {
       const r = budgetFirstRow + i;
+      const budgeted = Number(categoryBudgets[cat] || 0);
+      const spent = monthExpenseList
+        .filter(t => t.category === cat)
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const remaining = budgeted - spent;
+
+      budgetTotalBudgeted += budgeted;
+      budgetTotalSpent += spent;
+
       ws1.getRow(r).getCell(1).value = cat;
-      ws1.getRow(r).getCell(2).value = Number(categoryBudgets[cat] || 0);
-      ws1.getRow(r).getCell(3).value = {
-        formula: `SUMIFS(D${expenseResult.firstDataRow}:D${expenseResult.lastDataRow},C${expenseResult.firstDataRow}:C${expenseResult.lastDataRow},A${r})`
-      };
-      ws1.getRow(r).getCell(4).value = { formula: `B${r}-C${r}` };
+      ws1.getRow(r).getCell(2).value = budgeted;
+      ws1.getRow(r).getCell(3).value = spent;
+      ws1.getRow(r).getCell(4).value = remaining;
       styleDataRow(ws1, r, 4, BUDGET_FILL, 2);
       styleDataRow(ws1, r, 4, BUDGET_FILL, 3);
       styleDataRow(ws1, r, 4, BUDGET_FILL, 4);
@@ -1526,9 +1541,9 @@ export default function BrooDashboard() {
     const budgetLastRow = budgetFirstRow + budgetCategories.length - 1;
     const budgetTotalRow = budgetLastRow + 1;
     ws1.getRow(budgetTotalRow).getCell(1).value = "TOTAL";
-    ws1.getRow(budgetTotalRow).getCell(2).value = { formula: `SUM(B${budgetFirstRow}:B${budgetLastRow})` };
-    ws1.getRow(budgetTotalRow).getCell(3).value = { formula: `SUM(C${budgetFirstRow}:C${budgetLastRow})` };
-    ws1.getRow(budgetTotalRow).getCell(4).value = { formula: `SUM(D${budgetFirstRow}:D${budgetLastRow})` };
+    ws1.getRow(budgetTotalRow).getCell(2).value = budgetTotalBudgeted;
+    ws1.getRow(budgetTotalRow).getCell(3).value = budgetTotalSpent;
+    ws1.getRow(budgetTotalRow).getCell(4).value = budgetTotalBudgeted - budgetTotalSpent;
     styleTotalRow(ws1, budgetTotalRow, 4, BUDGET_HEADER, [2, 3, 4]);
 
     // ---- Summary box ----
