@@ -4,8 +4,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { createClient } from "@supabase/supabase-js";
-import { 
+import { supabase } from "@/lib/supabase";
+import {
   Bot, 
   Sparkles, 
   User, 
@@ -29,10 +29,9 @@ import {
   PieChart
 } from "lucide-react";
 
-// Supabase Client Setup
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase client comes from the shared singleton in @/lib/supabase —
+// creating a second createClient() here caused the "Multiple GoTrueClient
+// instances" warning and bloated this page's bundle unnecessarily.
 
 // Falling finance-icon background — dollar signs, wallets, coins etc. drop in
 // inside circular badges and settle at a spot spread across the FULL height

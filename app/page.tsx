@@ -551,7 +551,7 @@ export default function BroFInAiLandingPage() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <ChannelSwitch channel={channel} onChange={setChannel} layoutId="nav-channel-pill" />
-            <Link href="/login" className="hidden sm:inline text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
+            <Link href="/login" prefetch={false} className="hidden sm:inline text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap">
               Login
             </Link>
             <a
@@ -631,6 +631,7 @@ export default function BroFInAiLandingPage() {
                 </a>
                 <Link
                   href="/login"
+                  prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className="sm:hidden px-3 py-3 rounded-xl hover:bg-white/5 hover:text-white transition-colors border-t border-white/5 mt-1 pt-4"
                 >
@@ -762,6 +763,7 @@ export default function BroFInAiLandingPage() {
           <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Link
               href={`/register?plan=free&channel=${channel}&type=direct`}
+              prefetch={false}
               className={`px-8 py-4 rounded-full font-bold text-sm bg-gradient-to-r ${meta.from} ${meta.via} ${meta.to} text-slate-950 transition-all shadow-xl ${meta.glow} flex items-center gap-2 group`}
             >
               <span>Start Free on {meta.label} 🚀</span>
@@ -1446,6 +1448,7 @@ export default function BroFInAiLandingPage() {
 
               <Link
                 href="/register"
+                prefetch={false}
                 className="relative inline-flex items-center gap-1.5 text-xs font-bold text-purple-300 hover:text-purple-200 transition-colors group/link"
               >
                 Register Free
@@ -1650,6 +1653,7 @@ export default function BroFInAiLandingPage() {
 
               <Link
                 href="/register?plan=free&channel=whatsapp&type=direct"
+                prefetch={false}
                 onClick={(e) => e.stopPropagation()}
                 className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
               >
@@ -1690,6 +1694,7 @@ export default function BroFInAiLandingPage() {
 
               <Link
                 href="/register?plan=free&channel=telegram&type=direct"
+                prefetch={false}
                 onClick={(e) => e.stopPropagation()}
                 className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
               >
@@ -1805,6 +1810,7 @@ export default function BroFInAiLandingPage() {
                   {/* Action Button — plan + channel both carry through to register */}
                   <Link
                     href={`/register?plan=${plan.id}&channel=${channel}&type=direct`}
+                    prefetch={false}
                     className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
                   >
                     <span>{plan.buttonText}</span>
@@ -2035,6 +2041,7 @@ export default function BroFInAiLandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/register?plan=free&channel=whatsapp&type=direct"
+              prefetch={false}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-sm bg-white text-slate-950 hover:bg-slate-200 transition shadow-2xl shadow-white/20"
             >
               <WhatsAppIcon className="w-4 h-4" />
@@ -2042,6 +2049,7 @@ export default function BroFInAiLandingPage() {
             </Link>
             <Link
               href="/register?plan=free&channel=telegram&type=direct"
+              prefetch={false}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-sm bg-white/10 border border-white/20 text-white hover:bg-white/15 transition"
             >
               <TelegramIcon className="w-4 h-4 text-sky-400" />
@@ -2246,6 +2254,7 @@ export default function BroFInAiLandingPage() {
                 <li><a href="#trust" onClick={(e) => scrollToSection(e, "trust")} className="hover:text-white transition-colors">Trust & Security</a></li>
                 <li><Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
                 <li><Link href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link></li>
               </ul>
             </div>
           </div>
@@ -2280,6 +2289,7 @@ export default function BroFInAiLandingPage() {
 
           <Link
             href={`/register?plan=free&channel=${channel}&type=direct`}
+            prefetch={false}
             className={`px-5 py-2 rounded-full bg-gradient-to-r ${meta.from} ${meta.to} text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg ${meta.glow} whitespace-nowrap shrink-0`}
           >
             <span>Get Started</span>
