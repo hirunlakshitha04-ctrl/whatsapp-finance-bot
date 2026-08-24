@@ -24,11 +24,12 @@ export async function GET(request: Request) {
     const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
 
     // 1. Supabase මගින් දින 4ක් Inactive Paid Users (core, max) සොයා ගැනීම
+    //    🆕 last_active_date වෙනුවට last_activity_date (users table එකේ actual column එක) use කරයි
     const { data: inactiveUsers, error } = await supabase
       .from("users")
       .select("*")
       .in("plan", ["core", "max"])
-      .lte("last_active_date", fourDaysAgo);
+      .lte("last_activity_date", fourDaysAgo);
 
     if (error) {
       console.error("❌ Error fetching inactive users:", error);
