@@ -1432,22 +1432,36 @@ export default function BrooDashboard() {
 
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="relative">
-                <img 
-                  src={avatarUrl} 
-                  alt="Profile Avatar" 
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/10"
+          <div className="flex items-center gap-5">
+            <div className="relative flex-shrink-0 group">
+              {/* Gradient ring wrapper — plan-aware color, subtle glow behind the photo */}
+              <div className={`absolute inset-0 rounded-[20px] blur-md opacity-60 transition-opacity group-hover:opacity-90 ${
+                subscriptionPlan === "max"
+                  ? "bg-gradient-to-br from-purple-500 to-indigo-500"
+                  : subscriptionPlan === "core"
+                  ? "bg-gradient-to-br from-emerald-400 to-teal-500"
+                  : "bg-gradient-to-br from-amber-400 to-yellow-500"
+              }`} />
+              <div className={`relative p-[2.5px] rounded-[20px] bg-gradient-to-br ${
+                subscriptionPlan === "max"
+                  ? "from-purple-400 to-indigo-500"
+                  : subscriptionPlan === "core"
+                  ? "from-emerald-400 to-teal-400"
+                  : "from-amber-400 to-yellow-400"
+              }`}>
+                <img
+                  src={avatarUrl}
+                  alt="Profile Avatar"
+                  className="w-16 h-16 rounded-[17.5px] object-cover bg-slate-950 shadow-lg"
                 />
-                <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg">
-                  <Zap size={10} className="fill-slate-950" />
-                </span>
               </div>
-              <span className="text-sm font-bold text-white">{nickname}</span>
+              <span className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-slate-950 p-1.5 rounded-full border-4 border-slate-900 shadow-md">
+                <Zap size={9} className="fill-slate-950" />
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 <span className={`text-[11px] font-extrabold px-3 py-0.5 rounded-full border flex items-center gap-1.5 uppercase backdrop-blur-md shadow-sm ${
                   subscriptionPlan === "max" 
                     ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
@@ -1466,8 +1480,12 @@ export default function BrooDashboard() {
                     {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"}
                   </span>
                 )}
+                <span className="text-[11px] font-extrabold px-3 py-0.5 rounded-full border border-white/10 bg-white/5 text-slate-300 flex items-center gap-1.5 backdrop-blur-md">
+                  <ShieldCheck size={11} className="text-emerald-400" /> {nickname || "Member"}
+                </span>
               </div>
-              <h1 className="text-xl font-extrabold text-white tracking-wide">Smart Finance Dashboard</h1>
+              <h1 className="text-xl font-extrabold text-white tracking-wide leading-tight">Smart Finance Dashboard</h1>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Welcome back, {nickname || "there"} 👋</p>
             </div>
           </div>
 
@@ -1744,6 +1762,38 @@ export default function BrooDashboard() {
                     )}
                   </div>
 
+                  {subscriptionPlan !== "lite" && monthlyBudget > 0 && (() => {
+                    const overallRemaining = monthlyBudget - totalExpense;
+                    const overallPct = Math.min(100, (totalExpense / monthlyBudget) * 100);
+                    const overallOver = overallRemaining < 0;
+                    return (
+                      <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl backdrop-blur-md mb-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                            <Wallet size={12} className="text-emerald-400" /> Overall Monthly Budget
+                          </span>
+                          <span className={`text-[11px] font-extrabold ${overallOver ? "text-rose-400" : "text-emerald-400"}`}>
+                            {overallPct.toFixed(0)}% used
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              overallOver ? "bg-rose-500" : overallPct >= 80 ? "bg-amber-400" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${overallPct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span>Spent: <strong className="text-rose-400">{currency} {totalExpense.toFixed(2)}</strong> / {currency} {monthlyBudget.toFixed(2)}</span>
+                          <span>
+                            {overallOver ? "Over by" : "Remaining"}: <strong className={overallOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(overallRemaining).toFixed(2)}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {subscriptionPlan === "lite" ? (
                     <div className="bg-black/30 border border-white/5 rounded-2xl p-6 text-center space-y-4 my-auto backdrop-blur-md">
                       <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto backdrop-blur-md">
@@ -1771,12 +1821,14 @@ export default function BrooDashboard() {
                             const spent = categoryExpenses[cat] || 0;
                             const remaining = limit - spent;
                             const isOver = remaining < 0;
+                            const catPct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
+                            const catColor = CATEGORY_COLORS[cat] || "#10B981";
 
                             return (
                               <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
                                 <div className="flex items-center justify-between text-xs">
                                   <span className="font-bold text-slate-200 flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] || "#10B981" }} />
+                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: catColor }} />
                                     {cat}
                                   </span>
                                   {isEditingBudget ? (
@@ -1793,10 +1845,22 @@ export default function BrooDashboard() {
                                   )}
                                 </div>
 
+                                {!isEditingBudget && limit > 0 && (
+                                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all"
+                                      style={{
+                                        width: `${catPct}%`,
+                                        backgroundColor: isOver ? "#F43F5E" : catColor
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="text-slate-400">Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
                                   <span className="text-slate-400">
-                                    Remaining: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {remaining.toFixed(2)}</strong>
+                                    {isOver ? "Over by" : "Remaining"}: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(remaining).toFixed(2)}</strong>
                                   </span>
                                 </div>
                               </div>
@@ -2059,67 +2123,76 @@ export default function BrooDashboard() {
 
               <form onSubmit={handleUpdateProfile} className="space-y-5">
                 <div>
-                  <label className="text-xs text-slate-300 font-bold mb-2 flex items-center gap-1.5">
-                    <Camera size={13} className="text-emerald-400" /> Profile Picture (Upload or Choose Avatar)
+                  <label className="text-xs text-slate-300 font-bold mb-3 flex items-center gap-1.5">
+                    <Camera size={13} className="text-emerald-400" /> Profile Picture
                   </label>
 
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="relative">
-                      <img 
-                        src={selectedAvatar || avatarUrl} 
-                        alt="Selected Profile" 
-                        className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-400 shadow-md"
-                      />
-                      {uploadingImg && (
-                        <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                          <RefreshCw size={16} className="animate-spin text-emerald-400" />
+                  <div className="bg-black/30 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
+                    <div className="flex items-center gap-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="p-[2.5px] rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/10">
+                          <img
+                            src={selectedAvatar || avatarUrl}
+                            alt="Selected Profile"
+                            className="w-16 h-16 rounded-[15px] object-cover bg-slate-950"
+                          />
                         </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label 
-                        htmlFor="custom-avatar-upload"
-                        className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-white/10 flex items-center gap-2 transition backdrop-blur-md"
-                      >
-                        <Camera size={14} className="text-emerald-400" /> Upload Custom Photo
-                      </label>
-                      <input 
-                        id="custom-avatar-upload"
-                        type="file" 
-                        accept="image/*"
-                        onChange={handleCustomImageUpload}
-                        className="hidden"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG or WEBP (Max 2MB)</p>
-                    </div>
-                  </div>
-
-                  <span className="text-[11px] text-slate-400 font-semibold block mb-2">Or choose a preset avatar:</span>
-                  <div className="flex items-center gap-3 overflow-x-auto py-1">
-                    {AVATAR_OPTIONS.map((imgUrl, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedAvatar(imgUrl)}
-                        className={`relative rounded-2xl p-1 transition border-2 flex-shrink-0 ${
-                          selectedAvatar === imgUrl 
-                            ? "border-emerald-400 bg-emerald-500/20 scale-105" 
-                            : "border-transparent opacity-60 hover:opacity-100"
-                        }`}
-                      >
-                        <img 
-                          src={imgUrl} 
-                          alt={`Avatar ${idx + 1}`} 
-                          className="w-10 h-10 rounded-xl object-cover"
-                        />
-                        {selectedAvatar === imgUrl && (
-                          <span className="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 rounded-full p-0.5">
-                            <Check size={10} strokeWidth={4} />
-                          </span>
+                        {uploadingImg && (
+                          <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                            <RefreshCw size={16} className="animate-spin text-emerald-400" />
+                          </div>
                         )}
-                      </button>
-                    ))}
+                        <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg border-2 border-black/30 shadow-sm">
+                          <Check size={9} strokeWidth={4} />
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <label
+                          htmlFor="custom-avatar-upload"
+                          className="cursor-pointer inline-flex bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-white/10 items-center gap-2 transition backdrop-blur-md w-full sm:w-auto justify-center"
+                        >
+                          <Camera size={14} className="text-emerald-400" /> Upload Custom Photo
+                        </label>
+                        <input
+                          id="custom-avatar-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCustomImageUpload}
+                          className="hidden"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1.5">JPG, PNG or WEBP · Max 2MB</p>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/10 my-4" />
+
+                    <span className="text-[11px] text-slate-400 font-semibold block mb-2.5">Or choose a preset avatar</span>
+                    <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                      {AVATAR_OPTIONS.map((imgUrl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSelectedAvatar(imgUrl)}
+                          className={`relative rounded-2xl p-1 transition-all border-2 flex-shrink-0 ${
+                            selectedAvatar === imgUrl 
+                              ? "border-emerald-400 bg-emerald-500/20 scale-105 shadow-md shadow-emerald-500/10" 
+                              : "border-transparent opacity-60 hover:opacity-100 hover:scale-105"
+                          }`}
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt={`Avatar ${idx + 1}`} 
+                            className="w-10 h-10 rounded-xl object-cover"
+                          />
+                          {selectedAvatar === imgUrl && (
+                            <span className="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 rounded-full p-0.5">
+                              <Check size={10} strokeWidth={4} />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
