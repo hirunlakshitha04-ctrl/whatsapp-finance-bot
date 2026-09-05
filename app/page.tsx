@@ -113,6 +113,27 @@ const CHANNEL_META: Record<
     connectDesc: string;
     exampleMessage: string;
     heroGrad: string;
+    heroBg: string;
+    heroAccent: string;
+    phoneImage: string;
+    card: {
+      border: string;
+      shadow: string;
+      topBar: string;
+      tint: string;
+      iconGrad: string;
+      iconShadow: string;
+      linkText: string;
+      buttonGrad: string;
+    };
+    cta: {
+      bg: string;
+      shadow: string;
+      paraText: string;
+      btnText: string;
+      btnHover: string;
+    };
+    footerHover: string;
   }
 > = {
   whatsapp: {
@@ -131,6 +152,27 @@ const CHANNEL_META: Record<
     connectDesc: "Save our WhatsApp business number and send \"Hi\" to instantly link your account.",
     exampleMessage: "Spent $45.50 on Coffee & Breakfast ☕",
     heroGrad: "from-emerald-300 via-teal-200 to-cyan-300",
+    heroBg: "from-emerald-500 via-emerald-800 to-emerald-950",
+    heroAccent: "text-emerald-300",
+    phoneImage: "/phone-whatsapp.png",
+    card: {
+      border: "from-emerald-200 via-slate-200 to-white",
+      shadow: "shadow-emerald-500/[0.06] hover:shadow-emerald-500/[0.12]",
+      topBar: "from-emerald-400 to-emerald-200",
+      tint: "from-emerald-500/[0.05] to-transparent",
+      iconGrad: "from-emerald-400 to-emerald-300",
+      iconShadow: "shadow-emerald-500/25",
+      linkText: "text-emerald-600 hover:text-emerald-700",
+      buttonGrad: "from-emerald-400/90 to-emerald-300/90",
+    },
+    cta: {
+      bg: "from-emerald-700 via-emerald-600 to-teal-600",
+      shadow: "shadow-emerald-900/20",
+      paraText: "text-emerald-50",
+      btnText: "text-emerald-700",
+      btnHover: "hover:bg-emerald-50",
+    },
+    footerHover: "hover:text-emerald-600",
   },
   telegram: {
     label: "Telegram",
@@ -148,6 +190,27 @@ const CHANNEL_META: Record<
     connectDesc: "Search @BroFInAi_Bot on Telegram and hit Start to instantly link your account.",
     exampleMessage: "Spent $45.50 on Coffee & Breakfast ☕",
     heroGrad: "from-sky-300 via-cyan-200 to-teal-300",
+    heroBg: "from-blue-500 via-blue-800 to-slate-950",
+    heroAccent: "text-sky-300",
+    phoneImage: "/phone-telegram.png",
+    card: {
+      border: "from-sky-200 via-slate-200 to-white",
+      shadow: "shadow-sky-500/[0.06] hover:shadow-sky-500/[0.12]",
+      topBar: "from-sky-400 to-sky-200",
+      tint: "from-sky-500/[0.05] to-transparent",
+      iconGrad: "from-sky-400 to-sky-300",
+      iconShadow: "shadow-sky-500/25",
+      linkText: "text-sky-600 hover:text-sky-700",
+      buttonGrad: "from-sky-400/90 to-sky-300/90",
+    },
+    cta: {
+      bg: "from-sky-700 via-blue-600 to-cyan-600",
+      shadow: "shadow-sky-900/20",
+      paraText: "text-sky-50",
+      btnText: "text-sky-700",
+      btnHover: "hover:bg-sky-50",
+    },
+    footerHover: "hover:text-sky-600",
   },
 };
 
@@ -206,7 +269,7 @@ const PRICING_PLANS = [
     description: "For freelancers, business owners & power users.",
     highlight: false,
     buttonText: "GET BRO MAX",
-    buttonClass: "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/25",
+    buttonClass: "bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg shadow-slate-900/25",
     trialNote: null,
     features: [
       { text: "Unlimited Daily Expense & Income Logs", included: true },
@@ -425,34 +488,36 @@ export default function BroFInAiLandingPage() {
           behind it, regardless of each section's own background. */}
       <div className="relative z-10">
 
-      {/* Navigation Header */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-slate-200 px-6 py-4">
+      {/* Navigation Header — now shares the hero's dark channel color instead
+          of sitting on white, so the top of the page reads as one seamless
+          colored band (nav + hero) that swaps with the active channel. */}
+      <nav className={`sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r ${meta.heroBg} border-b border-white/10 px-6 py-4 transition-colors duration-700`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight shrink-0">
             <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
-            <span className="text-2xl font-black bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 bg-clip-text text-transparent hidden sm:inline">
-              Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
+            <span className="text-2xl font-black text-white hidden sm:inline">
+              Bro<span className={`transition-colors duration-500 ${meta.heroAccent}`}>FInAi</span>
             </span>
           </Link>
 
-          <div className="hidden lg:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-slate-900 transition-colors">Features</a>
-            <a href="#language" onClick={(e) => scrollToSection(e, "language")} className="hover:text-slate-900 transition-colors">Language</a>
-            <a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-slate-900 transition-colors">How It Works</a>
-            <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-slate-900 transition-colors">Pricing</a>
-            <a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-slate-900 transition-colors">FAQ</a>
-            <a href="#contact" onClick={(e) => scrollToSection(e, "contact")} className="hover:text-slate-900 transition-colors">Contact</a>
+          <div className="hidden lg:flex items-center gap-8 text-sm font-medium text-white/80">
+            <a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-white transition-colors">Features</a>
+            <a href="#language" onClick={(e) => scrollToSection(e, "language")} className="hover:text-white transition-colors">Language</a>
+            <a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-white transition-colors">How It Works</a>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-white transition-colors">Pricing</a>
+            <a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-white transition-colors">FAQ</a>
+            <a href="#contact" onClick={(e) => scrollToSection(e, "contact")} className="hover:text-white transition-colors">Contact</a>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="nav-channel-pill" />
-            <Link href="/login" prefetch={false} className="hidden sm:inline text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+            <ChannelSwitch channel={channel} onChange={setChannel} layoutId="nav-channel-pill" variant="dark" />
+            <Link href="/login" prefetch={false} className="hidden sm:inline text-xs sm:text-sm font-semibold text-white/80 hover:text-white transition whitespace-nowrap">
               Login
             </Link>
             <a
               href="#pricing"
               onClick={(e) => scrollToSection(e, "pricing")}
-              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-emerald-600 text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 overflow-hidden whitespace-nowrap cursor-pointer"
+              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-900 hover:bg-white/90 transition shadow-lg flex items-center gap-1.5 overflow-hidden whitespace-nowrap cursor-pointer"
             >
               <span className="hidden sm:inline">Get Started</span>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -462,7 +527,7 @@ export default function BroFInAiLandingPage() {
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
-              className="lg:hidden w-9 h-9 shrink-0 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-200 transition"
+              className="lg:hidden w-9 h-9 shrink-0 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/80 hover:text-white transition"
             >
               {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -481,46 +546,46 @@ export default function BroFInAiLandingPage() {
               transition={{ duration: 0.25, ease: "easeOut" }}
               className="lg:hidden overflow-hidden"
             >
-              <div className="max-w-7xl mx-auto px-2 pt-4 pb-2 flex flex-col gap-1 text-sm font-medium text-slate-600">
+              <div className="max-w-7xl mx-auto px-2 pt-4 pb-2 flex flex-col gap-1 text-sm font-medium text-white/80">
                 <a
                   href="#features"
                   onClick={(e) => { scrollToSection(e, "features"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Features
                 </a>
                 <a
                   href="#language"
                   onClick={(e) => { scrollToSection(e, "language"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Language
                 </a>
                 <a
                   href="#how-it-works"
                   onClick={(e) => { scrollToSection(e, "how-it-works"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   How It Works
                 </a>
                 <a
                   href="#pricing"
                   onClick={(e) => { scrollToSection(e, "pricing"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Pricing
                 </a>
                 <a
                   href="#faq"
                   onClick={(e) => { scrollToSection(e, "faq"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   FAQ
                 </a>
                 <a
                   href="#contact"
                   onClick={(e) => { scrollToSection(e, "contact"); setMobileMenuOpen(false); }}
-                  className="px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors"
+                  className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Contact
                 </a>
@@ -528,7 +593,7 @@ export default function BroFInAiLandingPage() {
                   href="/login"
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="sm:hidden px-3 py-3 rounded-xl hover:bg-slate-900/5 hover:text-slate-900 transition-colors border-t border-slate-200 mt-1 pt-4"
+                  className="sm:hidden px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors border-t border-white/10 mt-1 pt-4"
                 >
                   Login
                 </Link>
@@ -538,19 +603,21 @@ export default function BroFInAiLandingPage() {
         </AnimatePresence>
       </nav>
 
-      {/* HERO SECTION — light, white background. Wrapped in its own block so
-          only the hero (and the nav sitting directly on top of it) share
-          this treatment; every section below keeps the site's normal light
+      {/* HERO SECTION — solid dark channel-colored background (deep green
+          for WhatsApp, deep blue for Telegram), swapping with `channel`.
+          Wrapped in its own block so only the hero carries this dark
+          treatment; every section below keeps the site's normal light
           theme, untouched. */}
-      <div className="relative bg-white overflow-hidden">
-        {/* Ambient light-hero glows */}
-        <div className="absolute top-[-20%] left-[-10%] w-[560px] h-[560px] bg-purple-200/30 rounded-full blur-[160px] pointer-events-none" />
-        <div className="absolute bottom-[-25%] right-[5%] w-[520px] h-[520px] bg-emerald-200/30 rounded-full blur-[160px] pointer-events-none" />
+      <div className={`relative overflow-hidden bg-gradient-to-br transition-colors duration-700 ${meta.heroBg}`}>
+        {/* Ambient hero glows — a bright core of the active channel color
+            bleeding into the dark base, echoing the reference screenshots */}
+        <div className={`absolute top-[-25%] left-[-5%] w-[620px] h-[620px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${channel === "whatsapp" ? "bg-emerald-400/30" : "bg-blue-400/30"}`} />
+        <div className={`absolute bottom-[-30%] right-[0%] w-[560px] h-[560px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${channel === "whatsapp" ? "bg-teal-300/20" : "bg-sky-300/20"}`} />
         {/* Subtle floating dollar-sign markers, echoing the reference screenshot */}
-        <div className="hidden sm:flex absolute left-[27%] top-[12%] w-10 h-10 rounded-full border border-slate-200 items-center justify-center text-slate-400">
+        <div className="hidden sm:flex absolute left-[27%] top-[12%] w-10 h-10 rounded-full border border-white/20 items-center justify-center text-white/50">
           <span className="text-sm font-bold">$</span>
         </div>
-        <div className="hidden sm:flex absolute left-[42%] top-[40%] w-10 h-10 rounded-full border border-slate-200 items-center justify-center text-slate-400">
+        <div className="hidden sm:flex absolute left-[42%] top-[40%] w-10 h-10 rounded-full border border-white/20 items-center justify-center text-white/50">
           <span className="text-sm font-bold">$</span>
         </div>
 
@@ -564,16 +631,16 @@ export default function BroFInAiLandingPage() {
           transition={{ duration: 0.9 }}
           className="lg:col-span-6 space-y-7"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-emerald-700">Your AI money manager, inside {meta.label}</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+            <MessageSquare className="w-3.5 h-3.5 text-white" />
+            <span className="text-white">Your AI money manager, inside {meta.label}</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05] text-slate-900">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05] text-white">
             Your AI Money
             <br />
-            Manager. Inside
+            Manager.
             <br />
             <AnimatePresence mode="wait">
               <motion.span
@@ -582,14 +649,14 @@ export default function BroFInAiLandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.25 }}
-                className={`inline-block bg-gradient-to-r ${meta.heroGrad} bg-clip-text text-transparent`}
+                className={`inline-block transition-colors duration-500 ${meta.heroAccent}`}
               >
                 {meta.label}.
               </motion.span>
             </AnimatePresence>
           </h1>
 
-          <p className="text-slate-600 text-lg max-w-lg font-normal leading-relaxed">
+          <p className="text-white/70 text-lg max-w-lg font-normal leading-relaxed">
             Track spending, organize your transactions, and manage your money — all through chat.
           </p>
 
@@ -605,17 +672,17 @@ export default function BroFInAiLandingPage() {
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
-            <span className="flex items-center gap-1.5 text-sm text-slate-600">
-              <Zap className="w-4 h-4 text-amber-500 fill-amber-500" /> Unlimited Free Text Logging
+            <span className="flex items-center gap-1.5 text-sm text-white/80">
+              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" /> Unlimited Free Text Logging
             </span>
           </div>
 
-          <div className="flex items-center gap-2 pt-1 text-xs text-slate-500">
+          <div className="flex items-center gap-2 pt-1 text-xs text-white/60">
             <span>Also available on</span>
             <button
               type="button"
               onClick={() => setChannel(channel === "whatsapp" ? "telegram" : "whatsapp")}
-              className="inline-flex items-center gap-1.5 font-semibold text-slate-600 hover:text-slate-900 transition-colors underline decoration-dotted underline-offset-4"
+              className="inline-flex items-center gap-1.5 font-semibold text-white/80 hover:text-white transition-colors underline decoration-dotted underline-offset-4"
             >
               {React.createElement(CHANNEL_META[channel === "whatsapp" ? "telegram" : "whatsapp"].icon, { className: "w-3.5 h-3.5" })}
               {CHANNEL_META[channel === "whatsapp" ? "telegram" : "whatsapp"].label}
@@ -645,7 +712,33 @@ export default function BroFInAiLandingPage() {
           {/* Grounding shadow beneath the phone */}
           <div className="absolute bottom-4 sm:bottom-9 w-[190px] h-[26px] rounded-full bg-black/70 blur-2xl opacity-60" />
 
-          {/* Phone frame, tilted for depth and following the cursor */}
+          {/* Floating "Get Started" callout pill, echoing the reference screenshot */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`hero-callout-${channel}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.25 }}
+              className="hidden sm:block absolute z-20 right-[-6%] top-[14%]"
+            >
+              <Link
+                href={`/register?plan=free&channel=${channel}&type=direct`}
+                prefetch={false}
+                className="flex items-center gap-2 pl-5 pr-2 py-2 rounded-full bg-white text-slate-900 text-sm font-bold shadow-2xl hover:scale-[1.02] transition-transform"
+              >
+                <ChannelIcon className={`w-4 h-4 ${channel === "whatsapp" ? "text-emerald-600" : "text-sky-600"}`} />
+                <span className="whitespace-nowrap">Get Started on {meta.label}</span>
+                <span className="w-7 h-7 rounded-full bg-slate-900/5 flex items-center justify-center shrink-0">
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Phone photo — a real device mockup image instead of a built
+              CSS frame, swapping per channel via meta.phoneImage. Still
+              tilts and follows the cursor like the mockup it replaced. */}
           <motion.div
             className="relative z-10"
             style={{
@@ -655,117 +748,19 @@ export default function BroFInAiLandingPage() {
               rotateZ: -3,
             }}
           >
-            <div
-              className={`w-[min(300px,82vw)] sm:w-[330px] rounded-[2.75rem] border-[6px] border-slate-800 bg-slate-950 shadow-2xl transition-colors duration-500 ${meta.glow}`}
-            >
-              {/* Dynamic island / notch */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-b-2xl z-30" />
-
-              <div className="relative rounded-[2.25rem] overflow-hidden bg-white">
-                {/* Chat header */}
-                <div className="flex items-center gap-2.5 px-4 pt-8 pb-3 border-b border-slate-100">
-                  <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.from} ${meta.to}`}>
-                    <ChannelIcon className="w-4 h-4 text-slate-950" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 text-xs font-bold text-slate-900 truncate">
-                      <span>BroFInAi</span>
-                      <CheckCircle2 className="w-3 h-3 text-sky-500 fill-sky-500/20" />
-                    </div>
-                    <div className="text-[9px] text-emerald-600">online</div>
-                  </div>
-                  <MoreVertical className="w-4 h-4 text-slate-400 shrink-0" />
-                </div>
-
-                {/* Chat body — swaps accent color with the active channel */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`chat-${channel}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="px-3.5 pt-3.5 pb-3 space-y-2.5 font-sans bg-slate-50"
-                  >
-                    {/* User message bubble */}
-                    <div className="flex justify-end">
-                      <div className={`max-w-[82%] rounded-2xl rounded-tr-sm px-3 py-2 bg-gradient-to-br ${meta.from} ${meta.to} text-[10.5px] font-semibold text-slate-950`}>
-                        How much did I spend this week?
-                      </div>
-                    </div>
-
-                    {/* Bot reply bubble */}
-                    <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 bg-white border border-slate-200 text-[10.5px] text-slate-700 shadow-sm">
-                        You spent <span className="font-bold text-slate-900">$96.50</span> on food this week.
-                      </div>
-                    </div>
-
-                    {/* Weekly spend card */}
-                    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-3.5 mt-1">
-                      <div className="text-[9px] text-slate-500">This Week</div>
-                      <div className="text-lg font-black text-slate-900 mt-0.5">$1,260.00</div>
-                      <div className="flex items-end justify-between gap-1.5 h-14 mt-3">
-                        {[
-                          { d: "Mon", h: 22 },
-                          { d: "Tue", h: 30 },
-                          { d: "Wed", h: 26 },
-                          { d: "Thu", h: 100, active: true },
-                          { d: "Fri", h: 34 },
-                          { d: "Sat", h: 20 },
-                          { d: "Sun", h: 16 },
-                        ].map((bar) => (
-                          <div key={bar.d} className="flex-1 h-full flex items-end">
-                            <div
-                              className={`w-full rounded-md ${bar.active ? `bg-gradient-to-t ${meta.from} ${meta.to}` : "bg-slate-100"}`}
-                              style={{ height: `${bar.h}%` }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-between gap-1.5 mt-1.5">
-                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                          <span key={d} className={`flex-1 text-center text-[7px] ${d === "Thu" ? "text-slate-900 font-bold" : "text-slate-400"}`}>
-                            {d}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Category breakdown */}
-                    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-3.5 space-y-2.5">
-                      {[
-                        { icon: Utensils, label: "Food & Dining", amount: "$96.50", bg: "bg-sky-100", text: "text-sky-600" },
-                        { icon: Car, label: "Transport", amount: "$45.20", bg: "bg-emerald-100", text: "text-emerald-600" },
-                        { icon: ShoppingBag, label: "Shopping", amount: "$120.00", bg: "bg-violet-100", text: "text-violet-600" },
-                      ].map((row) => (
-                        <div key={row.label} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${row.bg} ${row.text}`}>
-                              <row.icon className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-[10.5px] text-slate-700 truncate">{row.label}</span>
-                          </div>
-                          <span className="text-[10.5px] font-bold text-slate-900 shrink-0">{row.amount}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                {/* Message input */}
-                <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 bg-white">
-                  <div className="flex-1 rounded-full bg-slate-50 border border-slate-200 px-3.5 py-2 text-[10px] text-slate-400">
-                    Message
-                  </div>
-                  <Paperclip className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.from} ${meta.to}`}>
-                    <Mic className="w-3.5 h-3.5 text-slate-950" />
-                  </span>
-                </div>
-              </div>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={`phone-${channel}`}
+                src={meta.phoneImage}
+                alt={`BroFInAi ${meta.label} app preview on a phone`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="w-[min(280px,78vw)] sm:w-[320px] h-auto drop-shadow-2xl select-none pointer-events-none"
+                draggable={false}
+              />
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       </motion.section>
@@ -802,81 +797,8 @@ export default function BroFInAiLandingPage() {
           live, channel-aware chat mockup (follows the same `channel` state
           as the rest of the page) plus the dashboard/export card; the right
           stack demonstrates voice and receipt OCR. Only real, shipped
-          capabilities. Background carries a light skyline + global-network
-          motif with floating currency badges. */}
-      <section id="features" className="scroll-mt-24 relative overflow-hidden">
-        {/* Ambient background — skyline silhouettes + global network + glow */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 left-1/4 w-[520px] h-[520px] rounded-full bg-emerald-50 blur-[140px]" />
-          <div className="absolute top-1/3 -right-20 w-[480px] h-[480px] rounded-full bg-cyan-50 blur-[140px]" />
-
-          {/* Skyline silhouettes framing the section, left and right */}
-          <div className="hidden lg:flex absolute bottom-0 left-0 items-end gap-1.5 opacity-[0.06] h-[70%]">
-            {[30, 55, 42, 80, 38, 65, 48, 90, 34, 58].map((h, i) => (
-              <div key={i} className="w-6 bg-slate-900 rounded-t-sm" style={{ height: `${h}%` }} />
-            ))}
-          </div>
-          <div className="hidden lg:flex absolute bottom-0 right-0 items-end gap-1.5 opacity-[0.06] h-[70%]">
-            {[48, 88, 32, 60, 40, 76, 30, 54, 44, 68].map((h, i) => (
-              <div key={i} className="w-6 bg-slate-900 rounded-t-sm" style={{ height: `${h}%` }} />
-            ))}
-          </div>
-
-          {/* Global network — dotted world texture with connecting arcs */}
-          <svg
-            className="hidden md:block absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-[420px] opacity-[0.35]"
-            viewBox="0 0 1200 420"
-            fill="none"
-          >
-            {Array.from({ length: 14 }).map((_, row) =>
-              Array.from({ length: 40 }).map((_, col) => {
-                const seed = (row * 40 + col) % 7;
-                if (seed === 0 || seed === 3) return null;
-                return (
-                  <circle
-                    key={`${row}-${col}`}
-                    cx={col * 31 + (row % 2) * 15}
-                    cy={row * 32}
-                    r={1.1}
-                    fill="#10b981"
-                  />
-                );
-              })
-            )}
-            <motion.path
-              d="M120 210 C 350 60, 550 340, 780 160 S 1050 90, 1150 200"
-              stroke="#10b981"
-              strokeWidth="1.5"
-              strokeDasharray="2 7"
-              initial={{ pathLength: 0 }}
-              whileInView={{ pathLength: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 2 }}
-            />
-            <circle cx="120" cy="210" r="4" fill="#10b981" />
-            <circle cx="780" cy="160" r="4" fill="#10b981" />
-            <circle cx="1150" cy="200" r="4" fill="#10b981" />
-          </svg>
-
-          {/* Floating currency badges */}
-          {[
-            { symbol: "$", top: "10%", left: "6%", delay: 0 },
-            { symbol: "¥", top: "62%", left: "3%", delay: 0.5 },
-            { symbol: "€", top: "16%", left: "92%", delay: 0.9 },
-            { symbol: "£", top: "58%", left: "94%", delay: 1.3 },
-          ].map((c) => (
-            <motion.div
-              key={c.symbol}
-              animate={{ y: [0, -12, 0] }}
-              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: c.delay }}
-              className="hidden lg:flex absolute w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200/80 shadow-md items-center justify-center text-amber-700 font-black text-lg"
-              style={{ top: c.top, left: c.left }}
-            >
-              {c.symbol}
-            </motion.div>
-          ))}
-        </div>
-
+          capabilities. Plain white background, no ambient decoration. */}
+      <section id="features" className="scroll-mt-24 relative overflow-hidden bg-white">
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -1280,58 +1202,7 @@ export default function BroFInAiLandingPage() {
           biggest differentiator against every English-only expense bot, so
           it gets its own dedicated moment instead of being buried inside
           the features grid. */}
-      <section id="language" className="scroll-mt-24 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {/* soft camera-flare glow, brightest at the top-left like the reference */}
-          <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-white blur-[120px]" />
-          <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-sky-100/70 blur-[150px]" />
-          <div className="absolute bottom-0 left-1/4 w-[460px] h-[460px] rounded-full bg-emerald-50 blur-[140px]" />
-          <div className="absolute -bottom-24 -right-24 w-[420px] h-[420px] rounded-full bg-slate-300/40 blur-[130px]" />
-
-          {/* faint neural-network line grid, echoing the reference art's
-              circuit/constellation lines in the corners */}
-          <svg className="absolute inset-0 w-full h-full opacity-[0.35]" preserveAspectRatio="none">
-            <g stroke="#94a3b8" strokeWidth="1" fill="none">
-              <path d="M -20 40 L 120 110 L 260 60 L 380 140" />
-              <path d="M 60 180 L 180 130 L 320 200 L 420 120" />
-              <path d="M 20 20 L 90 90" />
-              <path d="M 260 60 L 300 10" />
-              <path d="M 1100 30 L 1250 100 L 1400 50" />
-              <path d="M 1180 140 L 1300 90 L 1420 170" />
-              <path d="M 1250 100 L 1260 200" />
-              <path d="M 40 520 L 160 460 L 260 540 L 380 480" />
-              <path d="M 120 460 L 100 380" />
-              <path d="M 1050 500 L 1180 440 L 1300 520 L 1400 460" />
-              <path d="M 1180 440 L 1200 360" />
-            </g>
-            <g fill="#7dd3fc">
-              <circle cx="120" cy="110" r="2.5" />
-              <circle cx="260" cy="60" r="2" />
-              <circle cx="180" cy="130" r="2" />
-              <circle cx="1250" cy="100" r="2.5" />
-              <circle cx="1300" cy="90" r="2" />
-              <circle cx="160" cy="460" r="2.5" />
-              <circle cx="1180" cy="440" r="2.5" />
-            </g>
-          </svg>
-
-          {/* colorful bokeh dots scattered like the reference, varying size/blur/color */}
-          <div className="absolute top-[10%] left-[6%] w-4 h-4 rounded-full bg-cyan-300/70 blur-[3px]" />
-          <div className="absolute top-[18%] left-[16%] w-2.5 h-2.5 rounded-full bg-teal-300/60 blur-[2px]" />
-          <div className="absolute top-[6%] left-[24%] w-1.5 h-1.5 rounded-full bg-white/90 blur-[1px]" />
-          <div className="absolute top-[26%] left-[9%] w-2 h-2 rounded-full bg-pink-200/70 blur-[2px]" />
-          <div className="absolute top-[8%] right-[10%] w-3.5 h-3.5 rounded-full bg-sky-300/70 blur-[3px]" />
-          <div className="absolute top-[16%] right-[20%] w-2 h-2 rounded-full bg-cyan-200/60 blur-[2px]" />
-          <div className="absolute top-[28%] right-[6%] w-2.5 h-2.5 rounded-full bg-pink-200/60 blur-[2px]" />
-          <div className="absolute top-[4%] right-[30%] w-1.5 h-1.5 rounded-full bg-white/90 blur-[1px]" />
-          <div className="absolute bottom-[20%] left-[10%] w-3 h-3 rounded-full bg-emerald-300/60 blur-[2px]" />
-          <div className="absolute bottom-[10%] left-[22%] w-2 h-2 rounded-full bg-cyan-200/60 blur-[2px]" />
-          <div className="absolute bottom-[30%] left-[4%] w-1.5 h-1.5 rounded-full bg-teal-200/60 blur-[1px]" />
-          <div className="absolute bottom-[16%] right-[12%] w-3 h-3 rounded-full bg-cyan-300/60 blur-[2px]" />
-          <div className="absolute bottom-[8%] right-[24%] w-2 h-2 rounded-full bg-sky-200/60 blur-[2px]" />
-          <div className="absolute bottom-[26%] right-[4%] w-2.5 h-2.5 rounded-full bg-pink-200/60 blur-[2px]" />
-        </div>
-
+      <section id="language" className="scroll-mt-24 relative overflow-hidden bg-white">
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -1547,14 +1418,14 @@ export default function BroFInAiLandingPage() {
               variants={fadeInUp}
               whileHover={{ y: -6 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="group relative rounded-[30px] p-[1.5px] bg-gradient-to-br from-purple-200 via-slate-200 to-white shadow-xl shadow-purple-500/[0.06] hover:shadow-purple-500/[0.12] transition-shadow duration-300"
+              className={`group relative rounded-[30px] p-[1.5px] bg-gradient-to-br ${meta.card.border} shadow-xl ${meta.card.shadow} transition-colors duration-500`}
             >
               <div className="relative h-full rounded-[29px] bg-white overflow-hidden p-8 space-y-5">
-                <span className="absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r from-purple-400 to-purple-200" />
-                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-purple-500/[0.05] to-transparent" />
+                <span className={`absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r ${meta.card.topBar} transition-colors duration-500`} />
+                <div className={`pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${meta.card.tint}`} />
 
                 <div className="relative flex items-center gap-4">
-                  <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-300 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-purple-500/25">
+                  <div className={`w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${meta.card.iconGrad} flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg ${meta.card.iconShadow}`}>
                     <span className="text-[9px] font-black tracking-widest text-white/70">01</span>
                     <UserPlus className="w-5 h-5 text-white" />
                   </div>
@@ -1569,7 +1440,7 @@ export default function BroFInAiLandingPage() {
                 </p>
 
                 {/* Mini registration preview */}
-                <div className="relative rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-2.5">
+                <div className={`relative rounded-2xl bg-slate-50 border p-4 space-y-2.5 transition-colors duration-500 ${meta.ring}`}>
                   <div className="flex items-center gap-2 rounded-lg bg-slate-900/5 border border-slate-200 px-3 py-2">
                     <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <span className="text-[11px] text-slate-600">Name</span>
@@ -1582,10 +1453,10 @@ export default function BroFInAiLandingPage() {
                     <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <span className="text-[11px] text-slate-600">Password</span>
                   </div>
-                  <div className="w-full text-center rounded-lg bg-gradient-to-r from-purple-400/90 to-purple-300/90 text-slate-950 text-[11px] font-bold py-2 mt-1">
+                  <div className={`w-full text-center rounded-lg bg-gradient-to-r ${meta.card.buttonGrad} text-slate-950 text-[11px] font-bold py-2 mt-1 transition-colors duration-500`}>
                     Create Account
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold pt-0.5">
+                  <div className={`flex items-center gap-1.5 text-[11px] font-semibold pt-0.5 transition-colors duration-500 ${meta.text}`}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Account ready
                   </div>
                 </div>
@@ -1593,7 +1464,7 @@ export default function BroFInAiLandingPage() {
                 <Link
                   href="/register"
                   prefetch={false}
-                  className="relative inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-700 transition-colors group/link"
+                  className={`relative inline-flex items-center gap-1.5 text-xs font-bold transition-colors group/link ${meta.card.linkText}`}
                 >
                   Register Free
                   <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
@@ -1606,14 +1477,14 @@ export default function BroFInAiLandingPage() {
               variants={fadeInUp}
               whileHover={{ y: -6 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="group relative rounded-[30px] p-[1.5px] bg-gradient-to-br from-emerald-200 via-slate-200 to-white shadow-xl shadow-emerald-500/[0.06] hover:shadow-emerald-500/[0.12] transition-shadow duration-300"
+              className={`group relative rounded-[30px] p-[1.5px] bg-gradient-to-br ${meta.card.border} shadow-xl ${meta.card.shadow} transition-colors duration-500`}
             >
               <div className="relative h-full rounded-[29px] bg-white overflow-hidden p-8 space-y-5">
-                <span className="absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r from-emerald-400 to-emerald-200" />
-                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-emerald-500/[0.05] to-transparent" />
+                <span className={`absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r ${meta.card.topBar} transition-colors duration-500`} />
+                <div className={`pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${meta.card.tint}`} />
 
                 <div className="relative flex items-center gap-4">
-                  <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-300 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-emerald-500/25">
+                  <div className={`w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${meta.card.iconGrad} flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg ${meta.card.iconShadow}`}>
                     <span className="text-[9px] font-black tracking-widest text-white/70">02</span>
                     <MessageCircle className="w-5 h-5 text-white" />
                   </div>
@@ -1657,7 +1528,7 @@ export default function BroFInAiLandingPage() {
                     Spent $15 on groceries
                   </div>
                   <div className="bg-slate-100 border border-slate-200 text-slate-700 p-3 rounded-2xl rounded-tl-sm max-w-[85%] space-y-1 shadow-lg">
-                    <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider text-emerald-600">
+                    <div className={`flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider transition-colors duration-500 ${meta.text}`}>
                       <CheckCircle2 className="w-3.5 h-3.5" /> Added
                     </div>
                     <div className="text-[11px] text-slate-600">
@@ -1683,14 +1554,14 @@ export default function BroFInAiLandingPage() {
               variants={fadeInUp}
               whileHover={{ y: -6 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="group relative rounded-[30px] p-[1.5px] bg-gradient-to-br from-cyan-200 via-slate-200 to-white shadow-xl shadow-cyan-500/[0.06] hover:shadow-cyan-500/[0.12] transition-shadow duration-300"
+              className={`group relative rounded-[30px] p-[1.5px] bg-gradient-to-br ${meta.card.border} shadow-xl ${meta.card.shadow} transition-colors duration-500`}
             >
               <div className="relative h-full rounded-[29px] bg-white overflow-hidden p-8 space-y-5">
-                <span className="absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r from-cyan-400 to-cyan-200" />
-                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-cyan-500/[0.05] to-transparent" />
+                <span className={`absolute top-0 left-8 right-8 h-[3px] rounded-full bg-gradient-to-r ${meta.card.topBar} transition-colors duration-500`} />
+                <div className={`pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${meta.card.tint}`} />
 
                 <div className="relative flex items-center gap-4">
-                  <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-cyan-400 to-cyan-300 flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-cyan-500/25">
+                  <div className={`w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${meta.card.iconGrad} flex flex-col items-center justify-center gap-0.5 transition-transform duration-300 group-hover:scale-110 shadow-lg ${meta.card.iconShadow}`}>
                     <span className="text-[9px] font-black tracking-widest text-white/70">03</span>
                     <BarChart3 className="w-5 h-5 text-white" />
                   </div>
@@ -1705,7 +1576,7 @@ export default function BroFInAiLandingPage() {
                 </p>
 
                 {/* Mini dashboard preview */}
-                <div className="relative rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-3">
+                <div className={`relative rounded-2xl bg-slate-50 border p-4 space-y-3 transition-colors duration-500 ${meta.ring}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-slate-500">Monthly Spending</span>
                   <span className="text-sm font-bold text-slate-900">$428.50</span>
@@ -1713,17 +1584,20 @@ export default function BroFInAiLandingPage() {
 
                 <div className="space-y-1.5">
                   {[
-                    { label: "Food", value: "$180", pct: 42, color: "from-cyan-400 to-emerald-400" },
-                    { label: "Transport", value: "$92", pct: 21, color: "from-cyan-400/80 to-emerald-400/80" },
-                    { label: "Other", value: "$156.50", pct: 37, color: "from-cyan-400/60 to-emerald-400/60" },
-                  ].map((row) => (
+                    { label: "Food", value: "$180", pct: 42 },
+                    { label: "Transport", value: "$92", pct: 21 },
+                    { label: "Other", value: "$156.50", pct: 37 },
+                  ].map((row, idx) => (
                     <div key={row.label} className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="text-slate-600">{row.label}</span>
                         <span className="text-slate-600 font-semibold">{row.value}</span>
                       </div>
                       <div className="h-1 rounded-full bg-slate-900/5 overflow-hidden">
-                        <div className={`h-full rounded-full bg-gradient-to-r ${row.color}`} style={{ width: `${row.pct}%` }} />
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${meta.card.iconGrad} transition-colors duration-500`}
+                          style={{ width: `${row.pct}%`, opacity: 1 - idx * 0.2 }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1731,7 +1605,7 @@ export default function BroFInAiLandingPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                   <span className="text-[10px] text-slate-500">Full report</span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-600">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold transition-colors duration-500 ${meta.text}`}>
                     <Download className="w-3 h-3" /> Export .xlsx
                   </span>
                 </div>
@@ -1780,37 +1654,43 @@ export default function BroFInAiLandingPage() {
               type="button"
               onClick={() => setChannel("whatsapp")}
               aria-pressed={channel === "whatsapp"}
-              className={`group relative text-left rounded-[26px] border backdrop-blur-xl p-6 transition-all duration-300 ${
+              className={`group relative text-left rounded-[26px] border-2 backdrop-blur-xl p-6 transition-all duration-300 appearance-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                 channel === "whatsapp"
-                  ? "border-emerald-200 bg-white shadow-[0_0_40px_rgba(52,211,153,0.15)]"
+                  ? "border-transparent bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 shadow-[0_20px_50px_rgba(13,148,136,0.35)]"
                   : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-white"
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] font-bold uppercase tracking-widest">
-                  <Sparkles className="w-3 h-3" /> Recommended
-                </span>
-                {channel === "whatsapp" && (
-                  <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-slate-950" strokeWidth={3} />
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center shadow-lg ${channel === "whatsapp" ? "bg-white/15 shadow-black/10" : "bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-emerald-500/25"}`}>
+                    <WhatsAppIcon className="w-5.5 h-5.5 text-white" />
+                  </div>
+                  <span className={`text-lg font-bold ${channel === "whatsapp" ? "text-white" : "text-slate-900"}`}>WhatsApp</span>
+                </div>
+                {channel === "whatsapp" ? (
+                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-emerald-600" strokeWidth={3} />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-[9px] font-bold uppercase tracking-widest shrink-0">
+                    <Sparkles className="w-2.5 h-2.5" /> Recommended
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <WhatsAppIcon className="w-5 h-5 text-emerald-600" />
-                <span className="text-lg font-bold text-slate-900">WhatsApp</span>
-              </div>
-
-              <div className="text-2xl font-black text-emerald-600 tracking-tight mb-1">7 DAYS FREE</div>
-              <p className="text-slate-600 text-xs leading-relaxed">Try BroFInAi free on WhatsApp for 7 days.</p>
-              <p className="text-slate-500 text-xs leading-relaxed mt-1">Then choose a paid plan to continue.</p>
+              <div className={`text-2xl font-black tracking-tight mb-1 ${channel === "whatsapp" ? "text-white" : "text-emerald-600"}`}>7 DAYS FREE</div>
+              <p className={`text-xs leading-relaxed ${channel === "whatsapp" ? "text-white/80" : "text-slate-600"}`}>Try BroFInAi free on WhatsApp for 7 days.</p>
+              <p className={`text-xs leading-relaxed mt-1 ${channel === "whatsapp" ? "text-white/60" : "text-slate-500"}`}>Then choose a paid plan to continue.</p>
 
               <Link
                 href="/register?plan=free&channel=whatsapp&type=direct"
                 prefetch={false}
                 onClick={(e) => e.stopPropagation()}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-600 transition-colors"
+                className={`mt-5 w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold rounded-full py-3 shadow-lg transition-all ${
+                  channel === "whatsapp"
+                    ? "text-emerald-700 bg-white hover:bg-emerald-50 shadow-black/10"
+                    : "text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/25"
+                }`}
               >
                 Start Free on WhatsApp
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
@@ -1822,36 +1702,42 @@ export default function BroFInAiLandingPage() {
               type="button"
               onClick={() => setChannel("telegram")}
               aria-pressed={channel === "telegram"}
-              className={`group relative text-left rounded-[26px] border backdrop-blur-xl p-6 transition-all duration-300 ${
+              className={`group relative text-left rounded-[26px] border-2 backdrop-blur-xl p-6 transition-all duration-300 appearance-none focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 channel === "telegram"
-                  ? "border-sky-200 bg-white shadow-[0_0_40px_rgba(56,189,248,0.15)]"
+                  ? "border-transparent bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 shadow-[0_20px_50px_rgba(37,99,235,0.35)]"
                   : "border-slate-200 bg-white hover:border-sky-200 hover:bg-white"
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-[10px] font-bold uppercase tracking-widest">
-                  <Sparkles className="w-3 h-3" /> Free Forever
-                </span>
-                {channel === "telegram" && (
-                  <span className="w-5 h-5 rounded-full bg-sky-400 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-slate-950" strokeWidth={3} />
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center shadow-lg ${channel === "telegram" ? "bg-white/15 shadow-black/10" : "bg-gradient-to-br from-sky-400 to-blue-500 shadow-sky-500/25"}`}>
+                    <TelegramIcon className="w-5.5 h-5.5 text-white" />
+                  </div>
+                  <span className={`text-lg font-bold ${channel === "telegram" ? "text-white" : "text-slate-900"}`}>Telegram</span>
+                </div>
+                {channel === "telegram" ? (
+                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-sky-600" strokeWidth={3} />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-[9px] font-bold uppercase tracking-widest shrink-0">
+                    <Sparkles className="w-2.5 h-2.5" /> Free Forever
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <TelegramIcon className="w-5 h-5 text-sky-600" />
-                <span className="text-lg font-bold text-slate-900">Telegram</span>
-              </div>
-
-              <div className="text-2xl font-black text-sky-600 tracking-tight mb-1">$0</div>
-              <p className="text-slate-600 text-xs leading-relaxed">Track your money on Telegram with no subscription required.</p>
+              <div className={`text-2xl font-black tracking-tight mb-1 ${channel === "telegram" ? "text-white" : "text-sky-600"}`}>$0</div>
+              <p className={`text-xs leading-relaxed ${channel === "telegram" ? "text-white/80" : "text-slate-600"}`}>Track your money on Telegram with no subscription required.</p>
 
               <Link
                 href="/register?plan=free&channel=telegram&type=direct"
                 prefetch={false}
                 onClick={(e) => e.stopPropagation()}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-600 transition-colors"
+                className={`mt-5 w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold rounded-full py-3 shadow-lg transition-all ${
+                  channel === "telegram"
+                    ? "text-blue-700 bg-white hover:bg-sky-50 shadow-black/10"
+                    : "text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-sky-500/25"
+                }`}
               >
                 Start Free on Telegram
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
@@ -1900,24 +1786,29 @@ export default function BroFInAiLandingPage() {
                 key={plan.id}
                 className={`group relative flex flex-col transition-all duration-300 ${
                   plan.highlight
-                    ? "scale-[1.02] drop-shadow-[0_0_40px_rgba(52,211,153,0.2)]"
+                    ? channel === "whatsapp"
+                      ? "scale-[1.02] drop-shadow-[0_20px_50px_rgba(13,148,136,0.35)]"
+                      : "scale-[1.02] drop-shadow-[0_20px_50px_rgba(37,99,235,0.35)]"
                     : ""
                 }`}
               >
                 {/* Highlight Badge */}
                 {plan.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 bg-emerald-400 text-slate-950 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 bg-slate-900 text-white font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md shadow-slate-900/30">
                     <Sparkles className="w-3 h-3" />
                     {plan.badge}
                   </div>
                 )}
 
-                {/* Card background — plain rounded box (previously a speech-bubble
-                    mask shape; swapped for a simpler flat card). */}
+                {/* Card background — highlighted plan gets a full gradient
+                    fill (dark, on-brand) while the other two stay flat white
+                    cards, matching the reference layout. */}
                 <div
                   className={`absolute inset-0 rounded-3xl border transition-colors duration-300 backdrop-blur-xl ${
                     plan.highlight
-                      ? "border-emerald-200 bg-white group-hover:bg-white shadow-[0_0_40px_rgba(52,211,153,0.15)]"
+                      ? channel === "whatsapp"
+                        ? "border-transparent bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700"
+                        : "border-transparent bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-700"
                       : "border-slate-200 bg-white group-hover:bg-white"
                   }`}
                 />
@@ -1926,7 +1817,7 @@ export default function BroFInAiLandingPage() {
                   <div>
                   {/* Header */}
                   <div className="mb-6">
-                    <span className="text-xs font-bold uppercase tracking-wider text-purple-600">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${plan.highlight ? (channel === "whatsapp" ? "text-emerald-200" : "text-sky-200") : meta.text}`}>
                       {plan.name}
                     </span>
                     <div className="relative h-11 md:h-14 mt-2 flex items-center gap-2">
@@ -1939,10 +1830,10 @@ export default function BroFInAiLandingPage() {
                           transition={{ duration: 0.25, ease: "easeOut" }}
                           className="flex items-baseline gap-1"
                         >
-                          <span className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 whitespace-nowrap">
+                          <span className={`text-4xl md:text-5xl font-black tracking-tight whitespace-nowrap ${plan.highlight ? "text-white" : "text-slate-900"}`}>
                             {plan.prices[channel]}
                           </span>
-                          <span className="text-xs text-slate-600 font-medium">
+                          <span className={`text-xs font-medium ${plan.highlight ? "text-white/70" : "text-slate-600"}`}>
                             {plan.period}
                           </span>
                         </motion.div>
@@ -1954,7 +1845,11 @@ export default function BroFInAiLandingPage() {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0 ${
-                            channel === "whatsapp" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-sky-50 text-sky-600 border border-sky-200"
+                            plan.highlight
+                              ? "bg-white/15 text-white border border-white/25"
+                              : channel === "whatsapp"
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : "bg-sky-50 text-sky-600 border border-sky-200"
                           }`}
                         >
                           <ChannelIcon className="w-2.5 h-2.5" /> {meta.label}
@@ -1962,43 +1857,47 @@ export default function BroFInAiLandingPage() {
                       </AnimatePresence>
                     </div>
                     {plan.id === "free" ? (
-                      <p className="text-[11px] font-medium mt-0.5 text-emerald-600">
+                      <p className={`text-[11px] font-medium mt-0.5 ${plan.highlight ? "text-white/90" : meta.text}`}>
                         {channel === "whatsapp" ? "7-Day Trial" : "Free Forever"}
                       </p>
                     ) : (
                       plan.prices.telegram !== plan.prices.whatsapp && (
-                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        <p className={`text-[11px] font-medium mt-0.5 ${plan.highlight ? "text-white/70" : "text-slate-500"}`}>
                           Price varies by channel
                         </p>
                       )
                     )}
                     {!plan.highlight && plan.id !== "free" && (
-                      <p className="text-[11px] text-purple-600 font-medium mt-1">
+                      <p className={`text-[11px] font-medium mt-1 ${meta.text}`}>
                         {plan.badge}
                       </p>
                     )}
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                    <p className={`text-xs mt-2 leading-relaxed ${plan.highlight ? "text-white/80" : "text-slate-600"}`}>
                       {plan.description}
                     </p>
                     {plan.trialNote && (
-                      <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                      <p className={`text-[11px] font-medium mt-1 ${plan.highlight ? "text-white/90" : meta.text}`}>
                         {plan.trialNote[channel]}
                       </p>
                     )}
                   </div>
 
-                  <div className="w-full h-[1px] bg-slate-900/10 my-6" />
+                  <div className={`w-full h-[1px] my-6 ${plan.highlight ? "bg-white/15" : "bg-slate-900/10"}`} />
 
                   {/* Features List */}
                   <ul className="space-y-3.5 mb-8">
                     {plan.features.map((feat, idx) => (
                       <li key={idx} className="flex items-center gap-3 text-xs">
                         {feat.included ? (
-                          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <Check className={`w-4 h-4 shrink-0 ${plan.highlight ? (channel === "whatsapp" ? "text-emerald-200" : "text-sky-200") : meta.text}`} />
                         ) : (
-                          <X className="w-4 h-4 text-slate-600 shrink-0" />
+                          <X className={`w-4 h-4 shrink-0 ${plan.highlight ? "text-white/40" : "text-slate-600"}`} />
                         )}
-                        <span className={feat.included ? "text-slate-700" : "text-slate-500 line-through"}>
+                        <span className={
+                          feat.included
+                            ? plan.highlight ? "text-white/90" : "text-slate-700"
+                            : plan.highlight ? "text-white/40 line-through" : "text-slate-500 line-through"
+                        }>
                           {feat.text}
                         </span>
                       </li>
@@ -2010,7 +1909,7 @@ export default function BroFInAiLandingPage() {
                   <Link
                     href={`/register?plan=${plan.id}&channel=${channel}&type=direct`}
                     prefetch={false}
-                    className={`w-full py-3.5 px-4 rounded-xl text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
+                    className={`w-full py-3.5 px-4 rounded-full text-center text-xs tracking-wider uppercase font-bold transition flex items-center justify-center gap-2 cursor-pointer ${plan.buttonClass}`}
                   >
                     <span>{plan.buttonText}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -2046,7 +1945,7 @@ export default function BroFInAiLandingPage() {
                         <tr className="border-b border-slate-200 bg-slate-900/[0.03]">
                           <th className="text-left font-semibold text-slate-600 uppercase tracking-wider px-5 py-3">Feature</th>
                           <th className="text-center font-semibold text-slate-600 uppercase tracking-wider px-5 py-3">Lite</th>
-                          <th className="text-center font-semibold text-emerald-600 uppercase tracking-wider px-5 py-3">Core</th>
+                          <th className={`text-center font-semibold uppercase tracking-wider px-5 py-3 ${meta.text}`}>Core</th>
                           <th className="text-center font-semibold text-purple-600 uppercase tracking-wider px-5 py-3">Max</th>
                         </tr>
                       </thead>
@@ -2058,7 +1957,7 @@ export default function BroFInAiLandingPage() {
                               <td key={i} className="px-5 py-3 text-center">
                                 {typeof val === "boolean" ? (
                                   val ? (
-                                    <Check className="w-4 h-4 text-emerald-600 mx-auto" />
+                                    <Check className={`w-4 h-4 mx-auto ${meta.text}`} />
                                   ) : (
                                     <X className="w-4 h-4 text-slate-600 mx-auto" />
                                   )
@@ -2088,10 +1987,11 @@ export default function BroFInAiLandingPage() {
           spending data needs to earn that trust explicitly, not imply it.
           Calls out security, data control, and exactly where AI stops and
           the user's own decision takes over. */}
-      <section id="trust" className="scroll-mt-24 relative overflow-hidden">
+      <section id="trust" className={`scroll-mt-24 relative overflow-hidden bg-gradient-to-br transition-colors duration-700 ${meta.heroBg}`}>
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute top-10 left-1/4 w-[460px] h-[460px] rounded-full bg-emerald-50 blur-[140px]" />
-          <div className="absolute bottom-0 right-1/4 w-[420px] h-[420px] rounded-full bg-cyan-50 blur-[140px]" />
+          <div className="absolute -top-20 -left-10 w-[480px] h-[480px] rounded-full bg-emerald-500/20 blur-[160px]" />
+          <div className="absolute bottom-0 right-0 w-[460px] h-[460px] rounded-full bg-cyan-500/20 blur-[160px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-[360px] h-[360px] rounded-full bg-purple-500/10 blur-[140px]" />
         </div>
 
         <motion.div
@@ -2099,90 +1999,57 @@ export default function BroFInAiLandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-slate-200"
+          className="relative max-w-7xl mx-auto px-6 py-28 border-t border-white/10"
         >
           <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto mb-14 space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/5 border border-slate-200 text-xs font-bold uppercase tracking-[0.25em] text-emerald-600">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-[0.25em] text-emerald-300">
               <Lock className="w-3.5 h-3.5" /> Built On Trust
             </div>
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1]">
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1] text-white">
               Your Money Data
               <br />
               <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
                 Deserves Privacy.
               </span>
             </h2>
-            <p className="text-slate-500 text-sm sm:text-base max-w-lg mx-auto">
+            <p className="text-slate-400 text-sm sm:text-base max-w-lg mx-auto">
               You're trusting us with real financial details. We take that seriously — with encryption, clear consent, and full control staying in your hands.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             {[
               {
-                icon: Lock,
-                emoji: "🔒",
-                title: "Secure by Design",
-                desc: "Every message is encrypted in transit and at rest — your spending data is never sent or stored in the clear.",
-                accent: "emerald",
+                src: "/trust/secure-by-design.png",
+                alt: "Secure by Design — every message is encrypted in transit and at rest, your spending data is never sent or stored in the clear.",
               },
               {
-                icon: ShieldCheck,
-                emoji: "🛡️",
-                title: "Privacy Focused",
-                desc: "We collect only what's needed to track your spending. Your data is never sold, and never shared with advertisers.",
-                accent: "cyan",
+                src: "/trust/privacy-focused.png",
+                alt: "Privacy Focused — we collect only what's needed to track your spending, your data is never sold or shared with advertisers.",
               },
               {
-                icon: User,
-                emoji: "👤",
-                title: "You Control Your Data",
-                desc: "Export, correct, or delete your data any time — right from chat. Nothing is locked away from you.",
-                accent: "sky",
+                src: "/trust/you-control-your-data.png",
+                alt: "You Control Your Data — export, correct, or delete your data any time, right from chat.",
               },
               {
-                icon: Sparkles,
-                emoji: "🤖",
-                title: "AI Assists — You Decide",
-                desc: "The AI categorizes and suggests, but every entry is editable and every decision is yours to confirm or change.",
-                accent: "purple",
+                src: "/trust/ai-assists-you-decide.png",
+                alt: "AI Assists, You Decide — the AI categorizes and suggests, but every entry is editable and every decision is yours.",
               },
-            ].map((item) => {
-              const ACCENTS: Record<string, { ring: string; bar: string; badge: string; glow: string; text: string }> = {
-                emerald: { ring: "from-emerald-200 via-slate-200 to-white", bar: "from-emerald-400 to-emerald-200", badge: "from-emerald-400 to-emerald-300", glow: "shadow-emerald-500/25", text: "text-white" },
-                cyan: { ring: "from-cyan-200 via-slate-200 to-white", bar: "from-cyan-400 to-cyan-200", badge: "from-cyan-400 to-cyan-300", glow: "shadow-cyan-500/25", text: "text-white" },
-                sky: { ring: "from-sky-200 via-slate-200 to-white", bar: "from-sky-400 to-sky-200", badge: "from-sky-400 to-sky-300", glow: "shadow-sky-500/25", text: "text-white" },
-                purple: { ring: "from-purple-200 via-slate-200 to-white", bar: "from-purple-400 to-purple-200", badge: "from-purple-400 to-purple-300", glow: "shadow-purple-500/25", text: "text-white" },
-              };
-              const a = ACCENTS[item.accent];
-              return (
-                <motion.div
-                  key={item.title}
-                  variants={fadeInUp}
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className={`group relative rounded-[26px] p-[1.5px] bg-gradient-to-br ${a.ring} shadow-lg hover:shadow-xl transition-shadow duration-300`}
-                >
-                  <div className="relative h-full p-6 rounded-[25px] bg-white overflow-hidden">
-                    <span className={`absolute top-0 left-6 right-6 h-[3px] rounded-full bg-gradient-to-r ${a.bar}`} />
-                    <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-slate-900/[0.02] to-transparent" />
-                    <div className="relative space-y-3">
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${a.badge} flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-lg ${a.glow}`}>
-                        <item.icon className={`w-5 h-5 ${a.text}`} />
-                      </div>
-                      <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                        <span>{item.emoji}</span> {item.title}
-                      </h3>
-                      <p className="text-slate-600 text-xs leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+            ].map((img) => (
+              <motion.div
+                key={img.alt}
+                variants={fadeInUp}
+                whileHover={{ y: -5, scale: 1.01 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="rounded-[26px] overflow-hidden shadow-2xl shadow-black/40 bg-slate-900"
+              >
+                <img src={img.src} alt={img.alt} className="w-full h-auto block" />
+              </motion.div>
+            ))}
           </div>
 
-          <motion.div variants={fadeInUp} className="mt-10 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <motion.div variants={fadeInUp} className="mt-10 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Bank-grade encryption on every message. You're always in control of your data.</span>
           </motion.div>
         </motion.div>
@@ -2244,7 +2111,7 @@ export default function BroFInAiLandingPage() {
 
       {/* CALL TO ACTION */}
       <section className="max-w-6xl mx-auto px-6 py-20">
-        <div className="relative p-12 rounded-3xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-600 text-center space-y-8 overflow-hidden shadow-2xl shadow-emerald-900/20">
+        <div className={`relative p-12 rounded-3xl bg-gradient-to-r text-center space-y-8 overflow-hidden shadow-2xl transition-colors duration-700 ${meta.cta.bg} ${meta.cta.shadow}`}>
           {/* Decorative dot-grid + soft glows — gives the closing banner a
               premium, global-brand finish instead of a flat color block. */}
           <div className="pointer-events-none absolute inset-0">
@@ -2267,7 +2134,7 @@ export default function BroFInAiLandingPage() {
           <h2 className="relative text-4xl md:text-5xl font-black tracking-tight max-w-2xl mx-auto text-white">
             Ready to Master Your Finances Globally?
           </h2>
-          <p className="text-emerald-50 text-sm md:text-base max-w-xl mx-auto">
+          <p className={`text-sm md:text-base max-w-xl mx-auto transition-colors duration-700 ${meta.cta.paraText}`}>
             Be one of the first to experience smarter money management.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -2436,34 +2303,34 @@ export default function BroFInAiLandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-200">
+      <footer className={`border-t border-white/10 bg-gradient-to-br transition-colors duration-700 ${meta.heroBg}`}>
         <div className="max-w-7xl mx-auto px-6 pt-20 pb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
             {/* Brand Column */}
             <div className="md:col-span-5 space-y-5">
               <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight w-fit">
                 <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
-                <span className="text-2xl font-black bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 bg-clip-text text-transparent">
-                  Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
+                <span className={`text-2xl font-black text-white`}>
+                  Bro<span className={`bg-gradient-to-r ${meta.from} ${meta.to} bg-clip-text text-transparent transition-colors duration-700`}>FInAi</span>
                 </span>
               </Link>
-              <p className="text-slate-600 text-sm leading-relaxed max-w-sm">
+              <p className="text-slate-300 text-sm leading-relaxed max-w-sm">
                 Track every expense right inside WhatsApp or Telegram. No new apps, no spreadsheets — just message, snap, and go.
               </p>
               <div className="flex items-center gap-3 pt-1">
-                <a href="https://wa.me/94729367157" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="w-9 h-9 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:border-emerald-200 transition">
+                <a href="https://wa.me/94729367157" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-emerald-400 hover:border-emerald-300/40 transition">
                   <WhatsAppIcon className="w-4 h-4" />
                 </a>
-                <a href="https://t.me/BroFinAi_support" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="w-9 h-9 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:border-sky-200 transition">
+                <a href="https://t.me/BroFinAi_support" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-sky-400 hover:border-sky-300/40 transition">
                   <TelegramIcon className="w-4 h-4" />
                 </a>
-                <a href="https://x.com/brofinai" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="w-9 h-9 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-200 transition">
+                <a href="https://x.com/brofinai" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:border-white/30 transition">
                   <TwitterIcon className="w-4 h-4" />
                 </a>
-                <a href="https://www.instagram.com/hello.brofinai/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-200 transition">
+                <a href="https://www.instagram.com/hello.brofinai/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:border-white/30 transition">
                   <InstagramIcon className="w-4 h-4" />
                 </a>
-                <a href="https://web.facebook.com/profile.php?id=61593361653835" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-9 h-9 rounded-full bg-slate-900/5 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-200 transition">
+                <a href="https://web.facebook.com/profile.php?id=61593361653835" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:border-white/30 transition">
                   <FacebookIcon className="w-4 h-4" />
                 </a>
               </div>
@@ -2471,32 +2338,32 @@ export default function BroFInAiLandingPage() {
 
             {/* Product Links */}
             <div className="md:col-span-3 space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600">Product</h4>
-              <ul className="space-y-3 text-sm text-slate-600">
-                <li><a href="#features" onClick={(e) => scrollToSection(e, "features")} className="hover:text-slate-900 transition-colors">Features</a></li>
-                <li><a href="#language" onClick={(e) => scrollToSection(e, "language")} className="hover:text-slate-900 transition-colors">Language</a></li>
-                <li><a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className="hover:text-slate-900 transition-colors">How It Works</a></li>
-                <li><a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="hover:text-slate-900 transition-colors">Pricing</a></li>
-                <li><a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className="hover:text-slate-900 transition-colors">FAQ</a></li>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Product</h4>
+              <ul className="space-y-3 text-sm text-slate-300">
+                <li><a href="#features" onClick={(e) => scrollToSection(e, "features")} className={`transition-colors duration-700 ${meta.heroAccent}`}>Features</a></li>
+                <li><a href="#language" onClick={(e) => scrollToSection(e, "language")} className={`transition-colors duration-700 ${meta.heroAccent}`}>Language</a></li>
+                <li><a href="#how-it-works" onClick={(e) => scrollToSection(e, "how-it-works")} className={`transition-colors duration-700 ${meta.heroAccent}`}>How It Works</a></li>
+                <li><a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className={`transition-colors duration-700 ${meta.heroAccent}`}>Pricing</a></li>
+                <li><a href="#faq" onClick={(e) => scrollToSection(e, "faq")} className={`transition-colors duration-700 ${meta.heroAccent}`}>FAQ</a></li>
               </ul>
             </div>
 
             {/* Legal Links */}
             <div className="md:col-span-4 space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600">Legal</h4>
-              <ul className="space-y-3 text-sm text-slate-600">
-                <li><a href="#trust" onClick={(e) => scrollToSection(e, "trust")} className="hover:text-slate-900 transition-colors">Trust & Security</a></li>
-                <li><Link href="/privacy-policy" className="hover:text-slate-900 transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms-of-service" className="hover:text-slate-900 transition-colors">Terms of Service</Link></li>
-                <li><Link href="/refund-policy" className="hover:text-slate-900 transition-colors">Refund Policy</Link></li>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Legal</h4>
+              <ul className="space-y-3 text-sm text-slate-300">
+                <li><a href="#trust" onClick={(e) => scrollToSection(e, "trust")} className={`transition-colors duration-700 ${meta.heroAccent}`}>Trust & Security</a></li>
+                <li><Link href="/privacy-policy" className={`transition-colors duration-700 ${meta.heroAccent}`}>Privacy Policy</Link></li>
+                <li><Link href="/terms-of-service" className={`transition-colors duration-700 ${meta.heroAccent}`}>Terms of Service</Link></li>
+                <li><Link href="/refund-policy" className={`transition-colors duration-700 ${meta.heroAccent}`}>Refund Policy</Link></li>
               </ul>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-slate-500">© {new Date().getFullYear()} BroFInAi. All rights reserved.</span>
-            <span className="text-xs text-slate-500 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Bank-grade encryption on every message
+          <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-xs text-slate-400">© {new Date().getFullYear()} BroFInAi. All rights reserved.</span>
+            <span className="text-xs text-slate-400 flex items-center gap-1.5">
+              <ShieldCheck className={`w-3.5 h-3.5 transition-colors duration-700 ${meta.heroAccent}`} /> Bank-grade encryption on every message
             </span>
           </div>
         </div>
