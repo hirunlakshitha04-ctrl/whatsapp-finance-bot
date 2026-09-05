@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
   Bot, 
@@ -21,105 +21,13 @@ import {
   Mail,
   KeyRound,
   Loader2,
-  DollarSign,
-  Wallet,
-  TrendingUp,
-  Receipt,
-  CreditCard,
-  PieChart
+  Menu,
+  X
 } from "lucide-react";
 
 // Supabase client comes from the shared singleton in @/lib/supabase —
 // creating a second createClient() here caused the "Multiple GoTrueClient
 // instances" warning and bloated this page's bundle unnecessarily.
-
-// Falling finance-icon background — dollar signs, wallets, coins etc. drop in
-// inside circular badges and settle at a spot spread across the FULL height
-// of the screen (not just the bottom), each on its own staggered delay and
-// cycle length. After holding, each one fades out and falls back in again,
-// so it's a continuous, ongoing effect that keeps the whole background
-// gradually filling and refilling rather than a one-shot landing. Presets
-// are hardcoded (not Math.random) so the server-rendered and
-// client-hydrated markup match exactly.
-const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieChart];
-
-const FALLING_ICON_PRESETS: {
-  icon: number;
-  left: number;
-  circleSize: number;
-  iconSize: number;
-  cycleDuration: number;
-  delay: number;
-  landY: string;
-}[] = [
-  { icon: 6, left: 2, circleSize: 58, iconSize: 25, cycleDuration: 14.8, delay: 6, landY: "87vh" },
-  { icon: 0, left: 5, circleSize: 56, iconSize: 23, cycleDuration: 14.9, delay: 9.5, landY: "72vh" },
-  { icon: 6, left: 9, circleSize: 42, iconSize: 18, cycleDuration: 15.7, delay: 1.6, landY: "25vh" },
-  { icon: 3, left: 9, circleSize: 55, iconSize: 21, cycleDuration: 13.4, delay: 7.6, landY: "50vh" },
-  { icon: 3, left: 15, circleSize: 62, iconSize: 26, cycleDuration: 10.4, delay: 8.8, landY: "20vh" },
-  { icon: 1, left: 16, circleSize: 45, iconSize: 17, cycleDuration: 16.8, delay: 1.9, landY: "71vh" },
-  { icon: 4, left: 23, circleSize: 55, iconSize: 21, cycleDuration: 9.5, delay: 4.2, landY: "34vh" },
-  { icon: 5, left: 26, circleSize: 51, iconSize: 20, cycleDuration: 16.5, delay: 6.1, landY: "40vh" },
-  { icon: 2, left: 27, circleSize: 59, iconSize: 25, cycleDuration: 15.1, delay: 9.8, landY: "55vh" },
-  { icon: 3, left: 31, circleSize: 54, iconSize: 23, cycleDuration: 10.5, delay: 4.9, landY: "35vh" },
-  { icon: 0, left: 31, circleSize: 48, iconSize: 19, cycleDuration: 16.7, delay: 0.6, landY: "47vh" },
-  { icon: 2, left: 36, circleSize: 53, iconSize: 21, cycleDuration: 9.8, delay: 4.7, landY: "50vh" },
-  { icon: 5, left: 39, circleSize: 52, iconSize: 22, cycleDuration: 15.7, delay: 9, landY: "44vh" },
-  { icon: 0, left: 41, circleSize: 51, iconSize: 22, cycleDuration: 10.1, delay: 1.5, landY: "34vh" },
-  { icon: 0, left: 49, circleSize: 52, iconSize: 23, cycleDuration: 16.3, delay: 5.7, landY: "49vh" },
-  { icon: 3, left: 52, circleSize: 45, iconSize: 19, cycleDuration: 16.5, delay: 5.5, landY: "55vh" },
-  { icon: 5, left: 51, circleSize: 57, iconSize: 24, cycleDuration: 12.2, delay: 8, landY: "73vh" },
-  { icon: 3, left: 58, circleSize: 55, iconSize: 22, cycleDuration: 9.8, delay: 1.9, landY: "46vh" },
-  { icon: 3, left: 58, circleSize: 57, iconSize: 22, cycleDuration: 12.1, delay: 3.7, landY: "61vh" },
-  { icon: 1, left: 65, circleSize: 39, iconSize: 16, cycleDuration: 14.2, delay: 9.1, landY: "80vh" },
-  { icon: 4, left: 64, circleSize: 57, iconSize: 25, cycleDuration: 13.8, delay: 2.6, landY: "34vh" },
-  { icon: 5, left: 68, circleSize: 60, iconSize: 26, cycleDuration: 9.9, delay: 2.7, landY: "56vh" },
-  { icon: 1, left: 72, circleSize: 45, iconSize: 19, cycleDuration: 15.6, delay: 4.1, landY: "46vh" },
-  { icon: 1, left: 79, circleSize: 59, iconSize: 26, cycleDuration: 11.5, delay: 6.8, landY: "86vh" },
-  { icon: 1, left: 83, circleSize: 53, iconSize: 21, cycleDuration: 9.3, delay: 1.6, landY: "33vh" },
-  { icon: 4, left: 82, circleSize: 49, iconSize: 21, cycleDuration: 15.6, delay: 2.1, landY: "45vh" },
-  { icon: 1, left: 88, circleSize: 56, iconSize: 24, cycleDuration: 10.4, delay: 3.8, landY: "35vh" },
-  { icon: 5, left: 88, circleSize: 59, iconSize: 26, cycleDuration: 9.5, delay: 9.7, landY: "66vh" },
-  { icon: 2, left: 96, circleSize: 48, iconSize: 21, cycleDuration: 13.6, delay: 2.3, landY: "71vh" },
-  { icon: 4, left: 99, circleSize: 48, iconSize: 22, cycleDuration: 9.6, delay: 2.8, landY: "36vh" },
-];
-
-function FallingIcons() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      {FALLING_ICON_PRESETS.map((p, i) => {
-        const Icon = FALLING_ICON_SET[p.icon];
-        return (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{ left: `${p.left}%`, top: "-14%" }}
-            initial={{ y: "-10vh", opacity: 0, scale: 0.4 }}
-            animate={{
-              y: ["-10vh", p.landY, p.landY, "-10vh"],
-              opacity: [0, 1, 1, 0],
-              scale: [0.4, 1, 1, 0.4],
-            }}
-            transition={{
-              duration: p.cycleDuration,
-              delay: p.delay,
-              repeat: Infinity,
-              times: [0, 0.18, 0.82, 1], // quick fall in, long hold, quick fade out
-              ease: [0.34, 1.56, 0.64, 1], // slight overshoot on landing
-            }}
-          >
-            <div
-              className="rounded-full bg-white/5 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white/30"
-              style={{ width: p.circleSize, height: p.circleSize }}
-            >
-              <Icon style={{ width: p.iconSize, height: p.iconSize }} />
-            </div>
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
 
 declare global {
   interface Window {
@@ -714,6 +622,54 @@ function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Channel-driven color theme — WhatsApp reads green throughout the page
+  // (bubble borders, headings, inputs, button), Telegram reads blue. Recomputed
+  // on every render from formData.channel so switching the toggle re-colors
+  // everything instantly, no separate state to keep in sync.
+  const CHANNEL_THEME = {
+    whatsapp: {
+      label: "text-emerald-300",
+      link: "text-emerald-300 hover:text-emerald-200",
+      focusRing: "focus:border-emerald-500 focus:ring-emerald-500",
+      checkboxAccent: "accent-emerald-500",
+      iconAccent: "text-emerald-400",
+      headingGrad: "from-emerald-400 via-teal-300 to-green-400",
+      buttonGrad: "from-emerald-400 via-teal-300 to-green-400",
+      buttonShadow: "shadow-emerald-500/20",
+      panelGradLeft: "linear-gradient(135deg, #34d399, #0d9488)",
+      panelGradRight: "linear-gradient(135deg, #0d9488, #34d399)",
+      navBg: "from-emerald-600 via-emerald-800 to-emerald-950",
+      // Background glows — same emerald bloom as the landing/login pages,
+      // so this page reads as part of the same family when WhatsApp is picked.
+      glowTop: "bg-emerald-400/30",
+      glowBottom: "bg-teal-300/20",
+      // Base page background — matches the landing page's hero section
+      // exactly (heroBg: "from-emerald-500 via-emerald-800 to-emerald-950").
+      pageBg: "bg-gradient-to-br from-emerald-500 via-emerald-800 to-emerald-950",
+    },
+    telegram: {
+      label: "text-sky-300",
+      link: "text-sky-300 hover:text-sky-200",
+      focusRing: "focus:border-sky-500 focus:ring-sky-500",
+      checkboxAccent: "accent-sky-500",
+      iconAccent: "text-sky-400",
+      headingGrad: "from-sky-400 via-blue-300 to-cyan-400",
+      buttonGrad: "from-sky-400 via-blue-300 to-cyan-400",
+      buttonShadow: "shadow-sky-500/20",
+      panelGradLeft: "linear-gradient(135deg, #38bdf8, #2563eb)",
+      panelGradRight: "linear-gradient(135deg, #2563eb, #38bdf8)",
+      navBg: "from-blue-600 via-blue-800 to-slate-950",
+      // Same bloom treatment, recolored sky-blue to match the Telegram brand.
+      glowTop: "bg-blue-400/30",
+      glowBottom: "bg-sky-300/20",
+      // Base page background — matches the landing page's hero section
+      // exactly (heroBg: "from-blue-500 via-blue-800 to-slate-950").
+      pageBg: "bg-gradient-to-br from-blue-500 via-blue-800 to-slate-950",
+    },
+  } as const;
+  const theme = CHANNEL_THEME[formData.channel];
 
   useEffect(() => {
     setIsMounted(true);
@@ -1105,27 +1061,145 @@ function RegisterForm() {
 
   if (!isMounted) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-400"/>
+      <div className="min-h-screen flex flex-col items-center justify-center p-12 text-slate-400 gap-3 bg-white">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500"/>
         <span className="text-xs font-mono uppercase tracking-wider">Loading BroFinAi Form...</span>
       </div>
     );
   }
 
   return (
-    <div className="relative z-10 w-full max-w-5xl text-white">
+    <>
+      {/* Top Nav — same nav as the landing page, colored by the active
+          channel (green for WhatsApp, blue for Telegram) so it reads as
+          one continuous brand experience from landing page to sign-up. */}
+      <nav className={`sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r ${theme.navBg} border-b border-white/10 px-6 py-3.5 transition-colors duration-700`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight shrink-0">
+            <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
+            <span className="text-2xl font-black text-white hidden sm:inline">
+              Bro<span className={`transition-colors duration-500 ${theme.label}`}>FInAi</span>
+            </span>
+          </Link>
 
-      {/* Header Bar — sits above both speech-bubble panels */}
-      <div className="flex justify-between items-center pb-6 mb-8 md:mb-10">
-        <Link className="flex items-center gap-2.5 font-bold text-xl tracking-tight hover:opacity-90 transition" href="/">
-          <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
-          <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
-          </span>
-        </Link>
-        
-        <div className="text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400"/>
+          <div className="hidden lg:flex items-center gap-8 text-sm font-medium text-white/80">
+            <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
+            <Link href="/#language" className="hover:text-white transition-colors">Language</Link>
+            <Link href="/#how-it-works" className="hover:text-white transition-colors">How It Works</Link>
+            <Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link>
+            <Link href="/#faq" className="hover:text-white transition-colors">FAQ</Link>
+            <Link href="/#contact" className="hover:text-white transition-colors">Contact</Link>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="relative hidden md:inline-flex items-center gap-1 rounded-full bg-white/5 border border-white/10 p-1">
+              <button
+                type="button"
+                aria-pressed={formData.channel === "whatsapp"}
+                onClick={() => handleChannelSelect("whatsapp")}
+                className={`relative z-10 flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wider transition-colors px-3 py-1.5 text-[11px] ${
+                  formData.channel === "whatsapp" ? "text-slate-950" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {formData.channel === "whatsapp" && (
+                  <motion.div
+                    layoutId="register-nav-channel-pill"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-300"
+                  />
+                )}
+                <Phone className="relative w-3 h-3" />
+                <span className="relative">WhatsApp</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={formData.channel === "telegram"}
+                onClick={() => handleChannelSelect("telegram")}
+                className={`relative z-10 flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wider transition-colors px-3 py-1.5 text-[11px] ${
+                  formData.channel === "telegram" ? "text-slate-950" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {formData.channel === "telegram" && (
+                  <motion.div
+                    layoutId="register-nav-channel-pill"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-sky-400 to-blue-300"
+                  />
+                )}
+                <Bot className="relative w-3 h-3" />
+                <span className="relative">Telegram</span>
+              </button>
+            </div>
+            <Link href="/login" prefetch={false} className="hidden sm:inline text-xs sm:text-sm font-semibold text-white/80 hover:text-white transition whitespace-nowrap">
+              Login
+            </Link>
+            <Link
+              href="/#pricing"
+              className="group relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs bg-white text-slate-900 hover:bg-white/90 transition shadow-lg flex items-center gap-1.5 overflow-hidden whitespace-nowrap cursor-pointer"
+            >
+              <span className="hidden sm:inline">Get Started</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden w-9 h-9 shrink-0 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/80 hover:text-white transition"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* MOBILE NAV DRAWER */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="lg:hidden overflow-hidden"
+            >
+              <div className="max-w-7xl mx-auto px-2 pt-4 pb-2 flex flex-col gap-1 text-sm font-medium text-white/80">
+                <Link href="/#features" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">Features</Link>
+                <Link href="/#language" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">Language</Link>
+                <Link href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">How It Works</Link>
+                <Link href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">Pricing</Link>
+                <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">FAQ</Link>
+                <Link href="/#contact" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors">Contact</Link>
+                <div className="flex items-center gap-1 px-3 pt-2 md:hidden">
+                  <button type="button" onClick={() => handleChannelSelect("whatsapp")} className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold uppercase ${formData.channel === "whatsapp" ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-slate-300"}`}>
+                    <Phone className="w-3.5 h-3.5"/> WhatsApp
+                  </button>
+                  <button type="button" onClick={() => handleChannelSelect("telegram")} className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold uppercase ${formData.channel === "telegram" ? "bg-sky-400 text-slate-950" : "bg-white/10 text-slate-300"}`}>
+                    <Bot className="w-3.5 h-3.5"/> Telegram
+                  </button>
+                </div>
+                <Link href="/login" prefetch={false} onClick={() => setMobileMenuOpen(false)} className="sm:hidden px-3 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-colors border-t border-white/10 mt-1 pt-4">
+                  Login
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+
+      <div className={`min-h-[calc(100vh-73px)] flex items-center justify-center p-3 overflow-hidden font-sans relative transition-colors duration-700 ${theme.pageBg}`}>
+
+      {/* Background Glows — recolor with the channel toggle (emerald for
+          WhatsApp to match the landing/login pages, sky-blue for Telegram)
+          instead of staying plain white regardless of selection. */}
+      <div className={`absolute top-[-25%] left-[-5%] w-[620px] h-[620px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${theme.glowTop}`} />
+      <div className={`absolute bottom-[-30%] right-[0%] w-[560px] h-[560px] rounded-full blur-[160px] pointer-events-none transition-colors duration-700 ${theme.glowBottom}`} />
+
+      <div className="relative z-10 w-full max-w-5xl text-white">
+
+      {/* Header Bar — Plan badge only; logo now lives in the nav above */}
+      <div className="flex justify-end items-center pb-2 mb-2">
+        <div className="text-xs uppercase tracking-widest px-3.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-cyan-500"/>
           {planParam} Plan
         </div>
       </div>
@@ -1133,14 +1207,14 @@ function RegisterForm() {
       {/* Main Content Layout — left info panel and right form panel are each
           their own speech-bubble shape (gradient border + fixed-size tail),
           tails pointing at each other like two sides of a chat. */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-stretch">
         
         {/* Left Side Info — bubble panel, tail points right toward the form */}
         <div className="lg:col-span-5 relative">
           <div
             aria-hidden
             className="absolute inset-0 rounded-[28px]"
-            style={{ background: "linear-gradient(135deg, #a855f7, #38bdf8)" }}
+            style={{ background: theme.panelGradLeft }}
           />
           <div
             aria-hidden
@@ -1149,7 +1223,7 @@ function RegisterForm() {
           <div
             aria-hidden
             className="hidden lg:block absolute w-[24px] h-[24px] rounded-[6px] rotate-45"
-            style={{ right: "-10px", top: "50%", marginTop: "-12px", background: "linear-gradient(135deg, #a855f7, #38bdf8)" }}
+            style={{ right: "-10px", top: "50%", marginTop: "-12px", background: theme.panelGradLeft }}
           />
           <div
             aria-hidden
@@ -1157,25 +1231,25 @@ function RegisterForm() {
             style={{ right: "-8px", top: "50%", marginTop: "-10px" }}
           />
 
-          <div className="relative p-6 md:p-8 h-full flex flex-col">
-          <div className="space-y-6">
-          <h1 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">
+          <div className="relative p-4 md:p-6 h-full flex flex-col justify-between">
+          <div className="space-y-3">
+          <h1 className="text-2xl md:text-3xl font-black leading-tight tracking-tight">
             Stop Money <br />
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+            <span className={`bg-gradient-to-r ${theme.headingGrad} bg-clip-text text-transparent`}>
               Disappearing.
             </span>
           </h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
+          <p className="text-slate-400 text-xs leading-relaxed">
             Connect your personal profile, select your local currency & language, and let <b>BroFinAi</b> track every expense seamlessly on WhatsApp.
           </p>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2 pt-1">
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>
               <span>Zero manual entry required</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0"/>
+              <CheckCircle2 className={`w-4 h-4 ${theme.iconAccent} shrink-0`}/>
               <span>Instant AI receipt scanner & parser</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-300">
@@ -1185,24 +1259,44 @@ function RegisterForm() {
           </div>
           </div>
 
-          {/* Filler — mini chat preview showing the product in action, pinned
-              to the bottom so the panel doesn't sit half-empty next to the
-              taller form panel. */}
-          <div className="mt-auto pt-10">
-            <div className="space-y-2.5">
+          {/* Feature highlight grid — fills the middle of the panel with
+              real content instead of leaving a bare gap above the chat
+              preview when this column stretches to match the taller form
+              panel's height. Hidden on shorter viewports along with the
+              rest of the filler below. */}
+          <div className="hidden xl:grid grid-cols-3 gap-2.5 py-4">
+            <div className="rounded-2xl bg-white/5 border border-white/10 px-3 py-3.5 flex flex-col items-center text-center gap-1.5">
+              <Bot className={`w-4 h-4 ${theme.iconAccent}`} />
+              <span className="text-[10px] text-slate-300 leading-tight">AI-Powered<br/>Tracking</span>
+            </div>
+            <div className="rounded-2xl bg-white/5 border border-white/10 px-3 py-3.5 flex flex-col items-center text-center gap-1.5">
+              <Globe className={`w-4 h-4 ${theme.iconAccent}`} />
+              <span className="text-[10px] text-slate-300 leading-tight">Works<br/>Worldwide</span>
+            </div>
+            <div className="rounded-2xl bg-white/5 border border-white/10 px-3 py-3.5 flex flex-col items-center text-center gap-1.5">
+              <ShieldCheck className={`w-4 h-4 ${theme.iconAccent}`} />
+              <span className="text-[10px] text-slate-300 leading-tight">Bank-Grade<br/>Security</span>
+            </div>
+          </div>
+
+          {/* Filler — mini chat preview showing the product in action.
+              Hidden below xl so it never forces the page past one screen
+              height on shorter laptop displays. */}
+          <div className="hidden xl:block">
+            <div className="space-y-2">
               <div className="flex justify-end">
-                <div className="bg-emerald-500/15 border border-emerald-400/20 text-emerald-100 text-xs rounded-2xl rounded-br-sm px-3.5 py-2 max-w-[85%]">
+                <div className="bg-emerald-500/15 border border-emerald-400/20 text-emerald-100 text-xs rounded-2xl rounded-br-sm px-3.5 py-1.5 max-w-[85%]">
                   Spent $12.50 on lunch 🍔
                 </div>
               </div>
               <div className="flex justify-start">
-                <div className="bg-white/5 border border-white/10 text-slate-200 text-xs rounded-2xl rounded-bl-sm px-3.5 py-2 max-w-[85%]">
+                <div className="bg-white/5 border border-white/10 text-slate-200 text-xs rounded-2xl rounded-bl-sm px-3.5 py-1.5 max-w-[85%]">
                   Logged ✅ Food & Dining — Balance: $487.50
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-6 mt-6 border-t border-white/10">
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-3 mt-3 border-t border-white/10">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Bank-grade encryption on every message you send</span>
             </div>
@@ -1215,7 +1309,7 @@ function RegisterForm() {
           <div
             aria-hidden
             className="absolute inset-0 rounded-[28px]"
-            style={{ background: "linear-gradient(135deg, #38bdf8, #a855f7)" }}
+            style={{ background: theme.panelGradRight }}
           />
           <div
             aria-hidden
@@ -1224,7 +1318,7 @@ function RegisterForm() {
           <div
             aria-hidden
             className="hidden lg:block absolute w-[24px] h-[24px] rounded-[6px] rotate-45"
-            style={{ left: "-10px", top: "50%", marginTop: "-12px", background: "linear-gradient(135deg, #38bdf8, #a855f7)" }}
+            style={{ left: "-10px", top: "50%", marginTop: "-12px", background: theme.panelGradRight }}
           />
           <div
             aria-hidden
@@ -1232,27 +1326,27 @@ function RegisterForm() {
             style={{ left: "-8px", top: "50%", marginTop: "-10px" }}
           />
 
-          <div className="relative p-6 md:p-8">
+          <div className="relative p-4 md:p-6">
           {errorMsg && (
-            <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3.5 rounded-xl text-xs mb-4 flex items-center gap-2">
+            <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-2.5 rounded-xl text-xs mb-3 flex items-center gap-2">
               <Lock className="w-4 h-4 text-red-400 shrink-0"/>
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <form onSubmit={handleSubmit} className="space-y-2.5" autoComplete="off">
 
             {/* Row 0: Channel Selector */}
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1.5 font-medium flex items-center gap-1.5">
-                <Bot className="w-3.5 h-3.5 text-emerald-400"/> Where do you want to chat with BroFinAi? *
+              <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                <Bot className="w-3.5 h-3.5 text-slate-500"/> Where do you want to chat with BroFinAi? *
               </label>
               {showChannelToggle ? (
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => handleChannelSelect("whatsapp")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                    className={`flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl text-sm font-semibold border transition ${
                       formData.channel === "whatsapp"
                         ? "bg-emerald-500/15 border-emerald-400 text-emerald-300"
                         : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
@@ -1263,7 +1357,7 @@ function RegisterForm() {
                   <button
                     type="button"
                     onClick={() => handleChannelSelect("telegram")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold border transition ${
+                    className={`flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl text-sm font-semibold border transition ${
                       formData.channel === "telegram"
                         ? "bg-sky-500/15 border-sky-400 text-sky-300"
                         : "bg-slate-950/70 border-white/10 text-slate-400 hover:border-white/20"
@@ -1274,7 +1368,7 @@ function RegisterForm() {
                 </div>
               ) : (
                 <div
-                  className={`flex items-center justify-between gap-3 py-2.5 px-3.5 rounded-xl border text-sm font-semibold ${
+                  className={`flex items-center justify-between gap-3 py-2 px-3.5 rounded-xl border text-sm font-semibold ${
                     formData.channel === "whatsapp"
                       ? "bg-emerald-500/15 border-emerald-400 text-emerald-300"
                       : "bg-sky-500/15 border-sky-400 text-sky-300"
@@ -1300,10 +1394,10 @@ function RegisterForm() {
             </div>
 
             {/* Row 1: Name & (WhatsApp Phone — only when WhatsApp is selected) */}
-            <div className={`grid grid-cols-1 ${formData.channel === "whatsapp" ? "md:grid-cols-2" : ""} gap-3.5`}>
+            <div className={`grid grid-cols-1 ${formData.channel === "whatsapp" ? "md:grid-cols-2" : ""} gap-2`}>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-cyan-400"/> Full Name *
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <User className="w-3.5 h-3.5 text-slate-500"/> Full Name *
                 </label>
                 <input
                   type="text"
@@ -1312,14 +1406,14 @@ function RegisterForm() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="John Doe"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 />
               </div>
 
               {formData.channel === "whatsapp" && (
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-emerald-400"/> WhatsApp Number *
+                  <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                    <Phone className="w-3.5 h-3.5 text-slate-500"/> WhatsApp Number *
                   </label>
                   <input
                     type="text"
@@ -1328,23 +1422,23 @@ function RegisterForm() {
                     value={formData.phone_number}
                     onChange={handleChange}
                     placeholder="+94771234567"
-                    className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                    className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                   />
                 </div>
               )}
             </div>
 
             {formData.channel === "telegram" && (
-              <p className="text-xs text-sky-300/80 bg-sky-500/10 border border-sky-500/20 rounded-xl px-3.5 py-2.5">
+              <p className="text-xs text-sky-300/80 bg-sky-500/10 border border-sky-500/20 rounded-xl px-3 py-2">
                 No phone number needed — after you submit, we'll open Telegram and link your account automatically.
               </p>
             )}
 
             {/* Row 2: Password & Confirm Password */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-400"/> Password *
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-500"/> Password *
                 </label>
                 <input
                   type="password"
@@ -1353,13 +1447,13 @@ function RegisterForm() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-400"/> Confirm Password *
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-500"/> Confirm Password *
                 </label>
                 <input
                   type="password"
@@ -1368,15 +1462,15 @@ function RegisterForm() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 />
               </div>
             </div>
 
             {/* Row 2b: Email */}
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-sky-400"/> Email Address *
+              <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                <Mail className="w-3.5 h-3.5 text-slate-500"/> Email Address *
               </label>
               <input
                 type="email"
@@ -1385,21 +1479,21 @@ function RegisterForm() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="john@example.com"
-                className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
               />
             </div>
 
             {/* Row 3: Country & Nickname */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-pink-400"/> Country
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <Globe className="w-3.5 h-3.5 text-slate-500"/> Country
                 </label>
                 <select
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 >
                   {WORLD_COUNTRIES.map((c) => (
                     <option key={c} value={c} className="bg-slate-900 text-white">
@@ -1410,8 +1504,8 @@ function RegisterForm() {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Smile className="w-3.5 h-3.5 text-amber-400"/> How to call you?
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <Smile className="w-3.5 h-3.5 text-slate-500"/> How to call you?
                 </label>
                 <input
                   type="text"
@@ -1419,22 +1513,22 @@ function RegisterForm() {
                   value={formData.nickname}
                   onChange={handleChange}
                   placeholder="John / Bro / Buddy"
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 />
               </div>
             </div>
 
             {/* Row 4: Language & Currency */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Languages className="w-3.5 h-3.5 text-cyan-400"/> Preferred Language
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <Languages className="w-3.5 h-3.5 text-slate-500"/> Preferred Language
                 </label>
                 <select
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 >
                   {WORLD_LANGUAGES.map((lang) => (
                     <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
@@ -1445,14 +1539,14 @@ function RegisterForm() {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-purple-300 mb-1 font-medium flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-emerald-400"/> Base Currency
+                <label className={`block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5`}>
+                  <Coins className="w-3.5 h-3.5 text-slate-500"/> Base Currency
                 </label>
                 <select
                   name="currency"
                   value={formData.currency}
                   onChange={handleChange}
-                  className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 >
                   {WORLD_CURRENCIES.map((curr) => (
                     <option key={curr.code} value={curr.code} className="bg-slate-900 text-white">
@@ -1471,15 +1565,15 @@ function RegisterForm() {
                 name="privacy_accepted"
                 checked={formData.privacy_accepted}
                 onChange={handleChange}
-                className="w-4 h-4 accent-purple-500 rounded bg-slate-950 border-white/20 cursor-pointer"
+                className={`w-4 h-4 ${theme.checkboxAccent} rounded bg-slate-950 border-white/20 cursor-pointer`}
               />
               <label htmlFor="privacy" className="text-xs text-slate-400 cursor-pointer select-none">
                 I agree to the{" "}
-                <Link href="/privacy-policy" className="text-purple-300 underline hover:text-purple-200">
+                <Link href="/privacy-policy" className={`${theme.link} underline transition`}>
                   Privacy Policy
                 </Link>{" "}
                 &{" "}
-                <Link href="/terms-of-service" className="text-purple-300 underline hover:text-purple-200">
+                <Link href="/terms-of-service" className={`${theme.link} underline transition`}>
                   Terms
                 </Link>
                 .
@@ -1490,31 +1584,31 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-90 transition transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              className={`w-full mt-1 bg-gradient-to-r ${theme.buttonGrad} text-slate-950 font-semibold text-sm py-2.5 px-6 rounded-xl shadow-lg ${theme.buttonShadow} hover:opacity-90 transition transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer`}
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-slate-950"/>
-                  <span>CREATING ACCOUNT...</span>
+                  <span>Creating account...</span>
                 </>
               ) : planParam.toLowerCase() === "free" ? (
                 <>
-                  <span>{formData.channel === "telegram" ? "START ON TELEGRAM 🚀" : "START ON WHATSAPP 🚀"}</span>
+                  <span>{formData.channel === "telegram" ? "Start on Telegram" : "Start on WhatsApp"}</span>
                   <ArrowRight className="w-4 h-4"/>
                 </>
               ) : (
                 <>
-                  <span>PROCEED TO PAYMENT 💳</span>
+                  <span>Proceed to payment</span>
                   <ArrowRight className="w-4 h-4"/>
                 </>
               )}
             </button>
 
             {/* Login Link Added Here */}
-            <div className="text-center pt-3">
+            <div className="text-center pt-1.5">
               <p className="text-xs text-slate-400">
                 Already have an account?{" "}
-                <Link href="/login" className="text-purple-400 hover:text-purple-300 font-semibold underline transition">
+                <Link href="/login" className={`${theme.link} font-semibold underline transition`}>
                   Login here
                 </Link>
               </p>
@@ -1526,27 +1620,22 @@ function RegisterForm() {
       </div>
 
       {/* Footer Note */}
-      <div className="mt-8 pt-4 border-t border-white/5 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+      <div className="mt-3 pt-2 border-t border-white/5 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400"/>
         <span>End-to-End Encrypted Data Security by BroFinAi</span>
       </div>
     </div>
+    </div>
+    </>
   );
 }
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen relative flex items-center justify-center p-4 bg-[#07090e] overflow-hidden font-sans">
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px] pointer-events-none" />
-
-      {/* Falling finance-tracker icons drifting down the background */}
-      <FallingIcons />
-
+    <main className="min-h-screen bg-white font-sans">
       <Suspense fallback={
-        <div className="flex items-center gap-2 text-white text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-purple-400"/>
+        <div className="min-h-screen flex items-center justify-center gap-2 text-slate-500 text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-500"/>
           <span>Loading BroFinAi Form...</span>
         </div>
       }>

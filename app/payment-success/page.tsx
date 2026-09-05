@@ -2,7 +2,6 @@
 
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -196,6 +195,11 @@ function PaymentSuccessContent() {
           "bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950",
         icon: <Bot className="w-5 h-5" />,
         channelName: "Telegram",
+        // Page background — same deep blue as the landing page's hero
+        // section, so this page reads as a continuation of that channel.
+        pageBg: "from-blue-500 via-blue-800 to-slate-950",
+        glowTop: "bg-blue-400/30",
+        glowBottom: "bg-sky-300/20",
       }
     : {
         borderGradient: "linear-gradient(135deg, #34d399, #22d3ee)",
@@ -205,21 +209,26 @@ function PaymentSuccessContent() {
           "bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950",
         icon: <Phone className="w-5 h-5" />,
         channelName: "WhatsApp",
+        // Page background — same deep emerald as the landing page's hero
+        // section, so this page reads as a continuation of that channel.
+        pageBg: "from-emerald-500 via-emerald-800 to-emerald-950",
+        glowTop: "bg-emerald-400/30",
+        glowBottom: "bg-teal-300/20",
       };
 
   return (
-    <div className="w-full max-w-md relative z-10">
+    <>
+      {/* Page background — recolored to the active channel (deep emerald for
+          WhatsApp, deep blue for Telegram) instead of a fixed dark backdrop,
+          so this page continues the same color story as the landing/register
+          pages instead of switching to an unrelated purple/pink/cyan look. */}
+      <div className={`fixed inset-0 -z-10 bg-gradient-to-br ${theme.pageBg} pointer-events-none`}>
+        <FallingIcons />
+        <div className={`absolute top-[-25%] left-[-5%] w-[620px] h-[620px] rounded-full blur-[160px] pointer-events-none ${theme.glowTop}`} />
+        <div className={`absolute bottom-[-30%] right-[0%] w-[560px] h-[560px] rounded-full blur-[160px] pointer-events-none ${theme.glowBottom}`} />
+      </div>
 
-      {/* Site Logo — same mark used across the rest of the site */}
-      <Link
-        href="/"
-        className="flex items-center justify-center gap-2.5 font-bold text-xl tracking-tight mb-8 hover:opacity-90 transition"
-      >
-        <img src="/logo-icon.png" alt="BroFInAi logo" className="w-9 h-9 object-contain" />
-        <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-          Bro<span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">FInAi</span>
-        </span>
-      </Link>
+      <div className="w-full max-w-md relative z-10">
 
       {/* Speech-bubble Card — same shape language as the rest of the site:
           gradient border layer + glass fill layer + a small fixed-size tail
@@ -263,11 +272,11 @@ function PaymentSuccessContent() {
         <CheckCircle2 className="w-9 h-9 text-emerald-400" />
       </motion.div>
 
-      <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">
-        Payment Successful 🎉
+      <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">
+        Payment successful
       </h1>
       <div
-        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider mb-4 ${theme.badgeBg}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium mb-4 ${theme.badgeBg}`}
       >
         You're on {planLabel}
       </div>
@@ -283,7 +292,7 @@ function PaymentSuccessContent() {
 
           <a
             href={destinationUrl}
-            className="w-full py-3 px-4 rounded-xl text-center text-sm tracking-wide font-semibold transition flex items-center justify-center gap-2 border border-white/10 text-slate-300 hover:bg-white/5"
+            className="w-full py-3 px-4 rounded-xl text-center text-sm font-semibold transition flex items-center justify-center gap-2 border border-white/10 text-slate-300 hover:bg-white/5"
           >
             <MessageCircle className="w-4 h-4" />
             <span>Open {theme.channelName} chat</span>
@@ -301,7 +310,7 @@ function PaymentSuccessContent() {
 
           <a
             href={destinationUrl}
-            className={`w-full py-3.5 px-4 rounded-xl text-center text-sm tracking-wide font-bold transition flex items-center justify-center gap-2 ${theme.buttonClass}`}
+            className={`w-full py-3.5 px-4 rounded-xl text-center text-sm font-semibold transition flex items-center justify-center gap-2 ${theme.buttonClass}`}
           >
             {theme.icon}
             <span>Continue on {theme.channelName}</span>
@@ -316,30 +325,18 @@ function PaymentSuccessContent() {
       </div>
         </div>
       </motion.div>
-    </div>
+      </div>
+    </>
   );
 }
 
 export default function PaymentSuccessPage() {
   return (
-    <main className="min-h-screen relative flex items-center justify-center p-4 bg-[#07090e] overflow-hidden font-sans">
-      {/* Background layer — pinned at z-0, strictly below the card's own
-          "relative z-10" wrapper. FallingIcons' own div uses -z-10
-          internally, which would sit BEHIND this element's own background
-          paint if rendered as a direct child — wrapping it (and the glow
-          blobs) at z-0 guarantees they render above the page background but
-          below the card. */}
-      <div className="fixed inset-0 -z-0 pointer-events-none">
-        <FallingIcons />
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/30 rounded-full blur-[140px]" />
-        <div className="absolute top-1/2 -right-32 w-96 h-96 bg-pink-600/25 rounded-full blur-[160px]" />
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-cyan-600/20 rounded-full blur-[130px]" />
-      </div>
-
+    <main className="min-h-screen relative flex items-center justify-center p-4 bg-slate-950 overflow-hidden font-sans">
       <Suspense
         fallback={
           <div className="flex items-center gap-2 text-white text-sm">
-            <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+            <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
             <span>Confirming your payment...</span>
           </div>
         }
