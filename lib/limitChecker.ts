@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // ⚠️ NOT CURRENTLY CALLED FROM ANY LIVE ROUTE (as of 2026-08-18).
 // app/api/whatsapp/route.ts has its own inline limit-check logic
@@ -34,7 +34,7 @@ export async function checkUserLimits(
 ): Promise<{ allowed: boolean; message?: string }> {
 
   // 1. Fetch User Data
-  const { data: user, error } = await supabase
+  const { data: user, error } = await supabaseAdmin
     .from("users")
     .select("*")
     .eq("id", userId)
@@ -55,7 +55,7 @@ export async function checkUserLimits(
     dailyTx = 0;
     dailyOcr = 0;
     dailyVoice = 0;
-    await supabase.from("users").update({
+    await supabaseAdmin.from("users").update({
       daily_tx_count: 0,
       daily_ocr_count: 0,
       daily_voice_count: 0,
@@ -72,7 +72,7 @@ export async function checkUserLimits(
   // "wants to upgrade" signal. Track it so the weekly upgrade-nudge cron
   // can target the users who hit walls the MOST, not just once.
   const recordLimitHit = async () => {
-    await supabase
+    await supabaseAdmin
       .from("users")
       .update({ limit_hits_this_week: (user.limit_hits_this_week || 0) + 1 })
       .eq("id", userId);
@@ -137,18 +137,18 @@ export async function checkUserLimits(
 
 // 3. Increment Usage Function
 export async function incrementUsage(userId: string, type: "expense_income" | "ocr" | "voice") {
-  const { data: user } = await supabase.from("users").select("*").eq("id", userId).single();
+  const { data: user } = await supabaseAdmin.from("users").select("*").eq("id", userId).single();
   if (!user) return;
 
   if (type === "expense_income") {
-    await supabase.from("users").update({ daily_tx_count: (user.daily_tx_count || 0) + 1 }).eq("id", userId);
+    await supabaseAdmin.from("users").update({ daily_tx_count: (user.daily_tx_count || 0) + 1 }).eq("id", userId);
   } else if (type === "ocr") {
-    await supabase.from("users").update({
+    await supabaseAdmin.from("users").update({
       daily_ocr_count: (user.daily_ocr_count || 0) + 1,
       monthly_ocr_count: (user.monthly_ocr_count || 0) + 1
     }).eq("id", userId);
   } else if (type === "voice") {
-    await supabase.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("id", userId);
+    await supabaseAdmin.from("users").update({ daily_voice_count: (user.daily_voice_count || 0) + 1 }).eq("id", userId);
   }
 }
 

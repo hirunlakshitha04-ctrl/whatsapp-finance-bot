@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import twilio from "twilio";
 import { OpenAI } from "openai";
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 1. All Active Users ගන්න
-    const { data: users, error: userErr } = await supabase.from("users").select("*");
+    const { data: users, error: userErr } = await supabaseAdmin.from("users").select("*");
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
     const todayStart = new Date();
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       }
 
       // 3. User ගේ අද දවසේ Transactions ගන්න
-      const { data: transactions } = await supabase
+      const { data: transactions } = await supabaseAdmin
         .from("transactions")
         .select("*")
         .eq("phone_number", user.phone_number)

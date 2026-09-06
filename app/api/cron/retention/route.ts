@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import twilio from "twilio";
 
 const twilioClient = twilio(
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
     // 1. Supabase මගින් දින 4ක් Inactive Paid Users (core, max) සොයා ගැනීම
     //    🆕 last_active_date වෙනුවට last_activity_date (users table එකේ actual column එක) use කරයි
-    const { data: inactiveUsers, error } = await supabase
+    const { data: inactiveUsers, error } = await supabaseAdmin
       .from("users")
       .select("*")
       .in("plan", ["core", "max"])

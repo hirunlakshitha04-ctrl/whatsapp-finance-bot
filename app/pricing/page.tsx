@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 import {
   Sparkles,
   Check,
@@ -180,9 +181,25 @@ function PricingContent() {
     setCheckoutError("");
     setCheckoutLoading(planId);
     try {
+      // 🔒 The backend now verifies the caller's identity via their Supabase
+      // auth session instead of trusting the ?user_id= query param — that
+      // param used to be all that gated who could "upgrade" (and read/rewrite
+      // link_token for) a given account. Grab the current access token and
+      // send it along; if there's no active session, send the user back to
+      // log in rather than silently failing server-side.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setCheckoutError("Your session has expired — please log in again from the dashboard.");
+        setCheckoutLoading(null);
+        return;
+      }
+
       const res = await fetch("/api/create-checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           plan: planId,
           channel,

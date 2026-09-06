@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lemonSqueezySetup, createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
 import { randomUUID } from "crypto";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Plan + channel -> Lemon Squeezy variant ID env var name.
 // WhatsApp and Telegram are priced differently (see pricing page), so each
@@ -104,10 +104,36 @@ export async function POST(req: NextRequest) {
 
     if (isUpgrade) {
       // ---------------- UPGRADE FLOW (existing dashboard user) ----------------
-      const { data: existingUser, error: userFetchErr } = await supabase
+      // 🔒 SECURITY FIX: `userId` used to be trusted straight from the request
+      // body — anyone could pass any other user's id (it was literally a
+      // ?user_id= query param on the pricing page) and upgrade/read/rewrite
+      // that account's link_token. We now require a valid Supabase auth
+      // token and only ever act on the id it resolves to, never the one the
+      // caller claims in the body.
+      const authHeader = req.headers.get("authorization");
+      const token = authHeader?.replace("Bearer ", "");
+
+      if (!token) {
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }
+
+      const {
+        data: { user: verifiedUser },
+        error: authError,
+      } = await supabaseAdmin.auth.getUser(token);
+
+      if (authError || !verifiedUser) {
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }
+
+      if (verifiedUser.id !== userId) {
+        return NextResponse.json({ error: "User mismatch" }, { status: 403 });
+      }
+
+      const { data: existingUser, error: userFetchErr } = await supabaseAdmin
         .from("users")
         .select("id, email, phone_number, telegram_chat_id")
-        .eq("id", userId)
+        .eq("id", verifiedUser.id)
         .maybeSingle();
 
       if (userFetchErr || !existingUser) {
@@ -129,17 +155,17 @@ export async function POST(req: NextRequest) {
       let upgradeLinkToken: string | null = null;
       if (!alreadyLinked) {
         upgradeLinkToken = randomUUID();
-        const { error: tokenSaveErr } = await supabase
+        const { error: tokenSaveErr } = await supabaseAdmin
           .from("users")
           .update({ link_token: upgradeLinkToken })
-          .eq("id", userId);
+          .eq("id", verifiedUser.id);
         if (tokenSaveErr) {
           console.error("❌ Failed to save upgrade link_token:", tokenSaveErr);
           return NextResponse.json({ error: "Failed to prepare channel link" }, { status: 500 });
         }
       }
 
-      customData.user_id = String(userId);
+      customData.user_id = String(verifiedUser.id);
       customData.mode = "upgrade";
       customData.plan = planKey;
       customData.channel = channelKey;

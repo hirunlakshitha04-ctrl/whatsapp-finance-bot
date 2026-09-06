@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import twilio from "twilio";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkAndResetDailyLimits } from "@/lib/resetLimits";
 import {
   ExtractedData,
@@ -28,7 +28,7 @@ const ID_COLUMN = "phone_number" as const;
 // `currentCount` is passed in from the already-fetched userProfile so this
 // doesn't need its own extra SELECT before the UPDATE.
 async function recordLimitHit(identifier: string, currentCount: number) {
-  await supabase
+  await supabaseAdmin
     .from("users")
     .update({ limit_hits_this_week: currentCount + 1 })
     .eq(ID_COLUMN, identifier);
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
-      const { data: tokenUser } = await supabase
+      const { data: tokenUser } = await supabaseAdmin
         .from("users")
         .select("*")
         .eq("link_token", linkToken)
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
       let hasTransactionHistory = false;
       if (tokenUser.telegram_chat_id) {
-        const { count } = await supabase
+        const { count } = await supabaseAdmin
           .from("transactions")
           .select("id", { count: "exact", head: true })
           .eq("telegram_chat_id", tokenUser.telegram_chat_id);
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       const hasHistory = isPaidPlan || hasTransactionHistory;
 
       // Attach this WhatsApp number to the existing user row and burn the token.
-      await supabase.from("users").update({ phone_number: from, link_token: null }).eq("id", tokenUser.id);
+      await supabaseAdmin.from("users").update({ phone_number: from, link_token: null }).eq("id", tokenUser.id);
 
       const linkedLang = tokenUser.language || tokenUser.preferred_language || "English";
       const linkedNickname = tokenUser.how_to_call_you || tokenUser.nickname || tokenUser.name || "Bro";
@@ -146,22 +146,22 @@ export async function POST(req: NextRequest) {
         // Skip the AWAITING_STARTING_BALANCE step entirely — this user is
         // already active elsewhere, so their very next message should be
         // treated as a normal transaction, not captured as starting capital.
-        await supabase
+        await supabaseAdmin
           .from("user_sessions")
           .upsert({ phone_number: from, step: "ACTIVE" }, { onConflict: "phone_number" });
         // WhatsApp becomes this user's active channel — the old channel
         // (e.g. Telegram) will now be blocked from logging new transactions.
-        await supabase.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
+        await supabaseAdmin.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
         await send(
           `🎉 Connected! Hey ${linkedNickname}, WhatsApp is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
         );
       } else {
         // NOTE: requires a UNIQUE constraint on user_sessions.phone_number
         // for onConflict to work (see migration note below).
-        await supabase
+        await supabaseAdmin
           .from("user_sessions")
           .upsert({ phone_number: from, step: "AWAITING_STARTING_BALANCE" }, { onConflict: "phone_number" });
-        await supabase.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
+        await supabaseAdmin.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
 
         const welcomeMsgs = await getLocalizedMessages(linkedLang, linkedNickname, linkedCurrency, websiteUrl);
         await send(welcomeMsgs.welcome);
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1️⃣ Fetch User Profile
-    let { data: userProfile } = await supabase.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
+    let { data: userProfile } = await supabaseAdmin.from("users").select("*").eq(ID_COLUMN, from).maybeSingle();
 
     if (!userProfile) {
       const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
 
       if (userPlan === "core") {
         const currentMonth = new Date().toISOString().slice(0, 7);
-        const { data: usage } = await supabase
+        const { data: usage } = await supabaseAdmin
           .from("monthly_usage")
           .select("scan_count")
           .eq(ID_COLUMN, from)
@@ -282,13 +282,13 @@ export async function POST(req: NextRequest) {
           return new NextResponse("OK", { status: 200 });
         }
 
-        await supabase.from("monthly_usage").upsert(
+        await supabaseAdmin.from("monthly_usage").upsert(
           { [ID_COLUMN]: from, month_year: currentMonth, scan_count: currentScanCount + 1 },
           { onConflict: `${ID_COLUMN}, month_year` }
         );
       }
 
-      await supabase.from("users").update({ daily_ocr_count: dailyOcr + 1 }).eq(ID_COLUMN, from);
+      await supabaseAdmin.from("users").update({ daily_ocr_count: dailyOcr + 1 }).eq(ID_COLUMN, from);
     }
 
     // 🛑 3. VOICE NOTE LIMIT CHECKS
@@ -304,15 +304,15 @@ export async function POST(req: NextRequest) {
           await send(baseMsgs.dailyVoiceLimitReached);
           return new NextResponse("OK", { status: 200 });
         }
-        await supabase.from("users").update({ daily_voice_count: dailyVoice + 1 }).eq(ID_COLUMN, from);
+        await supabaseAdmin.from("users").update({ daily_voice_count: dailyVoice + 1 }).eq(ID_COLUMN, from);
       }
     }
 
     // 3️⃣ SESSION VERIFICATION & FETCHING
-    let { data: sessionState } = await supabase.from("user_sessions").select("*").eq(ID_COLUMN, from).maybeSingle();
+    let { data: sessionState } = await supabaseAdmin.from("user_sessions").select("*").eq(ID_COLUMN, from).maybeSingle();
 
     if (!sessionState) {
-      const { data: newSession } = await supabase
+      const { data: newSession } = await supabaseAdmin
         .from("user_sessions")
         .insert({ [ID_COLUMN]: from, step: "AWAITING_STARTING_BALANCE" })
         .select()
@@ -322,7 +322,7 @@ export async function POST(req: NextRequest) {
 
     // 4️⃣ FIRST-TIME REGISTRATION REDIRECT MESSAGE
     if (normalizedBody.includes("registered") || normalizedBody.includes("hi broo")) {
-      await supabase.from("user_sessions").update({ step: "AWAITING_STARTING_BALANCE" }).eq(ID_COLUMN, from);
+      await supabaseAdmin.from("user_sessions").update({ step: "AWAITING_STARTING_BALANCE" }).eq(ID_COLUMN, from);
       await send(baseMsgs.welcome);
       return new NextResponse("OK", { status: 200 });
     }
@@ -343,7 +343,7 @@ export async function POST(req: NextRequest) {
       const extracted = await extractTransaction(body, userCurrency, userLang, nickname);
 
       if (extracted && extracted.amount) {
-        await supabase.from("transactions").insert([
+        await supabaseAdmin.from("transactions").insert([
           {
             [ID_COLUMN]: from,
             user_id: userProfile.id,
@@ -355,7 +355,7 @@ export async function POST(req: NextRequest) {
           },
         ]);
 
-        await supabase.from("user_sessions").update({ step: "ACTIVE" }).eq(ID_COLUMN, from);
+        await supabaseAdmin.from("user_sessions").update({ step: "ACTIVE" }).eq(ID_COLUMN, from);
 
         const formattedAmountStr = Number(extracted.amount).toLocaleString();
         const guideMsgs = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { amount: formattedAmountStr });
@@ -373,7 +373,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (normalizedBody === "edit" || normalizedBody === "edytuj" || normalizedBody === "editar") {
-      await supabase.from("user_sessions").update({ pending_transaction: null }).eq(ID_COLUMN, from);
+      await supabaseAdmin.from("user_sessions").update({ pending_transaction: null }).eq(ID_COLUMN, from);
       await send(baseMsgs.editCancel);
       return new NextResponse("OK", { status: 200 });
     }
@@ -428,7 +428,7 @@ export async function POST(req: NextRequest) {
       }
 
       // VOICE / IMAGE input: always show a preview and require Confirm/Edit
-      await supabase.from("user_sessions").update({ pending_transaction: extractedTx }).eq(ID_COLUMN, from);
+      await supabaseAdmin.from("user_sessions").update({ pending_transaction: extractedTx }).eq(ID_COLUMN, from);
 
       const formattedNumber = Number(extractedTx.amount).toLocaleString();
       const typeTag = extractedTx.action === "set_budget" ? "🎯 Budget" : extractedTx.type === "income" ? baseMsgs.typeIncome : baseMsgs.typeExpense;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import twilio from "twilio";
 import { OpenAI } from "openai";
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { data: users, error: userErr } = await supabase.from("users").select("*");
+    const { data: users, error: userErr } = await supabaseAdmin.from("users").select("*");
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
     // Past 7 Days range
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Get transactions for the past 7 days
-      const { data: transactions } = await supabase
+      const { data: transactions } = await supabaseAdmin
         .from("transactions")
         .select("*")
         .eq("phone_number", user.phone_number)

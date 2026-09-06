@@ -1,5 +1,5 @@
 import { OpenAI } from "openai";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // =====================================================================
 // SHARED FINANCE LOGIC
@@ -391,7 +391,7 @@ export async function saveExtractedDirect(
       // category, UPDATE its amount_limit instead of creating a duplicate
       // row — duplicates make the dashboard's "Overall Monthly Budget" total
       // silently inflate every time a budget is re-set via chat.
-      const { error: budgetErr } = await supabase.from("budgets").upsert(
+      const { error: budgetErr } = await supabaseAdmin.from("budgets").upsert(
         [
           {
             [idColumn]: idValue,
@@ -406,7 +406,7 @@ export async function saveExtractedDirect(
       return msgs.budgetSaved;
     }
 
-    const { error: insErr } = await supabase.from("transactions").insert([
+    const { error: insErr } = await supabaseAdmin.from("transactions").insert([
       {
         [idColumn]: idValue,
         user_id: userProfile.id,
@@ -419,7 +419,7 @@ export async function saveExtractedDirect(
     ]);
     if (insErr) throw insErr;
 
-    await supabase
+    await supabaseAdmin
       .from("users")
       .update({ daily_tx_count: (userProfile.daily_tx_count || 0) + 1 })
       .eq(idColumn, idValue);
@@ -442,7 +442,7 @@ export async function handleConfirmTransaction(
   websiteUrl: string
 ): Promise<string> {
   try {
-    const { data: session } = await supabase
+    const { data: session } = await supabaseAdmin
       .from("user_sessions")
       .select("pending_transaction")
       .eq(idColumn, idValue)
@@ -471,7 +471,7 @@ export async function handleConfirmTransaction(
     if (tx.action === "set_budget") {
       // Same upsert fix as saveExtractedDirect — avoids duplicate budget
       // rows when a category budget is re-set through the confirm flow.
-      const { error: budgetErr } = await supabase.from("budgets").upsert(
+      const { error: budgetErr } = await supabaseAdmin.from("budgets").upsert(
         [
           {
             [idColumn]: idValue,
@@ -484,11 +484,11 @@ export async function handleConfirmTransaction(
       );
       if (budgetErr) throw budgetErr;
 
-      await supabase.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
+      await supabaseAdmin.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
       return msgs.budgetSaved;
     }
 
-    const { error: insErr } = await supabase.from("transactions").insert([
+    const { error: insErr } = await supabaseAdmin.from("transactions").insert([
       {
         [idColumn]: idValue,
         user_id: userProfile.id,
@@ -501,12 +501,12 @@ export async function handleConfirmTransaction(
     ]);
     if (insErr) throw insErr;
 
-    await supabase
+    await supabaseAdmin
       .from("users")
       .update({ daily_tx_count: (userProfile.daily_tx_count || 0) + 1 })
       .eq(idColumn, idValue);
 
-    await supabase.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
+    await supabaseAdmin.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
 
     return msgs.savedMsg;
   } catch (err) {

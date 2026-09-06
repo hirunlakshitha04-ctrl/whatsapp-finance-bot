@@ -8,7 +8,7 @@
 // or signature differs from `sendTelegramMessage(chatId, text)`.
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { OpenAI } from "openai";
 import { sendTelegramMessage } from "@/lib/telegram-client";
 
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { data: users, error: userErr } = await supabase
+    const { data: users, error: userErr } = await supabaseAdmin
       .from("users")
       .select("*")
       .not("telegram_chat_id", "is", null);
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       const userTz = user.timezone || "Asia/Colombo";
       if (!is9PMInTimezone(userTz)) continue;
 
-      const { data: transactions } = await supabase
+      const { data: transactions } = await supabaseAdmin
         .from("transactions")
         .select("*")
         .eq("telegram_chat_id", user.telegram_chat_id)
