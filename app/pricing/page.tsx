@@ -207,15 +207,25 @@ function PricingContent() {
           mode: "upgrade",
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        setCheckoutError("Couldn't start checkout — please try again in a moment.");
+        // Surface the backend's actual error (e.g. "Not authenticated",
+        // "Missing Lemon Squeezy environment configuration for this
+        // plan/channel") instead of a generic message — makes future
+        // failures diagnosable from the UI instead of only in server logs.
+        setCheckoutError(
+          data?.error
+            ? `Couldn't start checkout: ${data.error}`
+            : "Couldn't start checkout — please try again in a moment."
+        );
         setCheckoutLoading(null);
       }
-    } catch {
-      setCheckoutError("Couldn't start checkout — please try again in a moment.");
+    } catch (err: any) {
+      setCheckoutError(
+        `Couldn't start checkout — network error${err?.message ? `: ${err.message}` : ""}. Please try again in a moment.`
+      );
       setCheckoutLoading(null);
     }
   };
