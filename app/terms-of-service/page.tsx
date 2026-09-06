@@ -94,20 +94,54 @@ export default function TermsOfServicePage() {
 
           <section>
             <h2 className="text-xl font-bold text-slate-900 mb-3">5. Plans &amp; Billing</h2>
-            <p>BroFInAi offers the following plans:</p>
+            <p>
+              BroFInAi offers three plans. WhatsApp bot messaging costs more to operate than
+              Telegram, so the monthly price for the same plan differs by channel — the table
+              below shows both, and the price shown at checkout is the price that applies:
+            </p>
+
+            <div className="overflow-x-auto mt-4 mb-4 rounded-xl border border-slate-200">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-900">
+                    <th className="px-4 py-3 font-bold">Plan</th>
+                    <th className="px-4 py-3 font-bold">WhatsApp</th>
+                    <th className="px-4 py-3 font-bold">Telegram</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-slate-200">
+                    <td className="px-4 py-3 font-semibold text-slate-900">Bro Lite</td>
+                    <td className="px-4 py-3">$0.00/month <span className="text-slate-500">(7-day free trial, then upgrade)</span></td>
+                    <td className="px-4 py-3">$0.00/month <span className="text-slate-500">(free forever)</span></td>
+                  </tr>
+                  <tr className="border-t border-slate-200">
+                    <td className="px-4 py-3 font-semibold text-slate-900">Bro Core</td>
+                    <td className="px-4 py-3">$3.50/month</td>
+                    <td className="px-4 py-3">$2.50/month</td>
+                  </tr>
+                  <tr className="border-t border-slate-200">
+                    <td className="px-4 py-3 font-semibold text-slate-900">Bro Max</td>
+                    <td className="px-4 py-3">$6.99/month</td>
+                    <td className="px-4 py-3">$4.00/month</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             <ul className="list-disc pl-6 space-y-1.5">
-              <li><strong className="text-slate-900">Bro Lite — Free Forever ($0.00/month):</strong> 3 daily expense &amp; income logs, real-time web dashboard access, and 1 daily AI receipt OCR scan.</li>
-              <li><strong className="text-slate-900">Bro Core ($3.50/month):</strong> 10 daily expense &amp; income logs, real-time web dashboard access, 30 monthly AI receipt OCR scans, 5 daily voice note trackings, one-click Excel (.xlsx) export, and smart budget handling &amp; alerts.</li>
-              <li><strong className="text-slate-900">Bro Max ($6.99/month):</strong> unlimited daily expense &amp; income logs, real-time web dashboard access, unlimited monthly AI receipt OCR scans, unlimited voice note trackings, one-click Excel (.xlsx) export, and smart budget handling &amp; alerts.</li>
+              <li><strong className="text-slate-900">Bro Lite:</strong> 3 daily expense &amp; income logs, real-time web dashboard access, and 1 daily AI receipt OCR scan.</li>
+              <li><strong className="text-slate-900">Bro Core:</strong> 10 daily expense &amp; income logs, real-time web dashboard access, 30 monthly AI receipt OCR scans, 5 daily voice note trackings, one-click Excel (.xlsx) export, and smart budget handling &amp; alerts.</li>
+              <li><strong className="text-slate-900">Bro Max:</strong> unlimited daily expense &amp; income logs, real-time web dashboard access, unlimited monthly AI receipt OCR scans, unlimited voice note trackings, one-click Excel (.xlsx) export, and smart budget handling &amp; alerts.</li>
             </ul>
+
             <p className="mt-3">
-              Pricing may vary slightly by messaging channel (WhatsApp vs. Telegram) due to
-              differing operating costs; the price shown at checkout is the price that applies.
-              Paid plans (Bro Core, Bro Max) are billed monthly on a recurring basis until
-              cancelled. Payments are processed securely by our payment processor, Lemon Squeezy.
-              You can upgrade, downgrade, or cancel your plan at any time from your dashboard;
-              cancellation takes effect at the end of your current billing cycle. Fees are
-              non‑refundable except where required by law or as described in our{" "}
+              Paid plans (Bro Core, Bro Max) are billed monthly on a recurring basis, on the
+              channel you subscribed on, until cancelled. Payments are processed securely by our
+              payment processor, Lemon Squeezy. You can upgrade, downgrade, or cancel your plan at
+              any time from your dashboard; cancellation takes effect at the end of your current
+              billing cycle. Fees are non‑refundable except where required by law or as described
+              in our{" "}
               <Link href="/refund-policy" className="text-emerald-600 hover:underline">Refund Policy</Link>.
             </p>
           </section>
