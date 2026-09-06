@@ -1240,7 +1240,7 @@ function RegisterForm() {
             </span>
           </h1>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Connect your personal profile, select your local currency & language, and let <b>BroFinAi</b> track every expense seamlessly on WhatsApp.
+            Connect your personal profile, select your local currency & language, and let <b>BroFinAi</b> track every expense seamlessly on WhatsApp or Telegram.
           </p>
 
           <div className="space-y-2 pt-1">

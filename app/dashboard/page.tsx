@@ -1400,16 +1400,26 @@ export default function BrooDashboard() {
   // summary range, for the area chart next to Spending Overview. ----
   const cashFlowData = useMemo(() => {
     if (!summaryFromDate || !summaryToDate) return [];
-    const from = new Date(summaryFromDate);
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(summaryToDate);
-    to.setHours(0, 0, 0, 0);
+
+    // Parse the YYYY-MM-DD strings as LOCAL calendar dates (not UTC) so
+    // day boundaries line up with the user's actual timezone.
+    const parseLocalDate = (s: string) => {
+      const [y, m, d] = s.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+
+    const from = parseLocalDate(summaryFromDate);
+    const to = parseLocalDate(summaryToDate);
 
     const days: { key: string; label: string; income: number; expense: number }[] = [];
     const cursor = new Date(from);
     while (cursor <= to) {
       days.push({
-        key: cursor.toISOString().slice(0, 10),
+        // Use the same local-date formatter for the bucket key as for the
+        // transaction key below — mixing this with toISOString() (UTC)
+        // caused "today"'s bucket to be mislabeled as the day before,
+        // so newly added transactions never matched a bucket.
+        key: toLocalDateStr(cursor),
         label: cursor.toLocaleDateString("en-US", { day: "2-digit", month: "short" }),
         income: 0,
         expense: 0,
@@ -1422,7 +1432,7 @@ export default function BrooDashboard() {
 
     rangeFilteredTransactions.forEach(t => {
       if (!t.created_at) return;
-      const key = new Date(t.created_at).toISOString().slice(0, 10);
+      const key = toLocalDateStr(new Date(t.created_at));
       const idx = dayIndex[key];
       if (idx === undefined) return;
       if (t.type === "income") days[idx].income += Number(t.amount || 0);
