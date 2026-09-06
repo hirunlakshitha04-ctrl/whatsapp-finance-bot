@@ -10,9 +10,69 @@ import {
   PieChart as PieIcon, Calendar, RotateCcw,
   Sparkles, LogOut, Settings, LayoutDashboard,
   Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban, Trash2,
-  User, Mail, Phone, Camera, Globe, DollarSign, Coins, Receipt, CreditCard, ChevronLeft, ChevronRight
+  User, Mail, Phone, Camera, Globe, ChevronLeft, ChevronRight,
+  List, PiggyBank, Target, Repeat, HelpCircle, Bell, ArrowUpRight, ArrowDownRight,
+  FileText, Plus, Crown, Sun, Moon, Menu
 } from "lucide-react";
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from "recharts";
+
+// ---------------------------------------------------------------------------
+// Brand accent colors — the dashboard mirrors the same channel-colored
+// treatment as the landing page hero: emerald/green for WhatsApp, sky/blue
+// for Telegram. Every value below is a COMPLETE, literal Tailwind class
+// string (never built by string concatenation) so Tailwind's JIT scanner
+// can find and generate both variants at build time.
+// ---------------------------------------------------------------------------
+const ACCENT = {
+  whatsapp: {
+    text300: "text-emerald-300",
+    text400: "text-emerald-400",
+    bg500: "bg-emerald-500",
+    bg500_15: "bg-emerald-500/15",
+    bg500_20: "bg-emerald-500/20",
+    border400: "border-emerald-400",
+    border400_40: "border-emerald-400/40",
+    border500: "border-emerald-500",
+    border500_30: "border-emerald-500/30",
+    focusBorder500: "focus:border-emerald-500",
+    hoverBg400: "hover:bg-emerald-400",
+    hoverText300: "hover:text-emerald-300",
+    hoverText400: "hover:text-emerald-400",
+    hoverBorder500_30: "hover:border-emerald-500/30",
+    from400: "from-emerald-400",
+    shadow500_10: "shadow-emerald-500/10",
+    shadow500_25: "shadow-emerald-500/25",
+    selectionBg500: "selection:bg-emerald-500",
+    // Same deep-green wash used behind the hero on the landing page.
+    pageBg: "from-emerald-500 via-emerald-800 to-emerald-950",
+    glowTop: "bg-emerald-400/30",
+    glowBottom: "bg-teal-300/20",
+  },
+  telegram: {
+    text300: "text-sky-300",
+    text400: "text-sky-400",
+    bg500: "bg-sky-500",
+    bg500_15: "bg-sky-500/15",
+    bg500_20: "bg-sky-500/20",
+    border400: "border-sky-400",
+    border400_40: "border-sky-400/40",
+    border500: "border-sky-500",
+    border500_30: "border-sky-500/30",
+    focusBorder500: "focus:border-sky-500",
+    hoverBg400: "hover:bg-sky-400",
+    hoverText300: "hover:text-sky-300",
+    hoverText400: "hover:text-sky-400",
+    hoverBorder500_30: "hover:border-sky-500/30",
+    from400: "from-sky-400",
+    shadow500_10: "shadow-sky-500/10",
+    shadow500_25: "shadow-sky-500/25",
+    selectionBg500: "selection:bg-sky-500",
+    // Same deep-blue wash used behind the hero on the landing page.
+    pageBg: "from-blue-500 via-blue-800 to-slate-950",
+    glowTop: "bg-blue-400/30",
+    glowBottom: "bg-sky-300/20",
+  },
+} as const;
 
 interface Transaction {
   id: string;
@@ -306,107 +366,42 @@ const WORLD_LANGUAGES = [
   { code: "zu", name: "isiZulu (Zulu)" }
 ];
 
-// Falling finance-icon background — same decorative effect used on the
-// landing page. Dollar signs, wallets, coins etc. drop in inside circular
-// badges and settle at a spot spread across the full height of the screen,
-// each on its own staggered delay/cycle, then fade back out and repeat.
-// Presets are hardcoded (not Math.random) so server-rendered and
-// client-hydrated markup match exactly.
-const FALLING_ICON_SET = [DollarSign, Wallet, Coins, TrendingUp, Receipt, CreditCard, PieIcon];
-
-const FALLING_ICON_PRESETS: {
-  icon: number;
-  left: number;
-  circleSize: number;
-  iconSize: number;
-  cycleDuration: number;
-  delay: number;
-  landY: string;
-}[] = [
-  { icon: 6, left: 2, circleSize: 58, iconSize: 25, cycleDuration: 14.8, delay: 6, landY: "87vh" },
-  { icon: 0, left: 5, circleSize: 56, iconSize: 23, cycleDuration: 14.9, delay: 9.5, landY: "72vh" },
-  { icon: 6, left: 9, circleSize: 42, iconSize: 18, cycleDuration: 15.7, delay: 1.6, landY: "25vh" },
-  { icon: 3, left: 9, circleSize: 55, iconSize: 21, cycleDuration: 13.4, delay: 7.6, landY: "50vh" },
-  { icon: 3, left: 15, circleSize: 62, iconSize: 26, cycleDuration: 10.4, delay: 8.8, landY: "20vh" },
-  { icon: 1, left: 16, circleSize: 45, iconSize: 17, cycleDuration: 16.8, delay: 1.9, landY: "71vh" },
-  { icon: 4, left: 23, circleSize: 55, iconSize: 21, cycleDuration: 9.5, delay: 4.2, landY: "34vh" },
-  { icon: 5, left: 26, circleSize: 51, iconSize: 20, cycleDuration: 16.5, delay: 6.1, landY: "40vh" },
-  { icon: 2, left: 27, circleSize: 59, iconSize: 25, cycleDuration: 15.1, delay: 9.8, landY: "55vh" },
-  { icon: 3, left: 31, circleSize: 54, iconSize: 23, cycleDuration: 10.5, delay: 4.9, landY: "35vh" },
-  { icon: 0, left: 31, circleSize: 48, iconSize: 19, cycleDuration: 16.7, delay: 0.6, landY: "47vh" },
-  { icon: 2, left: 36, circleSize: 53, iconSize: 21, cycleDuration: 9.8, delay: 4.7, landY: "50vh" },
-  { icon: 5, left: 39, circleSize: 52, iconSize: 22, cycleDuration: 15.7, delay: 9, landY: "44vh" },
-  { icon: 0, left: 41, circleSize: 51, iconSize: 22, cycleDuration: 10.1, delay: 1.5, landY: "34vh" },
-  { icon: 0, left: 49, circleSize: 52, iconSize: 23, cycleDuration: 16.3, delay: 5.7, landY: "49vh" },
-  { icon: 3, left: 52, circleSize: 45, iconSize: 19, cycleDuration: 16.5, delay: 5.5, landY: "55vh" },
-  { icon: 5, left: 51, circleSize: 57, iconSize: 24, cycleDuration: 12.2, delay: 8, landY: "73vh" },
-  { icon: 3, left: 58, circleSize: 55, iconSize: 22, cycleDuration: 9.8, delay: 1.9, landY: "46vh" },
-  { icon: 3, left: 58, circleSize: 57, iconSize: 22, cycleDuration: 12.1, delay: 3.7, landY: "61vh" },
-  { icon: 1, left: 65, circleSize: 39, iconSize: 16, cycleDuration: 14.2, delay: 9.1, landY: "80vh" },
-  { icon: 4, left: 64, circleSize: 57, iconSize: 25, cycleDuration: 13.8, delay: 2.6, landY: "34vh" },
-  { icon: 5, left: 68, circleSize: 60, iconSize: 26, cycleDuration: 9.9, delay: 2.7, landY: "56vh" },
-  { icon: 1, left: 72, circleSize: 45, iconSize: 19, cycleDuration: 15.6, delay: 4.1, landY: "46vh" },
-  { icon: 1, left: 79, circleSize: 59, iconSize: 26, cycleDuration: 11.5, delay: 6.8, landY: "86vh" },
-  { icon: 1, left: 83, circleSize: 53, iconSize: 21, cycleDuration: 9.3, delay: 1.6, landY: "33vh" },
-  { icon: 4, left: 82, circleSize: 49, iconSize: 21, cycleDuration: 15.6, delay: 2.1, landY: "45vh" },
-  { icon: 1, left: 88, circleSize: 56, iconSize: 24, cycleDuration: 10.4, delay: 3.8, landY: "35vh" },
-  { icon: 5, left: 88, circleSize: 59, iconSize: 26, cycleDuration: 9.5, delay: 9.7, landY: "66vh" },
-  { icon: 2, left: 96, circleSize: 48, iconSize: 21, cycleDuration: 13.6, delay: 2.3, landY: "71vh" },
-  { icon: 4, left: 99, circleSize: 48, iconSize: 22, cycleDuration: 9.6, delay: 2.8, landY: "36vh" },
-];
-
-function FallingIcons() {
-  return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10" aria-hidden>
-      {FALLING_ICON_PRESETS.map((p, i) => {
-        const Icon = FALLING_ICON_SET[p.icon];
-        // Small per-item variety so the fall doesn't look like a rigid straight
-        // drop — a touch of sideways drift and rotation that reverses direction
-        // based on index, plus a landing bounce that eases into a smooth,
-        // bounce-free fade.
-        const drift = (i % 2 === 0 ? 1 : -1) * (6 + (p.circleSize % 5));
-        const spin = (i % 2 === 0 ? 1 : -1) * (8 + (p.iconSize % 6));
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{ left: `${p.left}%`, top: "-14%" }}
-            initial={{ y: "-10vh", x: 0, opacity: 0, scale: 0.4, rotate: 0 }}
-            animate={{
-              y: ["-10vh", p.landY, p.landY, "-8vh"],
-              x: [0, drift, drift, 0],
-              opacity: [0, 1, 1, 0],
-              scale: [0.4, 1, 1, 0.5],
-              rotate: [0, spin, spin, spin * 1.4],
-            }}
-            transition={{
-              duration: p.cycleDuration,
-              delay: p.delay,
-              repeat: Infinity,
-              times: [0, 0.18, 0.82, 1], // quick fall in, long hold, gentle fade out
-              ease: [
-                [0.34, 1.56, 0.64, 1], // fall-in: slight overshoot, like settling on landing
-                "easeInOut",           // hold: values are static here, so this segment is inert
-                [0.4, 0, 0.2, 1],      // fade-out: smooth ease, no bounce
-              ],
-            }}
-          >
-            <div
-              className="rounded-full bg-white/5 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white/30"
-              style={{ width: p.circleSize, height: p.circleSize }}
-            >
-              <Icon style={{ width: p.iconSize, height: p.iconSize }} />
-            </div>
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function BrooDashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
+  const [navAnimKey, setNavAnimKey] = useState(0);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const isLight = theme === "light";
+
+  // Complete, literal Tailwind class strings for both modes (never built by
+  // string concatenation) so the JIT scanner can find and generate every
+  // variant at build time — same convention as ACCENT above.
+  const T = {
+    cardBg: isLight ? "bg-white" : "bg-slate-950/50",
+    cardBg60: isLight ? "bg-slate-100" : "bg-slate-950/60",
+    cardBg95: isLight ? "bg-white/95" : "bg-slate-900/95",
+    modalBg: isLight ? "bg-white" : "bg-slate-900",
+    slate950: isLight ? "bg-slate-100" : "bg-slate-950",
+    inputBg: isLight ? "bg-slate-100" : "bg-black/40",
+    blackBg30: isLight ? "bg-slate-100" : "bg-black/30",
+    blackBg60: isLight ? "bg-slate-200" : "bg-black/60",
+    ghostBg: isLight ? "bg-slate-900/5" : "bg-white/5",
+    ghostBg10: isLight ? "bg-slate-900/10" : "bg-white/10",
+    ghostBg20: isLight ? "bg-slate-900/15" : "bg-white/20",
+    ghostHover5: isLight ? "hover:bg-slate-900/5" : "hover:bg-white/5",
+    ghostHover10: isLight ? "hover:bg-slate-900/10" : "hover:bg-white/10",
+    ghostHover20: isLight ? "hover:bg-slate-900/15" : "hover:bg-white/20",
+    border1: isLight ? "border-slate-200" : "border-white/15",
+    border2: isLight ? "border-slate-200" : "border-white/10",
+    border3: isLight ? "border-slate-200" : "border-white/5",
+    textHead: isLight ? "text-slate-900" : "text-white",
+    hoverTextHead: isLight ? "hover:text-slate-900" : "hover:text-white",
+    textBody: isLight ? "text-slate-800" : "text-slate-100",
+    textSubtle: isLight ? "text-slate-700" : "text-slate-200",
+    textSubtle2: isLight ? "text-slate-600" : "text-slate-300",
+    textMuted: isLight ? "text-slate-500" : "text-slate-400",
+    textFaint: isLight ? "text-slate-400" : "text-slate-500",
+    colorScheme: isLight ? "[color-scheme:light]" : "[color-scheme:dark]",
+  };
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,6 +421,11 @@ export default function BrooDashboard() {
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("lite");
   const [linkedChannel, setLinkedChannel] = useState<"whatsapp" | "telegram" | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+
+  // Accent palette driven by which channel this account is linked to —
+  // emerald/green for WhatsApp, sky/blue for Telegram. Defaults to the
+  // WhatsApp palette before the linked channel has loaded from Supabase.
+  const accent = ACCENT[linkedChannel === "telegram" ? "telegram" : "whatsapp"];
 
   // 🎯 BUDGET STATES LOADED FROM SUPABASE
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
@@ -473,6 +473,8 @@ export default function BrooDashboard() {
   const [editAmount, setEditAmount] = useState<string>("");
   const [editType, setEditType] = useState<"income" | "expense">("expense");
 
+  const [showMobileNav, setShowMobileNav] = useState(false);
+  const [popupSection, setPopupSection] = useState<null | "transactions" | "budget" | "reports">(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addItem, setAddItem] = useState<string>("");
   const [addCategory, setAddCategory] = useState<string>(CATEGORY_OPTIONS[0]);
@@ -497,25 +499,6 @@ export default function BrooDashboard() {
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-
-  // WhatsApp Notification helper function
-  const sendWhatsAppNotification = async (message: string) => {
-    try {
-      await fetch('https://brofinai.com/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: userPhone || 'ADMIN_PHONE',
-          message: message
-        }),
-      });
-      console.log('WhatsApp notification sent successfully!');
-    } catch (err) {
-      console.error('Failed to sent WhatsApp notification:', err);
-    }
-  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -615,7 +598,6 @@ export default function BrooDashboard() {
       }
     } else {
       console.log('No monthly budget found in database.');
-      await sendWhatsAppNotification("⚠️ No budget found in your account! Please set your budget using WhatsApp.");
     }
 
     // Fetch transactions — filtered server-side by user_id (not
@@ -650,6 +632,19 @@ export default function BrooDashboard() {
     const timer = setTimeout(() => setOtpResendCooldown((s) => s - 1), 1000);
     return () => clearTimeout(timer);
   }, [otpResendCooldown]);
+
+  const scrollToSection = (id: string) => {
+    setActiveTab("overview");
+    // Wait a tick for the overview tab to mount before scrolling to it.
+    setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const openSectionPopup = (section: "transactions" | "budget" | "reports") => {
+    setActiveTab("overview");
+    setPopupSection(section);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1363,6 +1358,102 @@ export default function BrooDashboard() {
     });
   }, [transactions, searchTerm, selectedType, startDate, endDate]);
 
+  // ---- Previous-period comparison (for the "+X% from last month" badges on
+  // the four top stat cards) — mirrors the length of the selected summary
+  // range but shifted immediately before it, so "last month" reads
+  // correctly even when a custom range is picked. ----
+  const prevPeriodStats = useMemo(() => {
+    const from = summaryFromDate ? new Date(summaryFromDate) : null;
+    const to = summaryToDate ? new Date(summaryToDate) : null;
+    if (!from || !to) return { income: 0, expense: 0 };
+
+    const spanMs = to.getTime() - from.getTime();
+    const prevTo = new Date(from.getTime() - 24 * 60 * 60 * 1000);
+    prevTo.setHours(23, 59, 59, 999);
+    const prevFrom = new Date(prevTo.getTime() - spanMs);
+    prevFrom.setHours(0, 0, 0, 0);
+
+    const inRange = transactions.filter(t => {
+      if (!t.created_at) return false;
+      const d = new Date(t.created_at);
+      return d >= prevFrom && d <= prevTo;
+    });
+
+    return {
+      income: inRange.filter(t => t.type === "income").reduce((a, t) => a + Number(t.amount || 0), 0),
+      expense: inRange.filter(t => t.type === "expense").reduce((a, t) => a + Number(t.amount || 0), 0),
+    };
+  }, [transactions, summaryFromDate, summaryToDate]);
+
+  const pctChange = (current: number, prev: number) => {
+    if (prev === 0) return current > 0 ? 100 : 0;
+    return ((current - prev) / Math.abs(prev)) * 100;
+  };
+
+  const balanceTrendPct = pctChange(accountBalance, prevPeriodStats.income - prevPeriodStats.expense);
+  const incomeTrendPct = pctChange(totalIncome, prevPeriodStats.income);
+  const expenseTrendPct = pctChange(totalExpense, prevPeriodStats.expense);
+  const netSavings = totalIncome - totalExpense;
+  const netSavingsTrendPct = pctChange(netSavings, prevPeriodStats.income - prevPeriodStats.expense);
+
+  // ---- Cash Flow — day-by-day income vs expense across the selected
+  // summary range, for the area chart next to Spending Overview. ----
+  const cashFlowData = useMemo(() => {
+    if (!summaryFromDate || !summaryToDate) return [];
+    const from = new Date(summaryFromDate);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(summaryToDate);
+    to.setHours(0, 0, 0, 0);
+
+    const days: { key: string; label: string; income: number; expense: number }[] = [];
+    const cursor = new Date(from);
+    while (cursor <= to) {
+      days.push({
+        key: cursor.toISOString().slice(0, 10),
+        label: cursor.toLocaleDateString("en-US", { day: "2-digit", month: "short" }),
+        income: 0,
+        expense: 0,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const dayIndex: { [key: string]: number } = {};
+    days.forEach((d, i) => { dayIndex[d.key] = i; });
+
+    rangeFilteredTransactions.forEach(t => {
+      if (!t.created_at) return;
+      const key = new Date(t.created_at).toISOString().slice(0, 10);
+      const idx = dayIndex[key];
+      if (idx === undefined) return;
+      if (t.type === "income") days[idx].income += Number(t.amount || 0);
+      else days[idx].expense += Number(t.amount || 0);
+    });
+
+    return days;
+  }, [rangeFilteredTransactions, summaryFromDate, summaryToDate]);
+
+  const overBudgetCount = useMemo(() => {
+    return Object.keys(categoryBudgets).filter(
+      (cat) => (categoryMonthExpenses[cat] || 0) > categoryBudgets[cat]
+    ).length;
+  }, [categoryBudgets, categoryMonthExpenses]);
+
+  // ---- Recent Activity — latest 4 transactions, newest first. ----
+  const recentActivity = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 4);
+  }, [transactions]);
+
+  const formatActivityDate = (iso?: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    if (isToday) return "Today";
+    return d.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
   const handleExportExcel = async () => {
     if (subscriptionPlan === "lite") {
       alert("Excel export is available for Core & Max users only. Please upgrade!");
@@ -1725,185 +1816,253 @@ export default function BrooDashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const navItems: { id: string; label: string; icon: any; onClick: () => void; active: boolean }[] = [
+    { id: "nav-overview", label: "Overview", icon: LayoutDashboard, onClick: () => setActiveTab("overview"), active: activeTab === "overview" },
+    { id: "nav-transactions", label: "Transactions", icon: List, onClick: () => openSectionPopup("transactions"), active: false },
+    { id: "nav-budget", label: "Budget", icon: PiggyBank, onClick: () => openSectionPopup("budget"), active: false },
+    { id: "nav-reports", label: "Reports & Analytics", icon: BarChart3, onClick: () => openSectionPopup("reports"), active: false },
+    { id: "nav-subs", label: "Subscriptions", icon: Repeat, onClick: handleManageSubscription, active: false },
+    { id: "nav-settings", label: "Settings", icon: Settings, onClick: () => setActiveTab("settings"), active: activeTab === "settings" },
+    { id: "nav-help", label: "Help & Support", icon: HelpCircle, onClick: () => window.open("mailto:support@brooapp.com", "_blank"), active: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 font-sans p-4 sm:p-6 md:p-10 relative overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
+    <div className={`min-h-screen bg-gradient-to-br ${isLight ? "from-white via-slate-50 to-slate-100" : accent.pageBg} ${T.textBody} font-sans relative overflow-hidden transition-colors duration-700 ${accent.selectionBg500} selection:text-slate-950`}>
       {/* Background layer — pinned at z-0, strictly below the "relative z-10"
-          content wrapper further down. FallingIcons' own div used -z-10
-          directly under this outer div, which put it BEHIND this div's own
-          background-color paint and made it invisible; wrapping it (and the
-          glow blobs) at z-0 with an explicit z-10 content wrapper guarantees
-          they render above the page background but below every section. */}
-      <div className="fixed inset-0 -z-0 pointer-events-none">
-        <FallingIcons />
-        <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[180px]" />
-        <div className="absolute top-[30%] right-[-10%] w-[650px] h-[650px] bg-emerald-500/15 rounded-full blur-[200px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[180px]" />
+          content wrapper further down, so the glow blobs render above the
+          page background but below every section. Glow colors swap with
+          the linked channel (green for WhatsApp, blue for Telegram), same
+          as the hero section on the landing page. */}
+      <div className={`fixed inset-0 -z-0 pointer-events-none ${isLight ? "opacity-30" : ""}`}>
+        <div className={`absolute top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full blur-[180px] transition-colors duration-700 ${accent.glowTop}`} />
+        <div className={`absolute top-[30%] right-[-10%] w-[650px] h-[650px] ${accent.bg500_15} rounded-full blur-[200px]`} />
+        <div className={`absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] rounded-full blur-[180px] transition-colors duration-700 ${accent.glowBottom}`} />
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-8 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/40 border border-white/10 p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-          <div className="flex items-center gap-5">
-            <div className="relative flex-shrink-0 group">
-              {/* Gradient ring wrapper — plan-aware color, subtle glow behind the photo */}
-              <div className={`absolute inset-0 rounded-[20px] blur-md opacity-60 transition-opacity group-hover:opacity-90 ${
-                subscriptionPlan === "max"
-                  ? "bg-gradient-to-br from-purple-500 to-indigo-500"
-                  : subscriptionPlan === "core"
-                  ? "bg-gradient-to-br from-emerald-400 to-teal-500"
-                  : "bg-gradient-to-br from-amber-400 to-yellow-500"
+      <div className="relative z-10 flex flex-col lg:flex-row gap-6 p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto">
+        {/* ---------------------------------------------------------------
+            Sidebar — profile, primary nav, upgrade nudge, budget progress.
+            Hidden below lg; on mobile the same actions live in the header
+            and inline sections further down the page. */}
+        <aside className="hidden lg:flex lg:flex-col lg:w-[248px] lg:flex-shrink-0 gap-6">
+          <div className={`${T.cardBg} border ${T.border1} rounded-[28px] p-5 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col items-center text-center gap-3 ${accent.hoverBorder500_30} transition duration-300`}>
+            <div className="relative">
+              <div className={`absolute inset-0 rounded-full blur-md opacity-60 bg-gradient-to-br ${
+                subscriptionPlan === "max" ? "from-purple-500 to-indigo-500" : subscriptionPlan === "core" ? "from-emerald-400 to-teal-500" : "from-amber-400 to-yellow-500"
               }`} />
-              <div className={`relative p-[2.5px] rounded-[20px] bg-gradient-to-br ${
-                subscriptionPlan === "max"
-                  ? "from-purple-400 to-indigo-500"
-                  : subscriptionPlan === "core"
-                  ? "from-emerald-400 to-teal-400"
-                  : "from-amber-400 to-yellow-400"
-              }`}>
-                <img
-                  src={avatarUrl}
-                  alt="Profile Avatar"
-                  className="w-16 h-16 rounded-[17.5px] object-cover bg-slate-950 shadow-lg"
-                />
-              </div>
-              <span className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-slate-950 p-1.5 rounded-full border-4 border-slate-900 shadow-md">
-                <Zap size={9} className="fill-slate-950" />
+              <img src={avatarUrl} alt="Profile Avatar" className="relative w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg" />
+              <span className={`absolute -bottom-1 -right-1 ${accent.bg500} text-slate-950 p-1 rounded-full border-4 border-slate-900`}>
+                <Zap size={8} className="fill-slate-950" />
               </span>
             </div>
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className={`text-[11px] font-extrabold px-3 py-0.5 rounded-full border flex items-center gap-1.5 uppercase backdrop-blur-md shadow-sm ${
-                  subscriptionPlan === "max" 
-                    ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
-                    : subscriptionPlan === "core"
-                    ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
-                    : "bg-amber-500/20 border-amber-400/40 text-amber-300"
-                }`}>
-                  <Sparkles size={11} /> {subscriptionPlan.toUpperCase()} PACKAGE
-                </span>
-                {linkedChannel && (
-                  <span className={`text-[11px] font-extrabold px-3 py-0.5 rounded-full border flex items-center gap-1.5 uppercase backdrop-blur-md shadow-sm ${
-                    linkedChannel === "telegram"
-                      ? "bg-sky-500/20 border-sky-400/40 text-sky-300"
-                      : "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
-                  }`}>
-                    {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"}
-                  </span>
-                )}
-                <span className="text-[11px] font-extrabold px-3 py-0.5 rounded-full border border-white/10 bg-white/5 text-slate-300 flex items-center gap-1.5 backdrop-blur-md">
-                  <ShieldCheck size={11} className="text-emerald-400" /> {nickname || "Member"}
-                </span>
-              </div>
-              <h1 className="text-xl font-extrabold text-white tracking-wide leading-tight">Smart Finance Dashboard</h1>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Welcome back, {nickname || "there"} 👋</p>
+            <div>
+              <p className={`font-extrabold text-sm ${T.textHead} leading-tight`}>{nickname || "Member"}</p>
+              <span className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase ${
+                subscriptionPlan === "max" ? "bg-purple-500/20 border-purple-400/40 text-purple-300" : subscriptionPlan === "core" ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300" : "bg-amber-500/20 border-amber-400/40 text-amber-300"
+              }`}>
+                <Crown size={10} /> {subscriptionPlan.toUpperCase()} User
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {subscriptionPlan === "lite" && (
+          <motion.nav
+            key={navAnimKey}
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.06 } },
+            }}
+            className={`${T.cardBg} border ${T.border1} rounded-[28px] p-3 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col gap-1 ${accent.hoverBorder500_30} transition duration-300`}
+          >
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <motion.button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    item.onClick();
+                    setNavAnimKey((k) => k + 1);
+                  }}
+                  variants={{
+                    hidden: { opacity: 0, x: -24, filter: "blur(6px)" },
+                    visible: { opacity: 1, x: 0, filter: "blur(0px)" },
+                  }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition text-left ${
+                    item.active
+                      ? `${accent.bg500} text-slate-950 shadow-md ${accent.shadow500_25}`
+                      : `${T.textSubtle2} ${T.hoverTextHead} ${T.ghostHover5}`
+                  }`}
+                >
+                  <Icon size={16} /> {item.label}
+                </motion.button>
+              );
+            })}
+          </motion.nav>
+
+          <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+            <h3 className={`font-extrabold text-sm ${T.textHead} mb-4`}>Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleOpenAddModal}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition`}
+              >
+                <span className={`p-2 rounded-xl ${accent.bg500_20} ${accent.text400}`}><Plus size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Add Transaction</span>
+              </button>
+              <button
+                onClick={handleOpenAddBudgetModal}
+                disabled={subscriptionPlan === "lite" || availableBudgetCategories.length === 0}
+                title={subscriptionPlan === "lite" ? "Upgrade to set category budgets" : undefined}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><PiggyBank size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Add Budget</span>
+              </button>
+              <button
+                onClick={handleExportExcel}
+                disabled={subscriptionPlan === "lite"}
+                title={subscriptionPlan === "lite" ? "Upgrade to export reports" : undefined}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300"><FileText size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Generate Report</span>
+              </button>
+            </div>
+          </div>
+
+          {subscriptionPlan === "lite" && (
+            <div className={`${T.cardBg} border ${T.border1} rounded-[28px] p-5 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] space-y-3`}>
+              <div className="flex items-center gap-2 text-amber-300 text-xs font-extrabold">
+                <Sparkles size={14} /> Go Premium
+              </div>
+              <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
+                Unlock advanced analytics, unlimited budgets and more.
+              </p>
               <a
                 href={`/pricing?user_id=${userId}&mode=upgrade&current_channel=${linkedChannel || ""}&current_plan=${subscriptionPlan}`}
-                className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 text-center"
+                className="block w-full text-center bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20"
               >
-                <Zap size={14} className="fill-slate-950" /> Upgrade Plan 🚀
+                Upgrade Now
               </a>
-            )}
+            </div>
+          )}
 
-            {subscriptionPlan === "core" && (
-              <a
-                href={`/pricing?plan=max&user_id=${userId}&mode=upgrade&current_channel=${linkedChannel || ""}&current_plan=${subscriptionPlan}`}
-                className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 text-center"
-              >
-                <Sparkles size={14} /> Upgrade to Max 🚀
-              </a>
-            )}
-
-            {subscriptionPlan === "max" && (
+          {monthlyBudget > 0 && (
+            <div className={`${T.cardBg} border ${T.border1} rounded-[28px] p-5 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] space-y-3`}>
+              <h4 className={`text-xs font-extrabold ${T.textHead}`}>Monthly Budget Progress</h4>
+              <p className={`text-[11px] ${T.textMuted}`}>
+                {currency} {currentMonthExpense.toFixed(2)} of {currency} {monthlyBudget.toFixed(2)}
+              </p>
+              <div className={`w-full h-2 ${T.ghostBg10} rounded-full overflow-hidden`}>
+                <div
+                  className={`h-full rounded-full ${currentMonthExpense > monthlyBudget ? "bg-rose-500" : accent.bg500}`}
+                  style={{ width: `${Math.min(100, (currentMonthExpense / monthlyBudget) * 100)}%` }}
+                />
+              </div>
+              <p className={`text-[11px] font-bold ${T.textSubtle2}`}>{Math.min(100, Math.round((currentMonthExpense / monthlyBudget) * 100))}%</p>
               <button
-                disabled
-                className="bg-purple-500/20 border border-purple-400/30 text-purple-300 font-bold text-xs px-4 py-2.5 rounded-2xl cursor-default flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => scrollToSection("budget-section")}
+                className={`w-full text-center ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} border ${T.border2} font-bold text-xs py-2.5 rounded-xl transition`}
               >
-                <Sparkles size={13} /> Max Plan Active
+                View Budget
               </button>
-            )}
+            </div>
+          )}
+        </aside>
+
+        <div className="flex-1 min-w-0 space-y-8">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-6 ${T.cardBg} border ${T.border1} p-6 md:p-8 rounded-[36px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+          <div className="min-w-0">
+            <p className={`text-xs ${T.textMuted} font-medium mb-1`}>Welcome back, {nickname || "there"} 👋</p>
+            <h1 className={`text-2xl sm:text-3xl font-extrabold ${T.textHead} tracking-wide leading-tight`}>Smart Finance Dashboard</h1>
+            <p className={`text-xs ${T.textMuted} font-medium mt-1`}>Track, manage and grow your finances smarter.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowMobileNav(true)}
+              title="Menu"
+              className={`lg:hidden ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} p-2.5 rounded-2xl border ${T.border2} backdrop-blur-md transition shadow-md`}
+            >
+              <Menu size={16} />
+            </button>
 
             <button
               type="button"
-              onClick={handleManageSubscription}
-              disabled={portalLoading}
-              className="bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs px-4 py-2.5 rounded-2xl transition backdrop-blur-md flex items-center justify-center gap-2 disabled:opacity-50"
+              onClick={() => setTheme(isLight ? "dark" : "light")}
+              title={isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}
+              className={`p-2.5 rounded-2xl border backdrop-blur-md transition shadow-md ${
+                isLight
+                  ? "bg-slate-900/5 hover:bg-slate-900/10 text-slate-700 border-slate-900/10"
+                  : `${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} ${T.border2}`
+              }`}
             >
-              {portalLoading ? (
-                <RefreshCw size={13} className="animate-spin" />
-              ) : (
-                <Ban size={13} className="text-rose-400" />
-              )}
-              {portalLoading ? "Opening..." : "Manage / Cancel Subscription"}
+              {isLight ? <Moon size={16} /> : <Sun size={16} />}
             </button>
 
-            <button onClick={fetchData} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition shadow-md">
-              <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} /> Sync
+            <button
+              type="button"
+              onClick={() => scrollToSection("budget-section")}
+              title={overBudgetCount > 0 ? `${overBudgetCount} categor${overBudgetCount === 1 ? "y" : "ies"} over budget` : "No alerts"}
+              className={`relative ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} p-2.5 rounded-2xl border ${T.border2} backdrop-blur-md transition shadow-md`}
+            >
+              <Bell size={16} />
+              {overBudgetCount > 0 && (
+                <span className={`absolute -top-1.5 -right-1.5 bg-rose-500 ${T.textHead} text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border-2 border-slate-900`}>
+                  {overBudgetCount}
+                </span>
+              )}
             </button>
-            <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-md shadow-md">
+
+            <button
+              onClick={fetchData}
+              title="Sync"
+              className={`${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} p-2.5 rounded-2xl border ${T.border2} backdrop-blur-md transition shadow-md`}
+            >
+              <RefreshCw size={16} className={loading ? `animate-spin ${accent.text400}` : ""} />
+            </button>
+            <button onClick={handleLogout} className={`${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} border ${T.border2} px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition backdrop-blur-md shadow-md`}>
               <LogOut size={14} /> Sign Out
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-2xl ${
-              activeTab === "overview"
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400 font-extrabold"
-                : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <LayoutDashboard size={16} /> Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold transition flex items-center gap-2.5 backdrop-blur-2xl ${
-              activeTab === "settings"
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 border border-emerald-400 font-extrabold"
-                : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <Settings size={16} /> General Settings
-          </button>
-        </div>
-
         {activeTab === "overview" && (
           <div className="space-y-8">
-            <div className="bg-slate-900/40 border border-white/10 p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+            <div className={`${T.cardBg} border ${T.border1} p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30 backdrop-blur-md">
+                <div className={`p-2.5 ${accent.bg500_20} ${accent.text400} rounded-2xl border ${accent.border500_30} backdrop-blur-md`}>
                   <Filter size={18} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Summary Date Range</h4>
-                  <p className="text-[11px] text-slate-400">Filter the top balance, income, and expense cards</p>
+                  <h4 className={`text-xs font-bold ${T.textHead} uppercase tracking-wider`}>Summary Date Range</h4>
+                  <p className={`text-[11px] ${T.textMuted}`}>Filter the top balance, income, and expense cards</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-2 rounded-2xl backdrop-blur-md">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">From:</span>
+                <div className={`flex items-center gap-2 ${T.inputBg} border ${T.border2} px-3 py-2 rounded-2xl backdrop-blur-md`}>
+                  <span className={`text-[10px] ${T.textMuted} font-bold uppercase`}>From:</span>
                   <input 
                     type="date" 
                     value={summaryFromDate}
                     onChange={(e) => setSummaryFromDate(e.target.value)}
-                    className="bg-transparent text-xs text-emerald-400 font-bold focus:outline-none cursor-pointer [color-scheme:dark]"
+                    className={`bg-transparent text-xs ${accent.text400} font-bold focus:outline-none cursor-pointer ${T.colorScheme}`}
                   />
                 </div>
 
-                <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-2 rounded-2xl backdrop-blur-md">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">To:</span>
+                <div className={`flex items-center gap-2 ${T.inputBg} border ${T.border2} px-3 py-2 rounded-2xl backdrop-blur-md`}>
+                  <span className={`text-[10px] ${T.textMuted} font-bold uppercase`}>To:</span>
                   <input 
                     type="date" 
                     value={summaryToDate}
                     onChange={(e) => setSummaryToDate(e.target.value)}
-                    className="bg-transparent text-xs text-emerald-400 font-bold focus:outline-none cursor-pointer [color-scheme:dark]"
+                    className={`bg-transparent text-xs ${accent.text400} font-bold focus:outline-none cursor-pointer ${T.colorScheme}`}
                   />
                 </div>
 
@@ -1914,7 +2073,7 @@ export default function BrooDashboard() {
                       setSummaryToDate(todayDate);
                     }}
                     title="Reset to Current Month"
-                    className="p-2 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl transition flex items-center gap-1 text-xs font-semibold backdrop-blur-md"
+                    className={`p-2 ${T.ghostBg10} ${T.ghostHover20} ${T.textSubtle} rounded-xl transition flex items-center gap-1 text-xs font-semibold backdrop-blur-md`}
                   >
                     <RotateCcw size={13} /> Reset
                   </button>
@@ -1922,60 +2081,99 @@ export default function BrooDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-emerald-500/30 transition duration-300">
-                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
-                  🏢 THIS MONTH BALANCE
-                </span>
-                <h2 className={`text-2xl sm:text-3xl font-black mt-3 ${accountBalance >= 0 ? 'text-[#00E699]' : 'text-rose-400'}`}>
-                  {currency} {accountBalance.toFixed(2)}
-                </h2>
-                <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                  Net remaining for selected period
-                </p>
-              </div>
-
-              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-cyan-500/30 transition duration-300">
-                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
-                  📈 THIS MONTH INCOME
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#00D8F6] mt-3">
-                  + {currency} {totalIncome.toFixed(2)}
-                </h2>
-                <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                  Earnings logged for selected period
-                </p>
-              </div>
-
-              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-rose-500/30 transition duration-300">
-                <span className="text-slate-300 text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
-                  📉 THIS MONTH EXPENSE
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#FF4972] mt-3">
-                  - {currency} {totalExpense.toFixed(2)}
-                </h2>
-                <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                  Spending logged for selected period
-                </p>
-              </div>
+            <div id="stats-section" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {[
+                {
+                  label: "Total Balance",
+                  value: accountBalance,
+                  prefix: "",
+                  color: accountBalance >= 0 ? "#00E699" : "#FF4972",
+                  trend: balanceTrendPct,
+                  spark: cashFlowData.map(d => d.income - d.expense),
+                },
+                {
+                  label: "Total Income",
+                  value: totalIncome,
+                  prefix: "",
+                  color: "#00D8F6",
+                  trend: incomeTrendPct,
+                  spark: cashFlowData.map(d => d.income),
+                },
+                {
+                  label: "Total Expense",
+                  value: totalExpense,
+                  prefix: "",
+                  color: "#FF4972",
+                  trend: expenseTrendPct,
+                  spark: cashFlowData.map(d => d.expense),
+                  invertTrend: true,
+                },
+              ].map((card) => {
+                const isGood = card.invertTrend ? card.trend <= 0 : card.trend >= 0;
+                const sparkData = (card.spark.length > 1 ? card.spark : [0, 0]).map((v, i) => ({ i, v }));
+                return (
+                  <div
+                    key={card.label}
+                    className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}
+                  >
+                    <span className={`${T.textMuted} text-[11px] font-extrabold uppercase tracking-wider`}>{card.label}</span>
+                    <h2 className={`text-xl sm:text-2xl font-black mt-2 ${T.textHead}`}>
+                      {currency} {card.value.toFixed(2)}
+                    </h2>
+                    <div className="flex items-center gap-1 mt-2">
+                      {isGood ? (
+                        <ArrowUpRight size={12} className="text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight size={12} className="text-rose-400" />
+                      )}
+                      <span className={`text-[11px] font-bold ${isGood ? "text-emerald-400" : "text-rose-400"}`}>
+                        {card.trend >= 0 ? "+" : ""}{card.trend.toFixed(1)}%
+                      </span>
+                      <span className={`text-[10px] ${T.textFaint}`}>from last period</span>
+                    </div>
+                    {sparkData.length > 1 && (
+                      <div className="h-8 mt-2 -mx-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={sparkData}>
+                            <Area type="monotone" dataKey="v" stroke={card.color} strokeWidth={2} fill={card.color} fillOpacity={0.12} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] lg:col-span-2 backdrop-blur-2xl flex flex-col justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+            <div
+              id="spending-section"
+              className={
+                popupSection === "reports"
+                  ? `fixed inset-0 z-50 m-auto w-[min(96vw,1300px)] max-h-[85vh] overflow-y-auto ${T.modalBg} border ${T.border1} p-6 rounded-[32px] shadow-[0_8px_32px_0_rgba(0,0,0,0.6)] grid grid-cols-1 gap-6`
+                  : "relative grid grid-cols-1 lg:grid-cols-3 gap-6"
+              }
+            >
+              {popupSection === "reports" && (
+                <button
+                  type="button"
+                  onClick={() => setPopupSection(null)}
+                  title="Close"
+                  className={`absolute top-4 right-4 z-10 p-1.5 rounded-full ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle}`}
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <div className={popupSection === "reports" ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6"}>
+              <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl flex flex-col justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                    <PieIcon size={18} className="text-emerald-400" /> Spending Breakdown
+                  <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2`}>
+                    <PieIcon size={18} className={`${accent.text400}`} /> Spending Overview
                   </h3>
-                  {totalExpense > 0 && (
-                    <span className="text-xs font-bold text-slate-400">
-                      Total: <span className="text-white">{currency} {totalExpense.toFixed(2)}</span>
-                    </span>
-                  )}
                 </div>
 
                 {pieChartData.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center my-auto">
-                    <div className="h-60 w-full flex items-center justify-center">
+                  <div className="flex flex-col gap-5 items-center my-auto">
+                    <div className="relative h-48 w-48 flex items-center justify-center flex-shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
@@ -2002,25 +2200,29 @@ export default function BrooDashboard() {
                           />
                         </PieChart>
                       </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4">
+                        <span className={`text-[10px] font-bold ${T.textMuted} uppercase tracking-wide`}>Total Expense</span>
+                        <span className={`text-sm font-black ${T.textHead} text-center`}>{currency} {totalExpense.toFixed(2)}</span>
+                      </div>
                     </div>
 
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    <div className="w-full space-y-2.5 max-h-52 overflow-y-auto pr-1">
                       {pieChartData.map((item) => {
                         const percentage = totalExpense > 0 ? ((item.value / totalExpense) * 100).toFixed(1) : "0.0";
                         const catColor = CATEGORY_COLORS[item.name] || "#64748B";
 
                         return (
-                          <div key={item.name} className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-white/5 backdrop-blur-md">
+                          <div key={item.name} className={`flex items-center justify-between text-xs ${T.blackBg30} p-2.5 rounded-xl border ${T.border3} backdrop-blur-md`}>
                             <div className="flex items-center gap-2.5">
                               <span 
                                 className="w-3 h-3 rounded-full flex-shrink-0" 
                                 style={{ backgroundColor: catColor }} 
                               />
-                              <span className="font-semibold text-slate-200">{item.name}</span>
+                              <span className={`font-semibold ${T.textSubtle}`}>{item.name}</span>
                             </div>
                             
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-slate-400">
+                              <span className={`font-bold ${T.textMuted}`}>
                                 {currency} {item.value.toFixed(2)}
                               </span>
                               <span 
@@ -2036,15 +2238,77 @@ export default function BrooDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-20 text-slate-500 text-xs">No expenses logged in this range</div>
+                  <div className={`text-center py-20 ${T.textFaint} text-xs`}>No expenses logged in this range</div>
                 )}
               </div>
 
-              <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl flex flex-col justify-between relative overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-                <div>
+              <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl flex flex-col shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2`}>
+                    <BarChart3 size={18} className={`${accent.text400}`} /> Cash Flow
+                  </h3>
+                  <div className="flex items-center gap-3 text-[10px] font-bold">
+                    <span className="flex items-center gap-1.5 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-400" /> Income</span>
+                    <span className="flex items-center gap-1.5 text-rose-400"><span className="w-2 h-2 rounded-full bg-rose-400" /> Expense</span>
+                  </div>
+                </div>
+
+                {cashFlowData.length > 0 ? (
+                  <div className="flex-1 min-h-[220px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={cashFlowData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                        <defs>
+                          <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          formatter={(val: any) => `${currency} ${Number(val).toFixed(2)}`}
+                          contentStyle={{ backgroundColor: "#0f172a", borderColor: "rgba(255,255,255,0.1)", borderRadius: "16px", color: "#fff", backdropFilter: "blur(16px)" }}
+                        />
+                        <Area type="monotone" dataKey="income" name="Income" stroke="#10B981" strokeWidth={2} fill="url(#incomeGradient)" />
+                        <Area type="monotone" dataKey="expense" name="Expense" stroke="#F43F5E" strokeWidth={2} fill="transparent" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className={`flex-1 flex items-center justify-center text-center py-20 ${T.textFaint} text-xs`}>Pick a date range to see cash flow</div>
+                )}
+              </div>
+              </div>
+
+              {/* -------------------------------------------------------
+                  Right column — Quick Actions, Budget Overview ring,
+                  Recent Activity. Mirrors the "at a glance" rail from the
+                  target design. */}
+              {popupSection !== "reports" && (
+              <div className="lg:col-span-1 space-y-6">
+
+                <div
+                  id="budget-section"
+                  className={
+                    popupSection === "budget"
+                      ? `fixed inset-0 z-50 m-auto w-[min(94vw,600px)] max-h-[85vh] overflow-y-auto ${T.modalBg} border ${T.border1} p-6 rounded-[32px] shadow-[0_8px_32px_0_rgba(0,0,0,0.6)]`
+                      : `relative overflow-hidden ${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`
+                  }
+                >
+                  {popupSection === "budget" && (
+                    <button
+                      type="button"
+                      onClick={() => setPopupSection(null)}
+                      title="Close"
+                      className={`absolute top-4 right-4 z-10 p-1.5 rounded-full ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle}`}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                      <BarChart3 size={18} className="text-emerald-400" /> {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"} Budget & Remaining
+                    <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2`}>
+                      <BarChart3 size={18} className={`${accent.text400}`} /> {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"} Budget & Remaining
                     </h3>
 
                     {subscriptionPlan !== "lite" && (
@@ -2054,22 +2318,22 @@ export default function BrooDashboard() {
                             onClick={handleOpenAddBudgetModal}
                             disabled={availableBudgetCategories.length === 0}
                             title={availableBudgetCategories.length === 0 ? "Every category already has a budget" : "Add a budget for a new category"}
-                            className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-300"
+                            className={`text-xs ${T.textSubtle2} ${accent.hoverText400} flex items-center gap-1 ${T.ghostBg} ${T.ghostHover10} px-2.5 py-1 rounded-lg backdrop-blur-md transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:${T.textSubtle2}`}
                           >
                             <Sparkles size={12} /> Add Budget
                           </button>
                         )}
                         {isEditingBudget ? (
                           <>
-                            <button onClick={handleCancelEditBudget} className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
+                            <button onClick={handleCancelEditBudget} className={`text-xs ${T.textMuted} hover:text-rose-400 flex items-center gap-1 ${T.ghostBg} ${T.ghostHover10} px-2.5 py-1 rounded-lg backdrop-blur-md transition`}>
                               <X size={12} /> Cancel
                             </button>
-                            <button onClick={handleSaveBudget} className="text-xs bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1">
+                            <button onClick={handleSaveBudget} className={`text-xs ${accent.bg500} text-slate-950 font-extrabold px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1`}>
                               <Check size={12} strokeWidth={3} /> Save
                             </button>
                           </>
                         ) : (
-                          <button onClick={() => setIsEditingBudget(true)} className="text-xs text-slate-300 hover:text-emerald-400 flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-md transition">
+                          <button onClick={() => setIsEditingBudget(true)} className={`text-xs ${T.textSubtle2} ${accent.hoverText400} flex items-center gap-1 ${T.ghostBg} ${T.ghostHover10} px-2.5 py-1 rounded-lg backdrop-blur-md transition`}>
                             <Edit2 size={12} /> Edit Targets
                           </button>
                         )}
@@ -2078,16 +2342,16 @@ export default function BrooDashboard() {
                   </div>
 
                   {subscriptionPlan !== "lite" && (
-                    <div className="flex items-center justify-center gap-3 mb-3 bg-black/30 border border-white/5 rounded-xl py-1.5 px-2">
+                    <div className={`flex items-center justify-center gap-3 mb-3 ${T.blackBg30} border ${T.border3} rounded-xl py-1.5 px-2`}>
                       <button
                         type="button"
                         onClick={handleBudgetPrevMonth}
                         title="Previous month"
-                        className="text-slate-400 hover:text-emerald-400 p-1 rounded-lg hover:bg-white/5 transition"
+                        className={`${T.textMuted} ${accent.hoverText400} p-1 rounded-lg ${T.ghostHover5} transition`}
                       >
                         <ChevronLeft size={14} />
                       </button>
-                      <span className="text-xs font-extrabold text-white min-w-[110px] text-center">
+                      <span className={`text-xs font-extrabold ${T.textHead} min-w-[110px] text-center`}>
                         {budgetViewDate.toLocaleString("default", { month: "long", year: "numeric" })}
                       </span>
                       <button
@@ -2095,7 +2359,7 @@ export default function BrooDashboard() {
                         onClick={handleBudgetNextMonth}
                         disabled={isBudgetViewCurrentMonth}
                         title={isBudgetViewCurrentMonth ? "Already viewing the current month" : "Next month"}
-                        className="text-slate-400 hover:text-emerald-400 p-1 rounded-lg hover:bg-white/5 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                        className={`${T.textMuted} ${accent.hoverText400} p-1 rounded-lg ${T.ghostHover5} transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:${T.textMuted} disabled:hover:bg-transparent`}
                       >
                         <ChevronRight size={14} />
                       </button>
@@ -2103,7 +2367,7 @@ export default function BrooDashboard() {
                         <button
                           type="button"
                           onClick={() => setBudgetViewDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
-                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 ml-1"
+                          className={`text-[10px] ${accent.text400} ${accent.hoverText300} font-bold underline underline-offset-2 ml-1`}
                         >
                           Today
                         </button>
@@ -2116,16 +2380,16 @@ export default function BrooDashboard() {
                     const overallPct = Math.min(100, (currentMonthExpense / monthlyBudget) * 100);
                     const overallOver = overallRemaining < 0;
                     return (
-                      <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl backdrop-blur-md mb-3 space-y-2">
+                      <div className={`${T.inputBg} border ${T.border3} p-3.5 rounded-2xl backdrop-blur-md mb-3 space-y-2`}>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                            <Wallet size={12} className="text-emerald-400" /> Overall Monthly Budget
+                          <span className={`font-bold ${T.textSubtle} flex items-center gap-1.5`}>
+                            <Wallet size={12} className={`${accent.text400}`} /> Overall Monthly Budget
                           </span>
                           <span className={`text-[11px] font-extrabold ${overallOver ? "text-rose-400" : "text-emerald-400"}`}>
                             {overallPct.toFixed(0)}% used
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div className={`w-full h-2 ${T.ghostBg} rounded-full overflow-hidden`}>
                           <div
                             className={`h-full rounded-full transition-all ${
                               overallOver ? "bg-rose-500" : overallPct >= 80 ? "bg-amber-400" : "bg-emerald-500"
@@ -2133,25 +2397,25 @@ export default function BrooDashboard() {
                             style={{ width: `${overallPct}%` }}
                           />
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <div className={`flex items-center justify-between text-[11px] ${T.textMuted}`}>
                           <span>Spent: <strong className="text-rose-400">{currency} {currentMonthExpense.toFixed(2)}</strong> / {currency} {monthlyBudget.toFixed(2)}</span>
                           <span>
                             {overallOver ? "Over by" : "Remaining"}: <strong className={overallOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(overallRemaining).toFixed(2)}</strong>
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 pt-0.5">Tracks {budgetViewDate.toLocaleString("default", { month: "long", year: "numeric" })} only, regardless of the date filter above.</p>
+                        <p className={`text-[10px] ${T.textFaint} pt-0.5`}>Tracks {budgetViewDate.toLocaleString("default", { month: "long", year: "numeric" })} only, regardless of the date filter above.</p>
                       </div>
                     );
                   })()}
 
                   {subscriptionPlan === "lite" ? (
-                    <div className="bg-black/30 border border-white/5 rounded-2xl p-6 text-center space-y-4 my-auto backdrop-blur-md">
+                    <div className={`${T.blackBg30} border ${T.border3} rounded-2xl p-6 text-center space-y-4 my-auto backdrop-blur-md max-w-md mx-auto`}>
                       <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto backdrop-blur-md">
                         <Lock size={22} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-extrabold text-white">Category Budgets Locked</h4>
-                        <p className="text-[11px] text-slate-400 mt-1">Upgrade to Core or Max to track WhatsApp category spending and remaining limits.</p>
+                        <h4 className={`text-xs font-extrabold ${T.textHead}`}>Category Budgets Locked</h4>
+                        <p className={`text-[11px] ${T.textMuted} mt-1`}>Upgrade to Core or Max to track {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"} category spending and remaining limits.</p>
                       </div>
                       <a 
                         href={`/pricing?user_id=${userId}&mode=upgrade&current_channel=${linkedChannel || ""}&current_plan=${subscriptionPlan}`}
@@ -2162,9 +2426,9 @@ export default function BrooDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-3 mt-2">
-                      <p className="text-[11px] text-slate-400 mb-2">Track category spending sent via WhatsApp & check remaining balances ({budgetViewDate.toLocaleString("default", { month: "long" })}):</p>
-                      
-                      <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                      <p className={`text-[11px] ${T.textMuted} mb-2`}>Track category spending sent via {linkedChannel === "telegram" ? "Telegram" : "WhatsApp"} & check remaining balances ({budgetViewDate.toLocaleString("default", { month: "long" })}):</p>
+                  
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[400px] overflow-y-auto pr-1">
                         {Object.keys(categoryBudgets).length > 0 ? (
                           Object.keys(categoryBudgets).map((cat) => {
                             const limit = categoryBudgets[cat] || 0;
@@ -2175,7 +2439,7 @@ export default function BrooDashboard() {
                             const catColor = CATEGORY_COLORS[cat] || "#10B981";
 
                             return (
-                              <div key={cat} className="bg-black/40 border border-white/5 p-3 rounded-2xl backdrop-blur-md space-y-2">
+                              <div key={cat} className={`${T.inputBg} border ${T.border3} p-3 rounded-2xl backdrop-blur-md space-y-2`}>
                                 <div className="flex items-center justify-between gap-2 text-xs">
                                   {isEditingBudget ? (
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -2183,7 +2447,7 @@ export default function BrooDashboard() {
                                       <select
                                         value={tempCatNames[cat] ?? cat}
                                         onChange={(e) => setTempCatNames({ ...tempCatNames, [cat]: e.target.value })}
-                                        className="min-w-0 flex-1 bg-slate-950 border border-white/10 text-[11px] text-slate-200 font-bold px-2 py-1 rounded-lg focus:border-emerald-500 focus:outline-none"
+                                        className={`min-w-0 flex-1 ${T.slate950} border ${T.border2} text-[11px] ${T.textSubtle} font-bold px-2 py-1 rounded-lg ${accent.focusBorder500} focus:outline-none`}
                                       >
                                         <option value={cat}>{cat}</option>
                                         {availableBudgetCategories.map((c) => (
@@ -2192,7 +2456,7 @@ export default function BrooDashboard() {
                                       </select>
                                     </div>
                                   ) : (
-                                    <span className="font-bold text-slate-200 flex items-center gap-2 min-w-0">
+                                    <span className={`font-bold ${T.textSubtle} flex items-center gap-2 min-w-0`}>
                                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
                                       <span className="truncate">{cat}</span>
                                     </span>
@@ -2204,11 +2468,11 @@ export default function BrooDashboard() {
                                         type="number"
                                         value={tempCatBudgets[cat] ?? limit}
                                         onChange={(e) => setTempCatBudgets({...tempCatBudgets, [cat]: e.target.value})}
-                                        className="w-20 bg-slate-950 border border-emerald-500 text-xs text-white px-2 py-0.5 rounded-lg text-right"
+                                        className={`w-20 ${T.slate950} border ${accent.border500} text-xs ${T.textHead} px-2 py-0.5 rounded-lg text-right`}
                                       />
                                     ) : (
-                                      <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
-                                        Limit: <strong className="text-white">{currency} {limit.toFixed(2)}</strong>
+                                      <span className={`text-[11px] ${T.textMuted} font-medium whitespace-nowrap`}>
+                                        Limit: <strong className={`${T.textHead}`}>{currency} {limit.toFixed(2)}</strong>
                                       </span>
                                     )}
                                     {isEditingBudget && (
@@ -2217,7 +2481,7 @@ export default function BrooDashboard() {
                                         onClick={() => handleDeleteBudgetCategory(cat)}
                                         disabled={deletingBudgetCat === cat}
                                         title={`Remove ${cat} budget`}
-                                        className="text-slate-400 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition disabled:opacity-40"
+                                        className={`${T.textMuted} hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition disabled:opacity-40`}
                                       >
                                         {deletingBudgetCat === cat ? (
                                           <RefreshCw size={12} className="animate-spin" />
@@ -2230,7 +2494,7 @@ export default function BrooDashboard() {
                                 </div>
 
                                 {!isEditingBudget && limit > 0 && (
-                                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                  <div className={`w-full h-1.5 ${T.ghostBg} rounded-full overflow-hidden`}>
                                     <div
                                       className="h-full rounded-full transition-all"
                                       style={{
@@ -2242,8 +2506,8 @@ export default function BrooDashboard() {
                                 )}
 
                                 <div className="flex items-center justify-between text-[11px]">
-                                  <span className="text-slate-400">Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
-                                  <span className="text-slate-400">
+                                  <span className={`${T.textMuted}`}>Spent: <strong className="text-rose-400">{currency} {spent.toFixed(2)}</strong></span>
+                                  <span className={`${T.textMuted}`}>
                                     {isOver ? "Over by" : "Remaining"}: <strong className={isOver ? "text-rose-400" : "text-emerald-400"}>{currency} {Math.abs(remaining).toFixed(2)}</strong>
                                   </span>
                                 </div>
@@ -2251,11 +2515,11 @@ export default function BrooDashboard() {
                             );
                           })
                         ) : (
-                          <div className="text-center py-10 text-slate-500 text-xs space-y-2">
+                          <div className={`text-center py-10 ${T.textFaint} text-xs space-y-2 md:col-span-2`}>
                             <p>No category budgets set</p>
                             <button
                               onClick={handleOpenAddBudgetModal}
-                              className="text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2"
+                              className={`${accent.text400} ${accent.hoverText300} font-bold underline underline-offset-2`}
                             >
                               Add your first budget
                             </button>
@@ -2265,45 +2529,97 @@ export default function BrooDashboard() {
                     </div>
                   )}
                 </div>
+
+                <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+                  <h3 className={`font-extrabold text-sm ${T.textHead} mb-4`}>Recent Activity</h3>
+                  <div className="space-y-3">
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((tx) => (
+                        <div key={tx.id} className="flex items-center gap-3">
+                          <span className={`p-2 rounded-full flex-shrink-0 ${tx.type === "income" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                            {tx.type === "income" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-bold ${T.textHead} truncate`}>{tx.item || tx.category || "Transaction"}</p>
+                            <p className={`text-[10px] ${T.textMuted} capitalize`}>{tx.type}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={`text-xs font-extrabold ${tx.type === "income" ? "text-emerald-400" : "text-rose-400"}`}>
+                              {tx.type === "income" ? "+" : "-"}{currency} {Number(tx.amount || 0).toFixed(2)}
+                            </p>
+                            <p className={`text-[10px] ${T.textFaint}`}>{formatActivityDate(tx.created_at)}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={`text-xs ${T.textFaint} text-center py-6`}>No activity yet.</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection("transactions-section")}
+                    className={`mt-4 w-full ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} border ${T.border2} font-bold text-xs py-2.5 rounded-xl transition`}
+                  >
+                    View All Transactions
+                  </button>
+                </div>
               </div>
+              )}
             </div>
 
-            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] space-y-6 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
+            <div
+              id="transactions-section"
+              className={
+                popupSection === "transactions"
+                  ? `fixed inset-0 z-50 m-auto w-[min(94vw,1100px)] max-h-[85vh] overflow-y-auto ${T.modalBg} border ${T.border1} p-6 rounded-[32px] space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.6)]`
+                  : `relative ${T.cardBg} border ${T.border1} p-6 rounded-[32px] space-y-6 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`
+              }
+            >
+              {popupSection === "transactions" && (
+                <button
+                  type="button"
+                  onClick={() => setPopupSection(null)}
+                  title="Close"
+                  className={`absolute top-4 right-4 z-10 p-1.5 rounded-full ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle}`}
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b ${T.border2} pb-5`}>
                 <div>
-                  <h3 className="font-extrabold text-lg text-white">Recent Transactions</h3>
-                  <p className="text-slate-400 text-xs mt-0.5">Edit, filter transactions by date range or search terms</p>
+                  <h3 className={`font-extrabold text-lg ${T.textHead}`}>Recent Transactions</h3>
+                  <p className={`${T.textMuted} text-xs mt-0.5`}>Edit, filter transactions by date range or search terms</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={handleOpenAddModal}
-                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition shadow-md shadow-emerald-500/10"
+                    className={`flex items-center gap-1.5 ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition shadow-md ${accent.shadow500_10}`}
                   >
                     <Sparkles size={14} /> Add Transaction
                   </button>
 
-                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 p-1.5 rounded-2xl backdrop-blur-md">
+                  <div className={`flex items-center gap-2 ${T.inputBg} border ${T.border2} p-1.5 rounded-2xl backdrop-blur-md`}>
                     <div className="flex items-center gap-1.5 px-2">
-                      <Calendar size={14} className="text-emerald-400" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
+                      <Calendar size={14} className={`${accent.text400}`} />
+                      <span className={`text-[10px] font-bold ${T.textMuted} uppercase`}>From:</span>
                       <input 
                         type="date" 
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="bg-transparent text-xs text-white focus:outline-none cursor-pointer [color-scheme:dark]"
+                        className={`bg-transparent text-xs ${T.textHead} focus:outline-none cursor-pointer ${T.colorScheme}`}
                       />
                     </div>
                     
                     <span className="text-slate-600 font-bold">-</span>
 
                     <div className="flex items-center gap-1.5 px-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">To:</span>
+                      <span className={`text-[10px] font-bold ${T.textMuted} uppercase`}>To:</span>
                       <input 
                         type="date" 
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="bg-transparent text-xs text-white focus:outline-none cursor-pointer [color-scheme:dark]"
+                        className={`bg-transparent text-xs ${T.textHead} focus:outline-none cursor-pointer ${T.colorScheme}`}
                       />
                     </div>
 
@@ -2311,7 +2627,7 @@ export default function BrooDashboard() {
                       <button 
                         onClick={() => { setStartDate(""); setEndDate(""); }}
                         title="Reset Date Range"
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-xl transition"
+                        className={`p-1.5 ${T.textMuted} hover:text-rose-400 ${T.ghostHover10} rounded-xl transition`}
                       >
                         <RotateCcw size={13} />
                       </button>
@@ -2323,21 +2639,21 @@ export default function BrooDashboard() {
                     placeholder="Search note or category..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-black/40 border border-white/10 text-xs text-slate-200 px-3 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    className={`${T.inputBg} border ${T.border2} text-xs ${T.textSubtle} px-3 py-2.5 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                   />
 
                   {subscriptionPlan === "lite" ? (
                     <button 
                       disabled
                       title="Available in Core & Max Plan"
-                      className="bg-white/5 text-slate-500 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 opacity-60 cursor-not-allowed border border-white/5"
+                      className={`${T.ghostBg} ${T.textFaint} text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 opacity-60 cursor-not-allowed border ${T.border3}`}
                     >
                       <Lock size={13} /> Export Excel 📊
                     </button>
                   ) : (
                     <button 
                       onClick={handleExportExcel}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition whitespace-nowrap shadow-md shadow-emerald-500/10"
+                      className={`${accent.bg500} ${accent.hoverBg400} text-slate-950 text-xs font-extrabold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition whitespace-nowrap shadow-md ${accent.shadow500_10}`}
                     >
                       <Download size={14} /> Export Excel 📊
                     </button>
@@ -2348,7 +2664,7 @@ export default function BrooDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-white/10 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <tr className={`border-b ${T.border2} text-[11px] font-bold ${T.textMuted} uppercase tracking-wider`}>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Merchant / Note</th>
                       <th className="py-3 px-4">Category</th>
@@ -2364,18 +2680,18 @@ export default function BrooDashboard() {
                         const isEditing = editingId === tx.id;
 
                         return (
-                          <tr key={tx.id} className="hover:bg-white/5 transition">
-                            <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap">
+                          <tr key={tx.id} className={`${T.ghostHover5} transition`}>
+                            <td className={`py-3.5 px-4 ${T.textMuted} whitespace-nowrap`}>
                               {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "Today"}
                             </td>
 
-                            <td className="py-3.5 px-4 font-bold text-white whitespace-nowrap">
+                            <td className={`py-3.5 px-4 font-bold ${T.textHead} whitespace-nowrap`}>
                               {isEditing ? (
                                 <input 
                                   type="text" 
                                   value={editItem} 
                                   onChange={(e) => setEditItem(e.target.value)} 
-                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} focus:outline-none`}
                                 />
                               ) : (
                                 tx.item
@@ -2387,14 +2703,14 @@ export default function BrooDashboard() {
                                 <select 
                                   value={editCategory} 
                                   onChange={(e) => setEditCategory(e.target.value)}
-                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} focus:outline-none`}
                                 >
                                   {CATEGORY_OPTIONS.map(c => (
                                     <option key={c} value={c}>{c}</option>
                                   ))}
                                 </select>
                               ) : (
-                                <span className="px-2.5 py-1 rounded-lg font-semibold text-[10px] bg-white/5 text-slate-300 border border-white/10 backdrop-blur-md">
+                                <span className={`px-2.5 py-1 rounded-lg font-semibold text-[10px] ${T.ghostBg} ${T.textSubtle2} border ${T.border2} backdrop-blur-md`}>
                                   {tx.category || "Other"}
                                 </span>
                               )}
@@ -2406,10 +2722,10 @@ export default function BrooDashboard() {
                                   type="number" 
                                   value={editAmount} 
                                   onChange={(e) => setEditAmount(e.target.value)} 
-                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white w-24 focus:outline-none"
+                                  className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} w-24 focus:outline-none`}
                                 />
                               ) : (
-                                <span className={tx.type === "income" ? "text-emerald-400" : "text-slate-200"}>
+                                <span className={tx.type === "income" ? "text-emerald-400" : `${T.textSubtle}`}>
                                   {currency} {Number(tx.amount || 0).toFixed(2)}
                                 </span>
                               )}
@@ -2420,7 +2736,7 @@ export default function BrooDashboard() {
                                 <select 
                                   value={editType} 
                                   onChange={(e) => setEditType(e.target.value as "income" | "expense")}
-                                  className="bg-black/60 border border-emerald-500 px-2 py-1 rounded-lg text-xs text-white focus:outline-none"
+                                  className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} focus:outline-none`}
                                 >
                                   <option value="expense">Expense</option>
                                   <option value="income">Income</option>
@@ -2434,7 +2750,7 @@ export default function BrooDashboard() {
                               )}
                             </td>
 
-                            <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap uppercase text-[10px] font-mono">
+                            <td className={`py-3.5 px-4 ${T.textMuted} whitespace-nowrap uppercase text-[10px] font-mono`}>
                               {tx.entry_type || "text"}
                             </td>
 
@@ -2444,13 +2760,13 @@ export default function BrooDashboard() {
                                   <button 
                                     onClick={() => handleSaveEdit(tx.id)} 
                                     disabled={saveLoading}
-                                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-1.5 rounded-lg transition shadow-md"
+                                    className={`${accent.bg500} ${accent.hoverBg400} text-slate-950 p-1.5 rounded-lg transition shadow-md`}
                                   >
                                     <Check size={14} />
                                   </button>
                                   <button 
                                     onClick={handleCancelEdit} 
-                                    className="bg-white/10 hover:bg-white/20 text-slate-300 p-1.5 rounded-lg transition backdrop-blur-md"
+                                    className={`${T.ghostBg10} ${T.ghostHover20} ${T.textSubtle2} p-1.5 rounded-lg transition backdrop-blur-md`}
                                   >
                                     <X size={14} />
                                   </button>
@@ -2459,7 +2775,7 @@ export default function BrooDashboard() {
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button 
                                     onClick={() => handleStartEdit(tx)} 
-                                    className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition border border-white/10 backdrop-blur-md"
+                                    className={`p-1.5 ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle2} rounded-lg transition border ${T.border2} backdrop-blur-md`}
                                   >
                                     <Edit2 size={13} />
                                   </button>
@@ -2477,7 +2793,7 @@ export default function BrooDashboard() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-slate-500 text-xs">
+                        <td colSpan={7} className={`text-center py-8 ${T.textFaint} text-xs`}>
                           No transactions found.
                         </td>
                       </tr>
@@ -2491,9 +2807,9 @@ export default function BrooDashboard() {
 
         {activeTab === "settings" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
-                <User size={18} className="text-emerald-400" /> User Profile Settings
+            <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+              <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2 border-b ${T.border2} pb-4`}>
+                <User size={18} className={`${accent.text400}`} /> User Profile Settings
               </h3>
 
               {profileMsg && (
@@ -2507,26 +2823,26 @@ export default function BrooDashboard() {
 
               <form onSubmit={handleUpdateProfile} className="space-y-5">
                 <div>
-                  <label className="text-xs text-slate-300 font-bold mb-3 flex items-center gap-1.5">
-                    <Camera size={13} className="text-emerald-400" /> Profile Picture
+                  <label className={`text-xs ${T.textSubtle2} font-bold mb-3 flex items-center gap-1.5`}>
+                    <Camera size={13} className={`${accent.text400}`} /> Profile Picture
                   </label>
 
-                  <div className="bg-black/30 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
+                  <div className={`${T.blackBg30} border ${T.border2} rounded-2xl p-4 backdrop-blur-md`}>
                     <div className="flex items-center gap-4">
                       <div className="relative flex-shrink-0">
-                        <div className="p-[2.5px] rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/10">
+                        <div className={`p-[2.5px] rounded-2xl bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_10}`}>
                           <img
                             src={selectedAvatar || avatarUrl}
                             alt="Selected Profile"
-                            className="w-16 h-16 rounded-[15px] object-cover bg-slate-950"
+                            className={`w-16 h-16 rounded-[15px] object-cover ${T.slate950}`}
                           />
                         </div>
                         {uploadingImg && (
-                          <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                            <RefreshCw size={16} className="animate-spin text-emerald-400" />
+                          <div className={`absolute inset-0 ${T.blackBg60} rounded-2xl flex items-center justify-center`}>
+                            <RefreshCw size={16} className={`animate-spin ${accent.text400}`} />
                           </div>
                         )}
-                        <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-lg border-2 border-black/30 shadow-sm">
+                        <span className={`absolute -bottom-1 -right-1 ${accent.bg500} text-slate-950 p-1 rounded-lg border-2 border-black/30 shadow-sm`}>
                           <Check size={9} strokeWidth={4} />
                         </span>
                       </div>
@@ -2534,9 +2850,9 @@ export default function BrooDashboard() {
                       <div className="flex-1 min-w-0">
                         <label
                           htmlFor="custom-avatar-upload"
-                          className="cursor-pointer inline-flex bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-white/10 items-center gap-2 transition backdrop-blur-md w-full sm:w-auto justify-center"
+                          className={`cursor-pointer inline-flex ${T.ghostBg10} ${T.ghostHover20} ${T.textHead} text-xs font-bold px-4 py-2.5 rounded-xl border ${T.border2} items-center gap-2 transition backdrop-blur-md w-full sm:w-auto justify-center`}
                         >
-                          <Camera size={14} className="text-emerald-400" /> Upload Custom Photo
+                          <Camera size={14} className={`${accent.text400}`} /> Upload Custom Photo
                         </label>
                         <input
                           id="custom-avatar-upload"
@@ -2545,13 +2861,13 @@ export default function BrooDashboard() {
                           onChange={handleCustomImageUpload}
                           className="hidden"
                         />
-                        <p className="text-[10px] text-slate-400 mt-1.5">JPG, PNG or WEBP · Max 2MB</p>
+                        <p className={`text-[10px] ${T.textMuted} mt-1.5`}>JPG, PNG or WEBP · Max 2MB</p>
                       </div>
                     </div>
 
-                    <div className="h-px bg-white/10 my-4" />
+                    <div className={`h-px ${T.ghostBg10} my-4`} />
 
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-2.5">Or choose a preset avatar</span>
+                    <span className={`text-[11px] ${T.textMuted} font-semibold block mb-2.5`}>Or choose a preset avatar</span>
                     <div className="flex items-center gap-3 overflow-x-auto pb-1">
                       {AVATAR_OPTIONS.map((imgUrl, idx) => (
                         <button
@@ -2560,7 +2876,7 @@ export default function BrooDashboard() {
                           onClick={() => setSelectedAvatar(imgUrl)}
                           className={`relative rounded-2xl p-1 transition-all border-2 flex-shrink-0 ${
                             selectedAvatar === imgUrl 
-                              ? "border-emerald-400 bg-emerald-500/20 scale-105 shadow-md shadow-emerald-500/10" 
+                              ? `${accent.border400} ${accent.bg500_20} scale-105 shadow-md ${accent.shadow500_10}` 
                               : "border-transparent opacity-60 hover:opacity-100 hover:scale-105"
                           }`}
                         >
@@ -2570,7 +2886,7 @@ export default function BrooDashboard() {
                             className="w-10 h-10 rounded-xl object-cover"
                           />
                           {selectedAvatar === imgUrl && (
-                            <span className="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 rounded-full p-0.5">
+                            <span className={`absolute -top-1 -right-1 ${accent.bg500} text-slate-950 rounded-full p-0.5`}>
                               <Check size={10} strokeWidth={4} />
                             </span>
                           )}
@@ -2581,75 +2897,75 @@ export default function BrooDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-bold block mb-1.5">Display Name / How to Call You</label>
+                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5`}>Display Name / How to Call You</label>
                   <input 
                     type="text" 
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
                     placeholder="Enter your nickname..."
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-bold block mb-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5"><Mail size={13} className="text-slate-400" /> Email Address</span>
-                    <span className="text-[10px] text-slate-500 font-medium">(Read-only)</span>
+                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5 flex items-center justify-between`}>
+                    <span className="flex items-center gap-1.5"><Mail size={13} className={`${T.textMuted}`} /> Email Address</span>
+                    <span className={`text-[10px] ${T.textFaint} font-medium`}>(Read-only)</span>
                   </label>
                   <input 
                     type="email" 
                     value={userEmail}
                     readOnly
                     disabled
-                    className="w-full bg-slate-950/60 border border-white/5 text-xs text-slate-400 p-3 rounded-xl cursor-not-allowed backdrop-blur-md"
+                    className={`w-full ${T.cardBg60} border ${T.border3} text-xs ${T.textMuted} p-3 rounded-xl cursor-not-allowed backdrop-blur-md`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-bold block mb-1.5 flex items-center gap-1.5">
-                    <Phone size={13} className="text-emerald-400" /> Phone Number (For WhatsApp / SMS Notifications)
+                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5 flex items-center gap-1.5`}>
+                    <Phone size={13} className={`${accent.text400}`} /> Phone Number (For WhatsApp / SMS Notifications)
                   </label>
                   <input 
                     type="text" 
                     value={profilePhone}
                     onChange={(e) => setProfilePhone(e.target.value)}
                     placeholder="+947XXXXXXXX"
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-bold block mb-1.5">Preferred Currency</label>
+                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5`}>Preferred Currency</label>
                   <select 
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md ${T.colorScheme}`}
                   >
                     {WORLD_CURRENCIES.map((curr) => (
-                      <option key={curr.code} value={curr.code} className="bg-slate-950 text-slate-100">
+                      <option key={curr.code} value={curr.code} className={`${T.slate950} ${T.textBody}`}>
                         {curr.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="pt-4 border-t border-white/10 space-y-4">
-                  <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <div className={`pt-4 border-t ${T.border2} space-y-4`}>
+                  <h4 className={`text-xs font-black ${accent.text400} uppercase tracking-wider flex items-center gap-1.5`}>
                     <Globe size={14} /> Financial & Regional Preferences
                   </h4>
 
                   <div>
-                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                    <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5`}>
                       Language: Dashboard App Language (World Languages)
                     </label>
                     <select 
                       name="language"
                       value={appLanguage}
                       onChange={(e) => setAppLanguage(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md ${T.colorScheme}`}
                     >
                       {WORLD_LANGUAGES.map((lang) => (
-                        <option key={lang.code} value={lang.code} className="bg-slate-950 text-slate-100">
+                        <option key={lang.code} value={lang.code} className={`${T.slate950} ${T.textBody}`}>
                           {lang.name}
                         </option>
                       ))}
@@ -2657,31 +2973,31 @@ export default function BrooDashboard() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                    <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5`}>
                       Date Format: (DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD)
                     </label>
                     <select 
                       value={dateFormat}
                       onChange={(e) => setDateFormat(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md ${T.colorScheme}`}
                     >
-                      <option value="DD/MM/YYYY" className="bg-slate-950 text-slate-100">DD/MM/YYYY</option>
-                      <option value="MM/DD/YYYY" className="bg-slate-950 text-slate-100">MM/DD/YYYY</option>
-                      <option value="YYYY-MM-DD" className="bg-slate-950 text-slate-100">YYYY-MM-DD</option>
+                      <option value="DD/MM/YYYY" className={`${T.slate950} ${T.textBody}`}>DD/MM/YYYY</option>
+                      <option value="MM/DD/YYYY" className={`${T.slate950} ${T.textBody}`}>MM/DD/YYYY</option>
+                      <option value="YYYY-MM-DD" className={`${T.slate950} ${T.textBody}`}>YYYY-MM-DD</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-300 font-bold block mb-1.5">
+                    <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5`}>
                       First Day of the Week: (Monday or Sunday)
                     </label>
                     <select 
                       value={weekStart}
                       onChange={(e) => setWeekStart(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md [color-scheme:dark]"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md ${T.colorScheme}`}
                     >
-                      <option value="Monday" className="bg-slate-950 text-slate-100">Monday</option>
-                      <option value="Sunday" className="bg-slate-950 text-slate-100">Sunday</option>
+                      <option value="Monday" className={`${T.slate950} ${T.textBody}`}>Monday</option>
+                      <option value="Sunday" className={`${T.slate950} ${T.textBody}`}>Sunday</option>
                     </select>
                   </div>
 
@@ -2690,16 +3006,16 @@ export default function BrooDashboard() {
                 <button 
                   type="submit" 
                   disabled={profileLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
+                  className={`w-full ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md ${accent.shadow500_10}`}
                 >
                   {profileLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Profile Settings"}
                 </button>
               </form>
             </div>
 
-            <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2 border-b border-white/10 pb-4">
-                <ShieldCheck size={18} className="text-emerald-400" /> Security Settings
+            <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit ${accent.hoverBorder500_30} transition duration-300`}>
+              <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2 border-b ${T.border2} pb-4`}>
+                <ShieldCheck size={18} className={`${accent.text400}`} /> Security Settings
               </h3>
 
               {passwordMsg && (
@@ -2714,31 +3030,31 @@ export default function BrooDashboard() {
               {otpStep === "form" ? (
                 <form onSubmit={handleRequestPasswordOtp} className="space-y-4">
                   <div>
-                    <label className="text-xs text-slate-400 font-bold block mb-1.5">New Password</label>
+                    <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>New Password</label>
                     <input 
                       type="password" 
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-400 font-bold block mb-1.5">Confirm Password</label>
+                    <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Confirm Password</label>
                     <input 
                       type="password" 
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                     />
                   </div>
 
                   <button 
                     type="submit" 
                     disabled={passwordLoading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
+                    className={`w-full ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md ${accent.shadow500_10}`}
                   >
                     {passwordLoading ? <RefreshCw size={14} className="animate-spin" /> : <><Mail size={14} /> Send Verification Code</>}
                   </button>
@@ -2746,7 +3062,7 @@ export default function BrooDashboard() {
               ) : (
                 <form onSubmit={handleVerifyOtpAndChangePassword} className="space-y-4">
                   <div>
-                    <label className="text-xs text-slate-400 font-bold block mb-1.5">
+                    <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>
                       Enter the 6-digit code sent to {userEmail}
                     </label>
                     <input 
@@ -2756,23 +3072,23 @@ export default function BrooDashboard() {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                       placeholder="123456"
-                      className="w-full bg-black/40 border border-white/10 text-sm tracking-[0.4em] text-center text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md"
+                      className={`w-full ${T.inputBg} border ${T.border2} text-sm tracking-[0.4em] text-center ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
                     />
                   </div>
 
                   <button 
                     type="submit" 
                     disabled={otpLoading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10"
+                    className={`w-full ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md ${accent.shadow500_10}`}
                   >
                     {otpLoading ? <RefreshCw size={14} className="animate-spin" /> : "Verify & Update Password"}
                   </button>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <div className={`flex items-center justify-between text-[11px] ${T.textMuted}`}>
                     <button 
                       type="button" 
                       onClick={handleCancelOtp}
-                      className="hover:text-slate-200 transition font-semibold"
+                      className={`hover:${T.textSubtle} transition font-semibold`}
                     >
                       Cancel
                     </button>
@@ -2780,7 +3096,7 @@ export default function BrooDashboard() {
                       type="button" 
                       onClick={handleResendOtp}
                       disabled={otpResendCooldown > 0 || otpLoading}
-                      className="hover:text-emerald-300 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`${accent.hoverText300} transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {otpResendCooldown > 0 ? `Resend code in ${otpResendCooldown}s` : "Resend code"}
                     </button>
@@ -2790,62 +3106,114 @@ export default function BrooDashboard() {
             </div>
           </div>
         )}
+
+        {popupSection && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
+            onClick={() => setPopupSection(null)}
+          />
+        )}
+        </div>
       </div>
 
+      {showMobileNav && (
+        <div
+          className={`lg:hidden fixed inset-0 z-50 flex items-start justify-center ${T.blackBg60} backdrop-blur-md px-4 pt-24`}
+          onClick={() => setShowMobileNav(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`${T.modalBg} border ${T.border1} rounded-[28px] p-3 w-full max-w-xs space-y-1 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]`}
+          >
+            <div className="flex items-center justify-between px-2 pt-1 pb-2">
+              <span className={`text-xs font-extrabold ${T.textHead} uppercase tracking-wider`}>Menu</span>
+              <button
+                type="button"
+                onClick={() => setShowMobileNav(false)}
+                className={`p-1.5 rounded-full ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle}`}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    item.onClick();
+                    setShowMobileNav(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition text-left ${
+                    item.active
+                      ? `${accent.bg500} text-slate-950 shadow-md ${accent.shadow500_25}`
+                      : `${T.textSubtle2} ${T.hoverTextHead} ${T.ghostHover5}`
+                  }`}
+                >
+                  <Icon size={16} /> {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-slate-900 border border-white/10 rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${T.blackBg60} backdrop-blur-sm px-4`}>
+          <div className={`${T.modalBg} border ${T.border2} rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]`}>
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-base text-white">Add Transaction</h3>
-              <button onClick={handleCloseAddModal} className="p-1.5 text-slate-400 hover:text-white transition">
+              <h3 className={`font-extrabold text-base ${T.textHead}`}>Add Transaction</h3>
+              <button onClick={handleCloseAddModal} className={`p-1.5 ${T.textMuted} ${T.hoverTextHead} transition`}>
                 <X size={16} />
               </button>
             </div>
 
             <div>
-              <label className="text-xs text-slate-400 font-bold block mb-1.5">Description</label>
+              <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Description</label>
               <input
                 type="text"
                 value={addItem}
                 onChange={(e) => setAddItem(e.target.value)}
                 placeholder="e.g. Bus fare"
-                className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
               />
             </div>
 
             <div>
-              <label className="text-xs text-slate-400 font-bold block mb-1.5">Category</label>
+              <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Category</label>
               <select
                 value={addCategory}
                 onChange={(e) => setAddCategory(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+                className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
               >
                 {CATEGORY_OPTIONS.map(c => (
-                  <option key={c} value={c} className="bg-slate-950 text-slate-100">{c}</option>
+                  <option key={c} value={c} className={`${T.slate950} ${T.textBody}`}>{c}</option>
                 ))}
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-400 font-bold block mb-1.5">Amount</label>
+                <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Amount</label>
                 <input
                   type="number"
                   value={addAmount}
                   onChange={(e) => setAddAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                  className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 font-bold block mb-1.5">Type</label>
+                <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Type</label>
                 <select
                   value={addType}
                   onChange={(e) => setAddType(e.target.value as "income" | "expense")}
-                  className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+                  className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
                 >
-                  <option value="expense" className="bg-slate-950 text-slate-100">Expense</option>
-                  <option value="income" className="bg-slate-950 text-slate-100">Income</option>
+                  <option value="expense" className={`${T.slate950} ${T.textBody}`}>Expense</option>
+                  <option value="income" className={`${T.slate950} ${T.textBody}`}>Income</option>
                 </select>
               </div>
             </div>
@@ -2853,7 +3221,7 @@ export default function BrooDashboard() {
             <button
               onClick={handleAddTransaction}
               disabled={addLoading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10 disabled:opacity-60"
+              className={`w-full ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md ${accent.shadow500_10} disabled:opacity-60`}
             >
               {addLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Transaction"}
             </button>
@@ -2862,47 +3230,47 @@ export default function BrooDashboard() {
       )}
 
       {showAddBudgetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-slate-900 border border-white/10 rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${T.blackBg60} backdrop-blur-sm px-4`}>
+          <div className={`${T.modalBg} border ${T.border2} rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]`}>
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-base text-white">Add Budget</h3>
-              <button onClick={handleCloseAddBudgetModal} className="p-1.5 text-slate-400 hover:text-white transition">
+              <h3 className={`font-extrabold text-base ${T.textHead}`}>Add Budget</h3>
+              <button onClick={handleCloseAddBudgetModal} className={`p-1.5 ${T.textMuted} ${T.hoverTextHead} transition`}>
                 <X size={16} />
               </button>
             </div>
 
             {availableBudgetCategories.length === 0 ? (
-              <p className="text-xs text-slate-400">Every category already has a budget — edit its limit from "Edit Targets" instead.</p>
+              <p className={`text-xs ${T.textMuted}`}>Every category already has a budget — edit its limit from "Edit Targets" instead.</p>
             ) : (
               <>
                 <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Category</label>
+                  <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Category</label>
                   <select
                     value={addBudgetCategory}
                     onChange={(e) => setAddBudgetCategory(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition [color-scheme:dark]"
+                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
                   >
                     {availableBudgetCategories.map(c => (
-                      <option key={c} value={c} className="bg-slate-950 text-slate-100">{c}</option>
+                      <option key={c} value={c} className={`${T.slate950} ${T.textBody}`}>{c}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-400 font-bold block mb-1.5">Monthly Limit ({currency})</label>
+                  <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Monthly Limit ({currency})</label>
                   <input
                     type="number"
                     value={addBudgetAmount}
                     onChange={(e) => setAddBudgetAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-black/40 border border-white/10 text-xs text-slate-100 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
                   />
                 </div>
 
                 <button
                   onClick={handleAddBudget}
                   disabled={addBudgetLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10 disabled:opacity-60"
+                  className={`w-full ${accent.bg500} ${accent.hoverBg400} text-slate-950 font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md ${accent.shadow500_10} disabled:opacity-60`}
                 >
                   {addBudgetLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Budget"}
                 </button>
@@ -2913,13 +3281,13 @@ export default function BrooDashboard() {
       )}
 
       {pendingDelete && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900/95 border border-white/10 text-slate-100 text-xs font-semibold px-4 py-3 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${T.cardBg95} border ${T.border2} ${T.textBody} text-xs font-semibold px-4 py-3 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl`}>
           <span className="whitespace-nowrap">
-            Deleted <span className="text-white">{pendingDelete.tx.item || "transaction"}</span>
+            Deleted <span className={`${T.textHead}`}>{pendingDelete.tx.item || "transaction"}</span>
           </span>
           <button
             onClick={handleUndoDelete}
-            className="text-emerald-400 hover:text-emerald-300 font-extrabold uppercase tracking-wide transition"
+            className={`${accent.text400} ${accent.hoverText300} font-extrabold uppercase tracking-wide transition`}
           >
             Undo
           </button>
