@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import nodemailer from "nodemailer";
 
 // Minimum time a user must wait before requesting another OTP for the
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // 1. Check if user exists in database — result is intentionally never
     // reflected back to the caller (see GENERIC_RESPONSE above).
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from("users")
       .select("email")
       .ilike("email", cleanEmail)
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     // 2. Resend cooldown — if a still-fresh OTP was issued very recently,
     // don't silently regenerate/re-email a new one every request.
-    const { data: existingReset } = await supabase
+    const { data: existingReset } = await supabaseAdmin
       .from("password_resets")
       .select("created_at")
       .eq("email", user.email)
@@ -64,9 +64,9 @@ export async function POST(req: Request) {
 
     // 4. Save OTP in 'password_resets' table (attempts resets to 0 on every
     // fresh code so a brute-force run against an old code can't carry over)
-    await supabase.from("password_resets").delete().eq("email", user.email);
+    await supabaseAdmin.from("password_resets").delete().eq("email", user.email);
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
       .from("password_resets")
       .insert([
         {
