@@ -33,18 +33,22 @@ export default function LoginPage() {
         const purePhone = cleanInput.replace(/[^0-9+]/g, "");
         const formattedPhone = purePhone.startsWith("+") ? purePhone : `+94${purePhone.replace(/^0/, "")}`;
 
-        const { data: user, error: userError } = await supabase
-          .from("users")
-          .select("email")
-          .or(`phone_number.eq.${purePhone},phone_number.eq.${formattedPhone}`)
-          .single();
+        // 🔒 Uses the get_email_by_phone RPC (SECURITY DEFINER) instead of
+        // a direct table select — this only ever returns an email, never
+        // the full user row, so it works even with RLS locked down to
+        // "own row only" on the users table (this runs before login, when
+        // there's no auth.uid() yet).
+        const { data: foundEmail, error: userError } = await supabase.rpc(
+          "get_email_by_phone",
+          { p_phone: purePhone, p_phone_alt: formattedPhone }
+        );
 
-        if (userError || !user) {
+        if (userError || !foundEmail) {
           setErrorMsg("Phone number not registered.");
           setLoading(false);
           return;
         }
-        targetEmail = user.email;
+        targetEmail = foundEmail;
       }
 
       // Supabase Auth Login
