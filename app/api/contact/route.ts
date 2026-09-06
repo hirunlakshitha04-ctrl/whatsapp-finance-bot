@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
+// Escapes the 5 HTML-significant characters so user-supplied text can't
+// inject markup/links into the HTML email body sent to the support inbox.
+// (The plain-text `text` version below never needed this — only `html` did.)
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(req: Request) {
   try {
     const { name, email, message } = await req.json();
@@ -12,6 +24,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const safeName = escapeHtml(String(name));
+    const safeEmail = escapeHtml(String(email));
+    const safeMessage = escapeHtml(String(message));
 
     // Transporter using Namecheap Private Email SMTP.
     // Reads credentials from environment variables — never hardcode these.
@@ -34,10 +50,10 @@ export async function POST(req: Request) {
       html: `
         <div style="font-family: sans-serif; line-height: 1.6;">
           <h2>New message from the BroFInAi contact form</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Name:</strong> ${safeName}</p>
+          <p><strong>Email:</strong> ${safeEmail}</p>
           <p><strong>Message:</strong></p>
-          <p style="white-space: pre-wrap;">${message}</p>
+          <p style="white-space: pre-wrap;">${safeMessage}</p>
         </div>
       `,
     });

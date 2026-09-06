@@ -826,8 +826,14 @@ function RegisterForm() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setErrorMsg("Password must be at least 6 characters long.");
+    // Require at least 8 characters plus a mix of letters and numbers.
+    // (A length-only check like the old `< 6` rule allows weak passwords
+    // like "123456" or "aaaaaa".)
+    const hasMinLength = formData.password.length >= 8;
+    const hasLetter = /[A-Za-z]/.test(formData.password);
+    const hasNumber = /[0-9]/.test(formData.password);
+    if (!hasMinLength || !hasLetter || !hasNumber) {
+      setErrorMsg("Password must be at least 8 characters and include both letters and numbers.");
       setLoading(false);
       return;
     }

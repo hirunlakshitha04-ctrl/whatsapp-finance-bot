@@ -67,6 +67,11 @@ async function generateMonthlySummary(
 
 export async function GET(req: NextRequest) {
   try {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { data: users, error: userErr } = await supabase
       .from("users")
       .select("*")

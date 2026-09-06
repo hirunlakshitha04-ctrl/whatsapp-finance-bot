@@ -88,6 +88,22 @@ async function downloadTelegramFile(fileId: string): Promise<{ buffer: Buffer; m
 // MAIN WEBHOOK ROUTER — Telegram
 export async function POST(req: NextRequest) {
   try {
+    // ---------------- TELEGRAM SECRET TOKEN VERIFICATION ----------------
+    // Without this, anyone who finds this URL can POST a fake update
+    // (any chat_id) and impersonate any linked user. Telegram echoes back
+    // whatever secret_token you set on setWebhook in the
+    // X-Telegram-Bot-Api-Secret-Token header on every real request — see
+    // https://core.telegram.org/bots/api#setwebhook
+    //
+    // Set TELEGRAM_WEBHOOK_SECRET in your env, then (re)register the
+    // webhook once with:
+    //   curl "https://api.telegram.org/bot<token>/setWebhook?url=<your-url>&secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+    const telegramSecretHeader = req.headers.get("x-telegram-bot-api-secret-token");
+    if (!process.env.TELEGRAM_WEBHOOK_SECRET || telegramSecretHeader !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+      console.error("❌ Rejected Telegram webhook: missing/invalid secret token");
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const update = await req.json();
     const message = update?.message;
     if (!message) {

@@ -41,6 +41,41 @@ export async function POST(req: NextRequest) {
     const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
 
     const formData = await req.formData();
+
+    // ---------------- TWILIO SIGNATURE VERIFICATION ----------------
+    // Without this, anyone can POST a fake `From` number to this endpoint
+    // and impersonate any user (log fake transactions, change balances,
+    // trigger channel-link/upgrade flows, etc). Twilio signs every real
+    // webhook request with X-Twilio-Signature computed over the exact
+    // request URL + the sorted form params — see
+    // https://www.twilio.com/docs/usage/webhooks/webhooks-security
+    //
+    // NEXT_PUBLIC_WEBHOOK_BASE_URL (or falls back to NEXT_PUBLIC_WEBSITE_URL)
+    // must be the exact public HTTPS URL Twilio is configured to POST to,
+    // including path, e.g. https://brofinai.com/api/whatsapp — mismatches
+    // (http vs https, trailing slash, proxy rewriting) will fail validation.
+    const twilioSignature = req.headers.get("x-twilio-signature") || "";
+    const webhookUrl =
+      process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ||
+      `${process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com"}/api/whatsapp`;
+
+    const formParamsForValidation: Record<string, string> = {};
+    formData.forEach((value, key) => {
+      formParamsForValidation[key] = typeof value === "string" ? value : "";
+    });
+
+    const isValidTwilioRequest = twilio.validateRequest(
+      TWILIO_TOKEN,
+      twilioSignature,
+      webhookUrl,
+      formParamsForValidation
+    );
+
+    if (!isValidTwilioRequest) {
+      console.error("❌ Rejected WhatsApp webhook: invalid Twilio signature");
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const rawFrom = formData.get("From") as string;
     const mediaUrl = formData.get("MediaUrl0") as string | null;
     const mediaContentType = (formData.get("MediaContentType0") as string) || "";
