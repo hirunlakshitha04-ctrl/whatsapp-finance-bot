@@ -422,6 +422,33 @@ export default function BrooDashboard() {
   const [linkedChannel, setLinkedChannel] = useState<"whatsapp" | "telegram" | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
+  // ------------------------------------------------------------------
+  // CHAT CONNECTION (WhatsApp / Telegram)
+  //
+  // Registration redirects to the chat app exactly once. Users who close
+  // that tab, or who open WhatsApp on a phone with a different number, end
+  // up with an account that has no chat attached. These drive the "Chat
+  // Connection" card in Settings, which is the way back — connect, reconnect,
+  // or move to a different WhatsApp number.
+  //
+  // whatsappConnectedAt is the ONLY trustworthy WhatsApp signal: it's stamped
+  // by the bot webhook on a real inbound message, whereas userPhone is
+  // written during registration before the user has opened WhatsApp at all.
+  // ------------------------------------------------------------------
+  const [whatsappConnectedAt, setWhatsappConnectedAt] = useState<string | null>(null);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [connectPhone, setConnectPhone] = useState("");
+  const [isEditingConnectPhone, setIsEditingConnectPhone] = useState(false);
+  const [connectLoading, setConnectLoading] = useState<"whatsapp" | "telegram" | null>(null);
+  const [connectMsg, setConnectMsg] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  // Which channel we're waiting on while the user is away in the chat app.
+  // Channel-specific rather than a plain boolean, because a user who already
+  // has Telegram linked and is now adding WhatsApp would otherwise look
+  // "connected" to the poll from the very first tick.
+  const [awaitingConnect, setAwaitingConnect] = useState<"whatsapp" | "telegram" | null>(null);
+
+  const isChannelConnected = !!whatsappConnectedAt || telegramConnected;
+
   // Accent palette driven by which channel this account is linked to —
   // emerald/green for WhatsApp, sky/blue for Telegram. Defaults to the
   // WhatsApp palette before the linked channel has loaded from Supabase.
@@ -532,6 +559,17 @@ export default function BrooDashboard() {
       setProfileName(displayName);
       setUserPhone(phoneToUse);
       setProfilePhone(phoneToUse);
+      setConnectPhone(phoneToUse);
+
+      // whatsapp_connected_at may be undefined on projects that haven't run
+      // supabase-migration-channel-connect.sql yet. Fall back to
+      // active_channel so those installs still show a sensible state instead
+      // of telling every existing WhatsApp user they're disconnected.
+      setWhatsappConnectedAt(
+        userData.whatsapp_connected_at ||
+          (userData.active_channel === "whatsapp" ? userData.updated_at || new Date().toISOString() : null)
+      );
+      setTelegramConnected(!!userData.telegram_chat_id);
       if (userData.avatar_url) {
         setAvatarUrl(userData.avatar_url);
         setSelectedAvatar(userData.avatar_url);
@@ -1100,7 +1138,12 @@ export default function BrooDashboard() {
         .from("users")
         .update({ 
           nickname: profileName,
-          phone_number: profilePhone,
+          // phone_number is deliberately NOT updated here. Editing it in this
+          // form used to overwrite the linked WhatsApp number without any
+          // duplicate check and without re-linking the chat — leaving the bot
+          // matching on a number the user no longer had. Number changes now go
+          // through the Chat Connection card, which validates the number and
+          // re-links the chat in the same step.
           currency: currency,
           language: appLanguage,
           avatar_url: selectedAvatar
@@ -1110,7 +1153,6 @@ export default function BrooDashboard() {
       if (error) throw error;
 
       setNickname(profileName);
-      setUserPhone(profilePhone);
       setAvatarUrl(selectedAvatar);
       setProfileMsg({ type: "success", text: "Profile & regional details updated successfully!" });
     } catch (err: any) {
@@ -1119,6 +1161,150 @@ export default function BrooDashboard() {
       setProfileLoading(false);
     }
   };
+
+  // -------------------------------------------------------------------------
+  // CHAT CONNECTION HANDLERS
+  // -------------------------------------------------------------------------
+
+  // Reads the authoritative connection status back from the server. Used both
+  // by the poll (while the user is away in WhatsApp/Telegram) and by the
+  // manual "Check again" button, for people who connected on a different
+  // device and just want the badge to catch up.
+  const refreshConnectionStatus = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    try {
+      const res = await fetch("/api/connect-channel", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return null;
+
+      const status = await res.json();
+
+      setWhatsappConnectedAt((prev) => (status.whatsapp_connected ? prev || new Date().toISOString() : null));
+      setTelegramConnected(!!status.telegram_connected);
+      if (status.phone) {
+        setConnectPhone(status.phone);
+        setUserPhone(status.phone);
+        setProfilePhone(status.phone);
+      }
+      if (status.telegram_connected) setLinkedChannel("telegram");
+      else if (status.whatsapp_connected) setLinkedChannel("whatsapp");
+
+      return status;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Mints a one-time link token server-side and sends the user into the chat
+  // app with it pre-filled. The bot webhook consumes the token and attaches
+  // whatever chat/number the message arrives from to this account — which is
+  // exactly why the same call handles "connect for the first time",
+  // "reconnect", and "change my WhatsApp number".
+  const handleConnectChannel = async (channel: "whatsapp" | "telegram", phone?: string) => {
+    setConnectMsg(null);
+    setConnectLoading(channel);
+
+    // Open the tab NOW, synchronously, while we're still inside the click's
+    // user gesture — browsers block window.open() once an await has run, and
+    // silently swallowing that would leave the user staring at a dead button.
+    const chatWindow = typeof window !== "undefined" ? window.open("", "_blank") : null;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        chatWindow?.close();
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch("/api/connect-channel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ channel, phone: phone?.trim() || undefined }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        chatWindow?.close();
+        setConnectMsg({ type: "error", text: data?.error || "Could not start the connection. Please try again." });
+        return;
+      }
+
+      if (data.phone) {
+        setConnectPhone(data.phone);
+        setUserPhone(data.phone);
+        setProfilePhone(data.phone);
+      }
+      setIsEditingConnectPhone(false);
+      setAwaitingConnect(channel);
+      setConnectMsg({
+        type: "info",
+        text:
+          channel === "whatsapp"
+            ? "Send the pre-filled message in WhatsApp to finish connecting. This page updates automatically."
+            : "Tap Start in Telegram to finish connecting. This page updates automatically.",
+      });
+
+      // Popup blocked despite the trick above (some in-app browsers) — fall
+      // back to navigating this tab rather than doing nothing.
+      if (chatWindow) chatWindow.location.href = data.url;
+      else window.location.href = data.url;
+    } catch (err: any) {
+      chatWindow?.close();
+      setConnectMsg({ type: "error", text: err?.message || "Could not start the connection. Please try again." });
+    } finally {
+      setConnectLoading(null);
+    }
+  };
+
+  const handleCheckConnectionAgain = async () => {
+    setConnectLoading("whatsapp");
+    setConnectMsg(null);
+    const status = await refreshConnectionStatus();
+    setConnectLoading(null);
+    setConnectMsg(
+      status?.connected
+        ? { type: "success", text: "Connected! You're all set." }
+        : { type: "info", text: "Still not connected. Open the chat and send the pre-filled message, then check again." }
+    );
+  };
+
+  // Poll while the user is away in the chat app. Stops as soon as the channel
+  // we're waiting on reports connected, or after ~3 minutes so an abandoned
+  // attempt doesn't keep hitting the endpoint forever.
+  useEffect(() => {
+    if (!awaitingConnect) return;
+
+    let attempts = 0;
+    const intervalId = setInterval(async () => {
+      attempts += 1;
+      if (attempts > 36) {
+        setAwaitingConnect(null);
+        return;
+      }
+
+      const status = await refreshConnectionStatus();
+      if (!status) return;
+
+      const done = awaitingConnect === "telegram" ? status.telegram_connected : status.whatsapp_connected;
+      if (done) {
+        setAwaitingConnect(null);
+        setConnectMsg({
+          type: "success",
+          text: `Connected! ${awaitingConnect === "telegram" ? "Telegram" : "WhatsApp"} is now linked to your account.`,
+        });
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [awaitingConnect, refreshConnectionStatus]);
 
   // Step 1: validate the new password, then email a one-time code to the account's address
   const handleRequestPasswordOtp = async (e: React.FormEvent) => {
@@ -2044,6 +2230,44 @@ export default function BrooDashboard() {
 
         {activeTab === "overview" && (
           <div className="space-y-8">
+
+            {/* Half-finished setup is invisible otherwise: the dashboard looks
+                fine, it just silently never receives anything, because the
+                account was never attached to a chat. Surface it at the very
+                top until it's resolved. Hidden while still loading so it
+                doesn't flash for users who ARE connected. */}
+            {!loading && !isChannelConnected && (
+              <div className="border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-amber-500/20 text-amber-300 rounded-2xl border border-amber-500/30 flex-shrink-0">
+                    <AlertCircle size={18} />
+                  </div>
+                  <div>
+                    <h4 className={`text-xs font-bold ${T.textHead} uppercase tracking-wider`}>
+                      Finish connecting your chat
+                    </h4>
+                    <p className={`text-[11px] ${T.textMuted} mt-0.5 leading-relaxed`}>
+                      Your account isn&apos;t linked to WhatsApp or Telegram yet, so the bot can&apos;t log anything for you.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("settings");
+                    setTimeout(() => {
+                      document
+                        .getElementById("chat-connection-section")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 50);
+                  }}
+                  className="flex-shrink-0 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[11px] px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
+                >
+                  Connect now <ArrowUpRight size={13} strokeWidth={3} />
+                </button>
+              </div>
+            )}
+
             <div className={`${T.cardBg} border ${T.border1} p-4 sm:p-5 rounded-[28px] backdrop-blur-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
               <div className="flex items-center gap-3">
                 <div className={`p-2.5 ${accent.bg500_20} ${accent.text400} rounded-2xl border ${accent.border500_30} backdrop-blur-md`}>
@@ -2817,6 +3041,240 @@ export default function BrooDashboard() {
 
         {activeTab === "settings" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            {/* ---------------------------------------------------------------
+                CHAT CONNECTION — the recovery path for users whose account
+                never got attached to a chat. Registration redirects to
+                WhatsApp/Telegram once and once only; anyone who closed that
+                tab, or opened WhatsApp on a phone with a different number,
+                previously had no way to finish (or redo) the link. Spans the
+                full width and sits first because it's the single most
+                blocking thing a half-set-up account needs.
+                --------------------------------------------------------------- */}
+            <div
+              id="chat-connection-section"
+              className={`md:col-span-2 ${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}
+            >
+              <div className={`flex items-center justify-between gap-3 border-b ${T.border2} pb-4`}>
+                <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2`}>
+                  <Zap size={18} className={`${accent.text400}`} /> Chat Connection
+                </h3>
+                <span
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border ${
+                    isChannelConnected
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                      : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                  }`}
+                >
+                  {isChannelConnected ? "Connected" : "Not connected"}
+                </span>
+              </div>
+
+              <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
+                This is the chat your bot talks to. If you skipped it when you registered, or you&apos;ve
+                switched to a new phone number, connect it again here.
+              </p>
+
+              {connectMsg && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-start gap-2 backdrop-blur-md ${
+                    connectMsg.type === "success"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      : connectMsg.type === "error"
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                      : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                  }`}
+                >
+                  {connectMsg.type === "success" ? (
+                    <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
+                  ) : connectMsg.type === "error" ? (
+                    <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <RefreshCw size={14} className={`mt-0.5 flex-shrink-0 ${awaitingConnect ? "animate-spin" : ""}`} />
+                  )}
+                  <span>{connectMsg.text}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* ---------------- WhatsApp ---------------- */}
+                <div className={`${T.blackBg30} border ${T.border2} rounded-2xl p-4 backdrop-blur-md space-y-4`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-black ${T.textHead} flex items-center gap-1.5`}>
+                      <Phone size={14} className="text-emerald-400" /> WhatsApp
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
+                        whatsappConnectedAt
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : `${T.ghostBg10} ${T.textMuted} ${T.border2}`
+                      }`}
+                    >
+                      {whatsappConnectedAt ? "Linked" : "Not linked"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className={`text-[10px] ${T.textMuted} font-bold block mb-1.5 uppercase tracking-wider`}>
+                      Your WhatsApp number
+                    </label>
+
+                    {isEditingConnectPhone ? (
+                      <div className="space-y-2">
+                        <input
+                          type="tel"
+                          value={connectPhone}
+                          onChange={(e) => setConnectPhone(e.target.value)}
+                          placeholder="+94771234567"
+                          className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition backdrop-blur-md`}
+                        />
+                        <p className={`text-[10px] ${T.textMuted}`}>
+                          Include your country code. Whichever number actually sends the message is the one we link.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={connectLoading !== null}
+                            onClick={() => handleConnectChannel("whatsapp", connectPhone)}
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-[11px] py-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
+                          >
+                            {connectLoading === "whatsapp" ? (
+                              <RefreshCw size={13} className="animate-spin" />
+                            ) : (
+                              <>
+                                <Check size={13} strokeWidth={3} /> Save & Connect
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingConnectPhone(false);
+                              setConnectPhone(userPhone);
+                              setConnectMsg(null);
+                            }}
+                            className={`px-3 py-2.5 rounded-xl ${T.ghostBg10} ${T.ghostHover20} ${T.textSubtle2} transition`}
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex-1 ${T.cardBg60} border ${T.border3} text-xs ${
+                            connectPhone ? T.textBody : T.textMuted
+                          } p-3 rounded-xl truncate`}
+                        >
+                          {connectPhone || "No number added yet"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConnectMsg(null);
+                            setIsEditingConnectPhone(true);
+                          }}
+                          className={`px-3 py-3 rounded-xl ${T.ghostBg10} ${T.ghostHover20} ${T.textSubtle2} transition`}
+                          title="Change number"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isEditingConnectPhone && (
+                    <button
+                      type="button"
+                      disabled={connectLoading !== null}
+                      onClick={() => handleConnectChannel("whatsapp")}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-[11px] py-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/10"
+                    >
+                      {connectLoading === "whatsapp" ? (
+                        <RefreshCw size={13} className="animate-spin" />
+                      ) : (
+                        <>
+                          {whatsappConnectedAt ? "Reconnect WhatsApp" : "Connect WhatsApp"}
+                          <ArrowUpRight size={13} strokeWidth={3} />
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {whatsappConnectedAt && (
+                    <p className={`text-[10px] ${T.textMuted} flex items-center gap-1.5`}>
+                      <CheckCircle2 size={11} className="text-emerald-400 flex-shrink-0" />
+                      Connected since {new Date(whatsappConnectedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+
+                {/* ---------------- Telegram ---------------- */}
+                <div className={`${T.blackBg30} border ${T.border2} rounded-2xl p-4 backdrop-blur-md space-y-4`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-black ${T.textHead} flex items-center gap-1.5`}>
+                      <Zap size={14} className="text-sky-400" /> Telegram
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
+                        telegramConnected
+                          ? "bg-sky-500/20 text-sky-300 border-sky-500/30"
+                          : `${T.ghostBg10} ${T.textMuted} ${T.border2}`
+                      }`}
+                    >
+                      {telegramConnected ? "Linked" : "Not linked"}
+                    </span>
+                  </div>
+
+                  <p className={`text-[10px] ${T.textMuted} leading-relaxed`}>
+                    No phone number needed — we link your account the moment you tap Start in the bot.
+                  </p>
+
+                  <button
+                    type="button"
+                    disabled={connectLoading !== null}
+                    onClick={() => handleConnectChannel("telegram")}
+                    className="w-full bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-extrabold text-[11px] py-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/10"
+                  >
+                    {connectLoading === "telegram" ? (
+                      <RefreshCw size={13} className="animate-spin" />
+                    ) : (
+                      <>
+                        {telegramConnected ? "Reconnect Telegram" : "Connect Telegram"}
+                        <ArrowUpRight size={13} strokeWidth={3} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Only one channel can be active at a time (both bot webhooks
+                  block the non-active one), so say so before the user taps
+                  rather than leaving them to discover it from the bot. */}
+              {isChannelConnected && (
+                <p className={`text-[10px] ${T.textMuted} flex items-start gap-1.5`}>
+                  <AlertCircle size={11} className="mt-0.5 flex-shrink-0 text-amber-400" />
+                  Your account uses one chat at a time. Connecting a different channel moves you across —
+                  your history and plan come with you, but the old chat stops accepting new entries.
+                </p>
+              )}
+
+              <div className={`flex items-center justify-between gap-3 pt-3 border-t ${T.border2}`}>
+                <span className={`text-[10px] ${T.textMuted}`}>
+                  {awaitingConnect ? "Waiting for your first message…" : "Already connected on another device?"}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCheckConnectionAgain}
+                  disabled={connectLoading !== null}
+                  className={`text-[11px] font-bold ${accent.text400} ${accent.hoverText300} disabled:opacity-50 transition flex items-center gap-1.5`}
+                >
+                  <RefreshCw size={12} className={awaitingConnect ? "animate-spin" : ""} /> Check again
+                </button>
+              </div>
+            </div>
+
             <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
               <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2 border-b ${T.border2} pb-4`}>
                 <User size={18} className={`${accent.text400}`} /> User Profile Settings
@@ -2932,16 +3390,37 @@ export default function BrooDashboard() {
                 </div>
 
                 <div>
-                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5 flex items-center gap-1.5`}>
-                    <Phone size={13} className={`${accent.text400}`} /> Phone Number (For WhatsApp / SMS Notifications)
+                  <label className={`text-xs ${T.textSubtle2} font-bold block mb-1.5 flex items-center justify-between`}>
+                    <span className="flex items-center gap-1.5">
+                      <Phone size={13} className={`${accent.text400}`} /> WhatsApp Number
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Not scrollToSection() — that one forces the Overview
+                        // tab, and this target lives inside Settings.
+                        setIsEditingConnectPhone(true);
+                        setTimeout(() => {
+                          document
+                            .getElementById("chat-connection-section")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 50);
+                      }}
+                      className={`text-[10px] font-bold ${accent.text400} ${accent.hoverText300} underline underline-offset-2 transition`}
+                    >
+                      Change number
+                    </button>
                   </label>
-                  <input 
-                    type="text" 
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                    placeholder="+947XXXXXXXX"
-                    className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition backdrop-blur-md`}
+                  <input
+                    type="text"
+                    value={connectPhone || "Not added yet"}
+                    readOnly
+                    disabled
+                    className={`w-full ${T.cardBg60} border ${T.border3} text-xs ${T.textMuted} p-3 rounded-xl cursor-not-allowed backdrop-blur-md`}
                   />
+                  <p className={`text-[10px] ${T.textMuted} mt-1.5`}>
+                    Changing this also re-links your chat, so it's handled in Chat Connection below.
+                  </p>
                 </div>
 
                 <div>

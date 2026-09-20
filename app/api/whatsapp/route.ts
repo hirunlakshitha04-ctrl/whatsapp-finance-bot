@@ -23,6 +23,27 @@ const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER ||
 // WhatsApp rows are keyed by phone_number
 const ID_COLUMN = "phone_number" as const;
 
+// Stamps users.whatsapp_connected_at the first time we ever hear from this
+// user on WhatsApp. The dashboard's "Chat Connection" card reads this to tell
+// a genuinely connected user apart from one who only typed a number into the
+// register form and never opened WhatsApp — users.phone_number alone can't
+// distinguish them, since registration writes it up front.
+//
+// Deliberately best-effort and fire-and-forget: it runs as its OWN update so
+// a missing column (migration not yet applied — see
+// supabase-migration-channel-connect.sql) can never take down the surrounding
+// write or block the user's message from being processed.
+async function markWhatsappConnected(userId: string, alreadyConnected?: string | null) {
+  if (!userId || alreadyConnected) return;
+  const { error } = await supabaseAdmin
+    .from("users")
+    .update({ whatsapp_connected_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) {
+    console.error("⚠️ Could not stamp whatsapp_connected_at:", error.message);
+  }
+}
+
 // Increments users.limit_hits_this_week — call this at every point a user
 // gets blocked by hitting a plan limit (daily tx, OCR, voice, etc).
 // `currentCount` is passed in from the already-fetched userProfile so this
@@ -113,6 +134,31 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
+      // ---------------- CROSS-ACCOUNT DUPLICATE CHECK ----------------
+      // Is this WhatsApp number ("from") already attached to a DIFFERENT
+      // account? Without this, the same number could be linked to account A,
+      // then someone (or the same person, forgetting) registers a fresh
+      // account B and sends this exact START- message from the same number
+      // — silently stealing the number onto account B, or (if a DB unique
+      // constraint exists) failing the update with no explanation to the
+      // user. Checked here, at the moment the number actually arrives, not
+      // just when the dashboard first saves it — a typo'd number in the
+      // dashboard is corrected by whichever number really sends this
+      // message, so this is the one place that can catch a real duplicate.
+      const { data: phoneClash } = await supabaseAdmin
+        .from("users")
+        .select("id")
+        .eq("phone_number", from)
+        .neq("id", tokenUser.id)
+        .maybeSingle();
+
+      if (phoneClash) {
+        await send(
+          `⚠️ *Already Connected*\n\nThis WhatsApp number is already linked to a different Brofinai account. If this is your number, log in to that account and use "Connect WhatsApp" from the dashboard. If you'd like to move this number to a new account, please contact support first.`
+        );
+        return new NextResponse("OK", { status: 200 });
+      }
+
       // Was this account already active on another channel (e.g. registered
       // via Telegram)? If so, they already went through onboarding — don't
       // ask for a starting balance again, just confirm the link.
@@ -135,7 +181,27 @@ export async function POST(req: NextRequest) {
       const hasHistory = isPaidPlan || hasTransactionHistory;
 
       // Attach this WhatsApp number to the existing user row and burn the token.
-      await supabaseAdmin.from("users").update({ phone_number: from, link_token: null }).eq("id", tokenUser.id);
+      // Errors are checked (unlike before) because a duplicate can still slip
+      // through between the check above and this write under concurrent
+      // requests — the database's unique index (see
+      // supabase-migration-duplicate-prevention.sql) is the real backstop,
+      // and its 23505 violation is exactly what this catches.
+      const { error: linkPhoneErr } = await supabaseAdmin
+        .from("users")
+        .update({ phone_number: from, link_token: null })
+        .eq("id", tokenUser.id);
+
+      if (linkPhoneErr) {
+        console.error("❌ WhatsApp phone link error:", linkPhoneErr);
+        if (linkPhoneErr.code === "23505") {
+          await send(
+            `⚠️ *Already Connected*\n\nThis WhatsApp number is already linked to a different Brofinai account. If this is your number, log in to that account and use "Connect WhatsApp" from the dashboard.`
+          );
+        } else {
+          await send(`🚨 Something went wrong linking your account. Please try tapping the link again.`);
+        }
+        return new NextResponse("OK", { status: 200 });
+      }
 
       const linkedLang = tokenUser.language || tokenUser.preferred_language || "English";
       const linkedNickname = tokenUser.how_to_call_you || tokenUser.nickname || tokenUser.name || "Bro";
@@ -152,6 +218,7 @@ export async function POST(req: NextRequest) {
         // WhatsApp becomes this user's active channel — the old channel
         // (e.g. Telegram) will now be blocked from logging new transactions.
         await supabaseAdmin.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
+        await markWhatsappConnected(tokenUser.id, tokenUser.whatsapp_connected_at);
         await send(
           `🎉 Connected! Hey ${linkedNickname}, WhatsApp is now linked to Brofinai — your *${planLabel}* plan and full history carry over automatically. 🚀`
         );
@@ -162,6 +229,7 @@ export async function POST(req: NextRequest) {
           .from("user_sessions")
           .upsert({ phone_number: from, step: "AWAITING_STARTING_BALANCE" }, { onConflict: "phone_number" });
         await supabaseAdmin.from("users").update({ active_channel: "whatsapp" }).eq("id", tokenUser.id);
+        await markWhatsappConnected(tokenUser.id, tokenUser.whatsapp_connected_at);
 
         const welcomeMsgs = await getLocalizedMessages(linkedLang, linkedNickname, linkedCurrency, websiteUrl);
         await send(welcomeMsgs.welcome);
@@ -192,6 +260,13 @@ export async function POST(req: NextRequest) {
       );
       return new NextResponse("OK", { status: 200 });
     }
+
+    // Not every connection arrives via a START- token: a user who followed the
+    // register page's auto-redirect just sends a plain greeting, and we match
+    // them on phone_number alone. Stamp the connection here too, otherwise the
+    // dashboard would keep nagging an already-active user to "connect".
+    // No-ops (and costs no query) once the stamp is set.
+    await markWhatsappConnected(userProfile.id, userProfile.whatsapp_connected_at);
 
     const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "https://brofinai.com";
     const userLang = userProfile.language || userProfile.preferred_language || "English";

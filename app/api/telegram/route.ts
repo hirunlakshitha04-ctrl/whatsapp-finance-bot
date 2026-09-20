@@ -154,6 +154,28 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
+      // ---------------- CROSS-ACCOUNT DUPLICATE CHECK ----------------
+      // Is this Telegram account ("from"/chat id) already attached to a
+      // DIFFERENT account? There was previously NO check here at all — this
+      // is the ONLY point in the whole app where a telegram_chat_id gets
+      // discovered and saved (unlike a phone number, which registration
+      // already screens via check_duplicate_contact), so without this check
+      // the very same Telegram account could link itself to any number of
+      // fresh accounts opened under different emails.
+      const { data: chatIdClash } = await supabaseAdmin
+        .from("users")
+        .select("id")
+        .eq(ID_COLUMN, from)
+        .neq("id", pendingUser.id)
+        .maybeSingle();
+
+      if (chatIdClash) {
+        await send(
+          `⚠️ *Already Connected*\n\nThis Telegram account is already linked to a different Brofinai account. If this is your account, log in to that account and use "Connect Telegram" from the dashboard. If you'd like to move this Telegram account to a new account, please contact support first.`
+        );
+        return new NextResponse("OK", { status: 200 });
+      }
+
       const { error: linkErr } = await supabaseAdmin
         .from("users")
         .update({ [ID_COLUMN]: from, link_token: null })
@@ -161,7 +183,18 @@ export async function POST(req: NextRequest) {
 
       if (linkErr) {
         console.error("❌ Telegram Account Link Error:", linkErr);
-        await send(`🚨 Something went wrong linking your account. Please try tapping the link again.`);
+        // 23505 = unique violation — the check above missed a concurrent
+        // request that linked this exact chat id a moment earlier. Same
+        // message as the check above rather than the generic fallback,
+        // since the user's actual problem is "already connected", not a
+        // transient failure worth retrying.
+        if ((linkErr as any).code === "23505") {
+          await send(
+            `⚠️ *Already Connected*\n\nThis Telegram account is already linked to a different Brofinai account. If this is your account, log in to that account and use "Connect Telegram" from the dashboard.`
+          );
+        } else {
+          await send(`🚨 Something went wrong linking your account. Please try tapping the link again.`);
+        }
         return new NextResponse("OK", { status: 200 });
       }
 
