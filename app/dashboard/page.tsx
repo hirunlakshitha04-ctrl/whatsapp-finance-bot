@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ExcelJS from "exceljs";
 import { motion } from "framer-motion";
+import ConnectQrCode from "@/components/ConnectQrCode";
 import { 
   Wallet, TrendingUp, TrendingDown, RefreshCw, 
   PieChart as PieIcon, Calendar, RotateCcw,
@@ -446,6 +447,15 @@ export default function BrooDashboard() {
   // has Telegram linked and is now adding WhatsApp would otherwise look
   // "connected" to the poll from the very first tick.
   const [awaitingConnect, setAwaitingConnect] = useState<"whatsapp" | "telegram" | null>(null);
+  // Paid (Core/Max, active) users pay a channel-specific price, so moving to
+  // the OTHER channel is a real plan change, not a free reconnect — drives
+  // whether the card's buttons read "Connect/Reconnect" or "Switch to X".
+  const [isPaidUser, setIsPaidUser] = useState(false);
+  // Holds the most recently generated wa.me link so it can be rendered as a
+  // QR code next to the button — most useful here of all places, since the
+  // dashboard itself is usually opened on a desktop browser where the plain
+  // link can't hand off to a phone's WhatsApp app on its own.
+  const [waConnectUrl, setWaConnectUrl] = useState<string | null>(null);
 
   const isChannelConnected = !!whatsappConnectedAt || telegramConnected;
 
@@ -570,6 +580,12 @@ export default function BrooDashboard() {
           (userData.active_channel === "whatsapp" ? userData.updated_at || new Date().toISOString() : null)
       );
       setTelegramConnected(!!userData.telegram_chat_id);
+      setIsPaidUser(
+        !!userData.plan &&
+          userData.plan.toLowerCase() !== "lite" &&
+          userData.payment_status === "PAID" &&
+          userData.is_active === true
+      );
       if (userData.avatar_url) {
         setAvatarUrl(userData.avatar_url);
         setSelectedAvatar(userData.avatar_url);
@@ -1184,6 +1200,7 @@ export default function BrooDashboard() {
 
       setWhatsappConnectedAt((prev) => (status.whatsapp_connected ? prev || new Date().toISOString() : null));
       setTelegramConnected(!!status.telegram_connected);
+      setIsPaidUser(!!status.is_paid);
       if (status.phone) {
         setConnectPhone(status.phone);
         setUserPhone(status.phone);
@@ -1231,6 +1248,49 @@ export default function BrooDashboard() {
 
       const data = await res.json();
 
+      if (res.status === 402 && data?.upgradeRequired) {
+        // Paid user genuinely switching channel (not just reconnecting/
+        // changing number within the same channel) — this needs a new
+        // checkout at that channel's price, not a free relink. Send the
+        // already-open tab to Lemon Squeezy instead of the chat app.
+        setConnectMsg({
+          type: "info",
+          text: `Switching from ${data.fromChannel} to ${data.toChannel} needs a quick checkout, since they're priced differently on your plan. Redirecting…`,
+        });
+
+        const { data: { session: checkoutSession } } = await supabase.auth.getSession();
+        if (!checkoutSession) {
+          chatWindow?.close();
+          router.push("/login");
+          return;
+        }
+
+        const checkoutRes = await fetch("/api/create-checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${checkoutSession.access_token}`,
+          },
+          body: JSON.stringify({
+            mode: "upgrade",
+            user_id: checkoutSession.user.id,
+            plan: data.plan,
+            channel: data.toChannel,
+          }),
+        });
+        const checkoutData = await checkoutRes.json();
+
+        if (!checkoutRes.ok || !checkoutData?.url) {
+          chatWindow?.close();
+          setConnectMsg({ type: "error", text: checkoutData?.error || "Could not start checkout. Please try again." });
+          return;
+        }
+
+        if (chatWindow) chatWindow.location.href = checkoutData.url;
+        else window.location.href = checkoutData.url;
+        return;
+      }
+
       if (!res.ok || !data.url) {
         chatWindow?.close();
         setConnectMsg({ type: "error", text: data?.error || "Could not start the connection. Please try again." });
@@ -1244,6 +1304,7 @@ export default function BrooDashboard() {
       }
       setIsEditingConnectPhone(false);
       setAwaitingConnect(channel);
+      if (channel === "whatsapp") setWaConnectUrl(data.url);
       setConnectMsg({
         type: "info",
         text:
@@ -1296,6 +1357,7 @@ export default function BrooDashboard() {
       const done = awaitingConnect === "telegram" ? status.telegram_connected : status.whatsapp_connected;
       if (done) {
         setAwaitingConnect(null);
+        if (awaitingConnect === "whatsapp") setWaConnectUrl(null);
         setConnectMsg({
           type: "success",
           text: `Connected! ${awaitingConnect === "telegram" ? "Telegram" : "WhatsApp"} is now linked to your account.`,
@@ -3195,7 +3257,11 @@ export default function BrooDashboard() {
                         <RefreshCw size={13} className="animate-spin" />
                       ) : (
                         <>
-                          {whatsappConnectedAt ? "Reconnect WhatsApp" : "Connect WhatsApp"}
+                          {isPaidUser && telegramConnected && !whatsappConnectedAt
+                            ? "Switch to WhatsApp"
+                            : whatsappConnectedAt
+                            ? "Reconnect WhatsApp"
+                            : "Connect WhatsApp"}
                           <ArrowUpRight size={13} strokeWidth={3} />
                         </>
                       )}
@@ -3207,6 +3273,17 @@ export default function BrooDashboard() {
                       <CheckCircle2 size={11} className="text-emerald-400 flex-shrink-0" />
                       Connected since {new Date(whatsappConnectedAt).toLocaleDateString()}
                     </p>
+                  )}
+
+                  {/* Most dashboards are opened on a desktop browser — wa.me
+                      has no app to hand off to there, and falls back to
+                      web.whatsapp.com's own login QR, which has nothing to
+                      do with our bot. This QR is of the real connect link,
+                      so scanning it with a phone opens the actual chat. */}
+                  {waConnectUrl && !whatsappConnectedAt && (
+                    <div className="pt-2 flex justify-center">
+                      <ConnectQrCode url={waConnectUrl} size={128} />
+                    </div>
                   )}
                 </div>
 
@@ -3241,7 +3318,11 @@ export default function BrooDashboard() {
                       <RefreshCw size={13} className="animate-spin" />
                     ) : (
                       <>
-                        {telegramConnected ? "Reconnect Telegram" : "Connect Telegram"}
+                        {isPaidUser && whatsappConnectedAt && !telegramConnected
+                          ? "Switch to Telegram"
+                          : telegramConnected
+                          ? "Reconnect Telegram"
+                          : "Connect Telegram"}
                         <ArrowUpRight size={13} strokeWidth={3} />
                       </>
                     )}

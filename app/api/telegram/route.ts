@@ -140,12 +140,24 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
-      // Find the pending row created at registration/payment time
+      // Find the pending row created at registration/payment time.
+      //
+      // BUG FIX: this used to also require `.is(ID_COLUMN, null)` — i.e. only
+      // match a row that had NEVER been linked to Telegram before. That
+      // silently broke the dashboard's "Reconnect Telegram" button for any
+      // account that was already linked (e.g. the bot got blocked, or the
+      // user just wants to re-verify): connect-channel generates a valid new
+      // link_token on their row, but since telegram_chat_id was still set
+      // from before, this query found nothing and the user got "Link Invalid
+      // or Expired" for a perfectly valid link. Matching on link_token alone
+      // is safe — it's nulled the instant it's consumed, so it's inherently
+      // single-use regardless of the row's current telegram_chat_id. The
+      // CROSS-ACCOUNT DUPLICATE CHECK just below still blocks a genuinely
+      // different Telegram account from claiming someone else's token.
       const { data: pendingUser } = await supabaseAdmin
         .from("users")
         .select("*")
         .eq("link_token", linkToken)
-        .is(ID_COLUMN, null)
         .maybeSingle();
 
       if (!pendingUser) {
@@ -219,6 +231,19 @@ export async function POST(req: NextRequest) {
           .from("transactions")
           .select("id", { count: "exact", head: true })
           .eq("phone_number", pendingUser.phone_number);
+        hasTransactionHistory = (count || 0) > 0;
+      }
+      // BUG FIX: also check the OLD telegram_chat_id (pendingUser's value
+      // from before this update). Needed now that Reconnect Telegram works
+      // for an already-linked account (see the query fix above) — without
+      // this, a returning Telegram user with months of history would be
+      // asked for a starting balance all over again, same class of bug as
+      // the WhatsApp phone_number fix just above it in the other route.
+      if (!hasTransactionHistory && pendingUser.telegram_chat_id) {
+        const { count } = await supabaseAdmin
+          .from("transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("telegram_chat_id", pendingUser.telegram_chat_id);
         hasTransactionHistory = (count || 0) > 0;
       }
 

@@ -171,6 +171,35 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: "User identifier missing" }, { status: 400 });
         }
 
+        // -------------------------------------------------------------
+        // BUG FIX — prevent double-billing on a plan/channel switch.
+        //
+        // "Upgrade" mode (used for both plan upgrades and the paid-channel-
+        // switch flow) sends the user through a FRESH Lemon Squeezy
+        // checkout, which creates a brand new subscription object. Nothing
+        // here previously cancelled the OLD one — this just overwrote
+        // lemon_squeezy_subscription_id with the new id, leaving the old
+        // subscription active and still billing the customer every month,
+        // invisible to them since the dashboard's "Manage subscription"
+        // link only ever looks at the (now-overwritten) id.
+        //
+        // Fetch the pre-update subscription id, and if this webhook is
+        // about to replace it with a DIFFERENT one, cancel the old one on
+        // Lemon Squeezy first. Best-effort: a failure here is logged but
+        // never blocks the user's actual plan update, since that's the
+        // part that must not fail.
+        // -------------------------------------------------------------
+        let previousSubscriptionId: string | null = null;
+        if (isUpgrade) {
+          const preFetchQuery = applyIdentityFilter(
+            supabaseAdmin.from("users").select("lemon_squeezy_subscription_id")
+          );
+          if (preFetchQuery) {
+            const { data: preFetchRow } = await preFetchQuery.maybeSingle();
+            previousSubscriptionId = preFetchRow?.lemon_squeezy_subscription_id || null;
+          }
+        }
+
         const atomicQuery = applyIdentityFilter(supabaseAdmin.from("users").update(updateData))!.neq("plan", planName);
         let { data, error } = await atomicQuery.select();
         let planActuallyChanged = !error && !!data && data.length > 0;
@@ -192,6 +221,42 @@ export async function POST(req: Request) {
         }
 
         console.log(`✅ Successfully updated user to plan: ${planName}`, data);
+
+        // Now that the new subscription id is safely saved, cancel the old
+        // one so the customer isn't left paying for two subscriptions.
+        if (
+          previousSubscriptionId &&
+          subscriptionId &&
+          previousSubscriptionId !== subscriptionId &&
+          process.env.LEMON_SQUEEZY_API_KEY
+        ) {
+          try {
+            const cancelRes = await fetch(
+              `https://api.lemonsqueezy.com/v1/subscriptions/${previousSubscriptionId}`,
+              {
+                method: "DELETE",
+                headers: {
+                  Accept: "application/vnd.api+json",
+                  "Content-Type": "application/vnd.api+json",
+                  Authorization: `Bearer ${process.env.LEMON_SQUEEZY_API_KEY}`,
+                },
+              }
+            );
+            if (cancelRes.ok) {
+              console.log(`🧹 Cancelled previous subscription ${previousSubscriptionId} after channel/plan switch.`);
+            } else {
+              // Not fatal — e.g. it may already be cancelled/expired — but
+              // worth knowing about since it means someone should check
+              // Lemon Squeezy manually for this customer.
+              console.error(
+                `⚠️ Could not cancel previous subscription ${previousSubscriptionId}:`,
+                await cancelRes.text()
+              );
+            }
+          } catch (cancelErr) {
+            console.error(`⚠️ Error cancelling previous subscription ${previousSubscriptionId}:`, cancelErr);
+          }
+        }
 
         if (isUpgrade && alreadyLinked && upgradeChannel && planActuallyChanged && data && data[0]) {
           await sendUpgradeConfirmation(data[0], planName, upgradeChannel);

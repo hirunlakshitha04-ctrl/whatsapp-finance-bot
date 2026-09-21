@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import ConnectQrCode from "@/components/ConnectQrCode";
 import {
   Bot, 
   Sparkles, 
@@ -621,6 +622,15 @@ function RegisterForm() {
   });
 
   const [loading, setLoading] = useState(false);
+  // Free + WhatsApp signups used to hard-navigate the whole page straight to
+  // wa.me. On a desktop browser with no WhatsApp Desktop installed, wa.me
+  // falls through to web.whatsapp.com's own "scan to log in" QR — which has
+  // nothing to do with our bot and just confuses anyone who registered from
+  // a PC. Instead, holding the URL here renders an explicit connect screen
+  // with BOTH a button (for anyone who does have WhatsApp set up in this
+  // browser) and a QR code of the real link (for anyone who needs to hand
+  // off to their phone).
+  const [waConnectScreen, setWaConnectScreen] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -758,7 +768,12 @@ function RegisterForm() {
       const botPhoneNumber = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "+94764775963";
       const cleanNumber = botPhoneNumber.replace("whatsapp:", "").replace("+", "");
       const defaultText = encodeURIComponent("Hi BroFinAi, I just registered on the Free plan!");
-      window.location.href = `https://wa.me/${cleanNumber}?text=${defaultText}`;
+      const waUrl = `https://wa.me/${cleanNumber}?text=${defaultText}`;
+      // Was a full-page window.location.href before — replaced with an
+      // explicit screen (see waConnectScreen state) instead of navigating
+      // away blind, so desktop users get a QR fallback rather than landing
+      // on WhatsApp Web's unrelated login prompt.
+      setWaConnectScreen(waUrl);
       return;
     }
 
@@ -1070,6 +1085,61 @@ function RegisterForm() {
       <div className="min-h-screen flex flex-col items-center justify-center p-12 text-slate-400 gap-3 bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-500"/>
         <span className="text-xs font-mono uppercase tracking-wider">Loading BroFinAi Form...</span>
+      </div>
+    );
+  }
+
+  // Account already created — this replaces the old blind
+  // window.location.href redirect for free WhatsApp signups. Same
+  // card/gradient language as the rest of the register page, but simple: one
+  // explicit button plus a QR code, since a full-page auto-redirect on a
+  // desktop browser was landing people on WhatsApp Web's own login prompt
+  // instead of our bot chat.
+  if (waConnectScreen) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-500 via-emerald-800 to-emerald-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute inset-0 rounded-[32px]"
+              style={{ background: "linear-gradient(135deg, #34d399, #22d3ee)" }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-[2px] rounded-[30px] bg-slate-900/80 backdrop-blur-2xl"
+            />
+            <div className="relative p-8 text-center">
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 border border-emerald-400/60 flex items-center justify-center mb-6">
+                <CheckCircle2 className="w-9 h-9 text-emerald-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Account created!</h1>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                One last step — tap below to open WhatsApp and start chatting with BroFinAi.
+              </p>
+
+              <a
+                href={waConnectScreen}
+                className="w-full py-3.5 px-4 rounded-xl text-center text-sm font-semibold transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950"
+              >
+                <Phone className="w-4 h-4" />
+                <span>Continue on WhatsApp</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+
+              <div className="mt-6 flex justify-center">
+                <ConnectQrCode url={waConnectScreen} size={150} />
+              </div>
+
+              <p className="mt-6 text-center text-xs text-slate-500">
+                Already have the app open?{" "}
+                <Link href="/dashboard" className="text-emerald-400 underline underline-offset-2">
+                  Go to your dashboard
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

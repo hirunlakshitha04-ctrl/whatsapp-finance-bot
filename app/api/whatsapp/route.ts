@@ -169,12 +169,27 @@ export async function POST(req: NextRequest) {
       // first transaction there — they've still been through onboarding).
       const isPaidPlan = !!tokenUser.plan && tokenUser.plan.toLowerCase() !== "lite";
 
+      // BUG FIX: this used to check ONLY tokenUser.telegram_chat_id, which
+      // covers "a Telegram user now adding WhatsApp" but NOT "an existing
+      // WhatsApp user changing their own WhatsApp number" — the exact case
+      // the dashboard's "Change number" flow enables. tokenUser.phone_number
+      // here is the OLD number (this row's value from BEFORE the update
+      // below), so checking it catches that second case too. Without this,
+      // a long-time free user who just changes their number would get asked
+      // for a starting balance all over again, as if they were brand new.
       let hasTransactionHistory = false;
       if (tokenUser.telegram_chat_id) {
         const { count } = await supabaseAdmin
           .from("transactions")
           .select("id", { count: "exact", head: true })
           .eq("telegram_chat_id", tokenUser.telegram_chat_id);
+        hasTransactionHistory = (count || 0) > 0;
+      }
+      if (!hasTransactionHistory && tokenUser.phone_number) {
+        const { count } = await supabaseAdmin
+          .from("transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("phone_number", tokenUser.phone_number);
         hasTransactionHistory = (count || 0) > 0;
       }
 

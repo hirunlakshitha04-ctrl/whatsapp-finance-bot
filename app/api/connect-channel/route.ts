@@ -73,7 +73,7 @@ export async function GET(req: Request) {
 
     const { data: row } = await supabaseAdmin
       .from("users")
-      .select("phone_number, telegram_chat_id, active_channel, whatsapp_connected_at")
+      .select("phone_number, telegram_chat_id, active_channel, whatsapp_connected_at, plan, payment_status, is_active")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -82,6 +82,8 @@ export async function GET(req: Request) {
     // it before the user ever opens WhatsApp. Only an actual inbound message
     // (which stamps whatsapp_connected_at) counts.
     const whatsappConnected = !!row?.whatsapp_connected_at;
+    const isPaidUser =
+      !!row?.plan && row.plan.toLowerCase() !== "lite" && row.payment_status === "PAID" && row.is_active === true;
 
     return NextResponse.json({
       phone: row?.phone_number || "",
@@ -89,6 +91,8 @@ export async function GET(req: Request) {
       telegram_connected: telegramConnected,
       active_channel: row?.active_channel || null,
       connected: whatsappConnected || telegramConnected,
+      plan: row?.plan || "LITE",
+      is_paid: isPaidUser,
     });
   } catch (error: any) {
     console.error("connect-channel GET error:", error);
@@ -111,7 +115,7 @@ export async function POST(req: Request) {
 
     const { data: currentRow, error: rowError } = await supabaseAdmin
       .from("users")
-      .select("id, phone_number, telegram_chat_id")
+      .select("id, phone_number, telegram_chat_id, plan, payment_status, is_active, active_channel")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -119,6 +123,45 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "We couldn't find your profile. Please sign out and sign in again." },
         { status: 404 }
+      );
+    }
+
+    // -------------------------------------------------------------------
+    // PAID CHANNEL SWITCH REQUIRES PAYMENT
+    //
+    // WhatsApp and Telegram are priced differently for Core/Max (see
+    // create-checkout's VARIANT_ENV_MAP), so a paid user moving from one
+    // channel to the other is a genuine plan change, not just "reconnecting
+    // my chat" — it must go through checkout so the correct price applies.
+    //
+    // This does NOT block:
+    //   - reconnecting the SAME channel they're already paying for
+    //     (active_channel === requested channel) — e.g. their first connect
+    //     attempt failed, or the bot got blocked and they need to /start again
+    //   - changing their WhatsApp NUMBER while staying on WhatsApp — still
+    //     the same channel, so still free
+    //   - anything for a free/LITE user — channel is unrestricted for them
+    //   - a paid user who has never connected any channel yet
+    //     (active_channel is null) — nothing to "switch" away from
+    const isPaidUser =
+      !!currentRow.plan &&
+      currentRow.plan.toLowerCase() !== "lite" &&
+      currentRow.payment_status === "PAID" &&
+      currentRow.is_active === true;
+
+    const isGenuineChannelSwitch =
+      isPaidUser && !!currentRow.active_channel && currentRow.active_channel !== channel;
+
+    if (isGenuineChannelSwitch) {
+      return NextResponse.json(
+        {
+          error: `Switching from ${currentRow.active_channel} to ${channel} needs a new checkout, since they're priced differently on your plan.`,
+          upgradeRequired: true,
+          plan: currentRow.plan,
+          fromChannel: currentRow.active_channel,
+          toChannel: channel,
+        },
+        { status: 402 }
       );
     }
 

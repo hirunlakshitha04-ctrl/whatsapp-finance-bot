@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   MessageCircle,
 } from "lucide-react";
+import ConnectQrCode from "@/components/ConnectQrCode";
 
 // Same plan-id -> display-name mapping used on the pricing/register pages.
 const PLAN_LABELS: Record<string, string> = {
@@ -190,6 +191,17 @@ function PaymentSuccessContent() {
             <MessageCircle className="w-4 h-4" />
             <span>Open {theme.channelName} chat</span>
           </a>
+
+          {/* On a desktop browser with no WhatsApp Desktop installed, this
+              link falls through to web.whatsapp.com's own login QR instead
+              of our bot chat — confusing for anyone who paid from a PC. This
+              QR is of the REAL destination link, so scanning it with a phone
+              opens the actual chat directly. */}
+          {!isTelegram && (
+            <div className="mt-6 flex justify-center">
+              <ConnectQrCode url={destinationUrl} size={140} />
+            </div>
+          )}
         </>
       ) : (
         // already_linked=false (new user / unlinked channel): needs the
@@ -209,6 +221,12 @@ function PaymentSuccessContent() {
             <span>Continue on {theme.channelName}</span>
             <ArrowRight className="w-4 h-4" />
           </a>
+
+          {!isTelegram && (
+            <div className="mt-6 flex justify-center">
+              <ConnectQrCode url={destinationUrl} size={140} />
+            </div>
+          )}
         </>
       )}
 
