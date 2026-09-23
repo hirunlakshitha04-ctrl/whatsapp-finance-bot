@@ -3822,12 +3822,46 @@ export default function BrooDashboard() {
             </div>
 
             <div>
+              <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddType("expense");
+                    setAddCategory(getCategoryOptionsForType("expense")[0]);
+                  }}
+                  className={`p-3 rounded-xl text-xs font-bold border transition ${
+                    addType === "expense"
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                      : `${T.inputBg} ${T.textMuted} ${T.border2}`
+                  }`}
+                >
+                  🔴 Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddType("income");
+                    setAddCategory(getCategoryOptionsForType("income")[0]);
+                  }}
+                  className={`p-3 rounded-xl text-xs font-bold border transition ${
+                    addType === "income"
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : `${T.inputBg} ${T.textMuted} ${T.border2}`
+                  }`}
+                >
+                  🟢 Income
+                </button>
+              </div>
+            </div>
+
+            <div>
               <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Description</label>
               <input
                 type="text"
                 value={addItem}
                 onChange={(e) => setAddItem(e.target.value)}
-                placeholder="e.g. Bus fare"
+                placeholder={addType === "income" ? "e.g. Monthly salary" : "e.g. Bus fare"}
                 className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
               />
             </div>
@@ -3845,32 +3879,15 @@ export default function BrooDashboard() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Amount</label>
-                <input
-                  type="number"
-                  value={addAmount}
-                  onChange={(e) => setAddAmount(e.target.value)}
-                  placeholder="0.00"
-                  className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
-                />
-              </div>
-              <div>
-                <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Type</label>
-                <select
-                  value={addType}
-                  onChange={(e) => {
-                    const nextType = e.target.value as "income" | "expense";
-                    setAddType(nextType);
-                    setAddCategory(getCategoryOptionsForType(nextType)[0]);
-                  }}
-                  className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
-                >
-                  <option value="expense" className={`${T.slate950} ${T.textBody}`}>Expense</option>
-                  <option value="income" className={`${T.slate950} ${T.textBody}`}>Income</option>
-                </select>
-              </div>
+            <div>
+              <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Amount</label>
+              <input
+                type="number"
+                value={addAmount}
+                onChange={(e) => setAddAmount(e.target.value)}
+                placeholder="0.00"
+                className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition`}
+              />
             </div>
 
             <button
