@@ -11,23 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { OpenAI } from "openai";
 import { sendTelegramMessage } from "@/lib/telegram-client";
+import { getStartOfTodayInTimezone, is9PMInTimezone } from "@/lib/timezone";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-function is9PMInTimezone(timeZone: string): boolean {
-  try {
-    const now = new Date();
-    const hourStr = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      hour: "numeric",
-      hour12: false,
-    }).format(now);
-    return parseInt(hourStr, 10) === 21;
-  } catch (err) {
-    console.error(`Invalid timezone: ${timeZone}`, err);
-    return false;
-  }
-}
 
 async function generateLocalizedSummary(
   nickname: string,
@@ -75,14 +61,15 @@ export async function GET(req: NextRequest) {
 
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     let sent = 0;
 
     for (const user of users) {
       const userTz = user.timezone || "Asia/Colombo";
       if (!is9PMInTimezone(userTz)) continue;
+
+      // Per-user, computed in THEIR timezone — not a single server-UTC value
+      // shared across everyone (see lib/timezone.ts for why that was wrong).
+      const todayStart = getStartOfTodayInTimezone(userTz);
 
       const { data: transactions } = await supabaseAdmin
         .from("transactions")

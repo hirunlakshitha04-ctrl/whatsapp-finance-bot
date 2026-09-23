@@ -163,12 +163,17 @@ export async function POST(req: NextRequest) {
       // via Telegram)? If so, they already went through onboarding — don't
       // ask for a starting balance again, just confirm the link.
       //
-      // Two signals count as "already active": an actual transaction history
-      // on the other channel, OR a paid plan already set (covers the case
-      // where a Core/Max user links a second channel before logging their
-      // first transaction there — they've still been through onboarding).
-      const isPaidPlan = !!tokenUser.plan && tokenUser.plan.toLowerCase() !== "lite";
-
+      // NOTE: plan alone (CORE/MAX) must NOT be used as a signal here — plan
+      // is set at registration time, before payment even completes (see
+      // register/page.tsx's upsert), so a brand-new Core/Max WhatsApp signup
+      // whose first-ever connect attempt goes through this same START-
+      // branch (e.g. they closed the payment-success tab and used the
+      // dashboard's "Connect WhatsApp" recovery button) would otherwise be
+      // wrongly treated as "already active" and skip the starting-balance
+      // prompt entirely, even though they have zero transactions. This
+      // mirrors the same fix already applied in telegram/route.ts — only an
+      // actual transaction history counts as "already active".
+      //
       // BUG FIX: this used to check ONLY tokenUser.telegram_chat_id, which
       // covers "a Telegram user now adding WhatsApp" but NOT "an existing
       // WhatsApp user changing their own WhatsApp number" — the exact case
@@ -193,7 +198,7 @@ export async function POST(req: NextRequest) {
         hasTransactionHistory = (count || 0) > 0;
       }
 
-      const hasHistory = isPaidPlan || hasTransactionHistory;
+      const hasHistory = hasTransactionHistory;
 
       // Attach this WhatsApp number to the existing user row and burn the token.
       // Errors are checked (unlike before) because a duplicate can still slip

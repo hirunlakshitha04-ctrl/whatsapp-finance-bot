@@ -2,28 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import twilio from "twilio";
 import { OpenAI } from "openai";
+import { getStartOfTodayInTimezone, is9PMInTimezone } from "@/lib/timezone";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
 const TWILIO_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_TWILIO_WHATSAPP_NUMBER || "whatsapp:+94764775963";
 
 // Helper Function: Check if it's currently 9 PM in the user's timezone
-function is9PMInTimezone(timeZone: string): boolean {
-  try {
-    const now = new Date();
-    // Get current hour in the specific timezone (0 - 23 format)
-    const hourStr = new Intl.DateTimeFormat("en-US", {
-      timeZone: timeZone,
-      hour: "numeric",
-      hour12: false,
-    }).format(now);
-
-    return parseInt(hourStr, 10) === 21; // 21 means 9:00 PM
-  } catch (err) {
-    console.error(`Invalid timezone: ${timeZone}`, err);
-    return false;
-  }
-}
+// (moved to lib/timezone.ts, shared with the Telegram twin of this route)
 
 // Helper Function: Localize Summary Message based on User Language
 async function generateLocalizedSummary(
@@ -70,9 +56,6 @@ export async function GET(req: NextRequest) {
     const { data: users, error: userErr } = await supabaseAdmin.from("users").select("*");
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     // 2. Loop through users and filter who currently have 9 PM in their timezone
     for (const user of users) {
       const userTz = user.timezone || "Asia/Colombo";
@@ -81,6 +64,12 @@ export async function GET(req: NextRequest) {
       if (!is9PMInTimezone(userTz)) {
         continue; // 9 PM නැති අය skip කරන්න
       }
+
+      // Per-user "today start", computed in THEIR timezone — not a single
+      // server-UTC value shared across everyone (see lib/timezone.ts for
+      // why a shared UTC-midnight value silently dropped early-morning
+      // local transactions from that same day's summary).
+      const todayStart = getStartOfTodayInTimezone(userTz);
 
       // 3. User ගේ අද දවසේ Transactions ගන්න
       const { data: transactions } = await supabaseAdmin

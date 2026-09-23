@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { OpenAI } from "openai";
 import { sendTelegramMessage } from "@/lib/telegram-client";
+import { getStartOfMonthInTimezone } from "@/lib/timezone";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -79,14 +80,14 @@ export async function GET(req: NextRequest) {
 
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
     let sent = 0;
 
     for (const user of users) {
       const userTz = user.timezone || "Asia/Colombo";
       if (!isMonthEnd9PM(userTz)) continue;
+
+      // Per-user, computed in THEIR timezone — see lib/timezone.ts.
+      const firstDayOfMonth = getStartOfMonthInTimezone(userTz);
 
       const { data: transactions } = await supabaseAdmin
         .from("transactions")

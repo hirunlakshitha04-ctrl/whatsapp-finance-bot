@@ -631,6 +631,13 @@ function RegisterForm() {
   // browser) and a QR code of the real link (for anyone who needs to hand
   // off to their phone).
   const [waConnectScreen, setWaConnectScreen] = useState<string | null>(null);
+  // If the number typed on the form has a typo, or the WhatsApp app they tap
+  // "Continue" from is logged into a different number, the bot will never
+  // recognise them (it matches purely on the From number of the inbound
+  // message) — they'd otherwise sit on this screen with no signal that
+  // anything is wrong. Surface a gentle "didn't go through?" hint after a
+  // short delay instead of leaving that silent.
+  const [showWaTroubleshoot, setShowWaTroubleshoot] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -730,6 +737,15 @@ function RegisterForm() {
     };
     document.body.appendChild(script);
   }, []);
+
+  useEffect(() => {
+    if (!waConnectScreen) {
+      setShowWaTroubleshoot(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowWaTroubleshoot(true), 20000);
+    return () => clearTimeout(timer);
+  }, [waConnectScreen]);
 
   const handleChannelSelect = (channel: "whatsapp" | "telegram") => {
     setFormData((prev) => ({ ...prev, channel }));
@@ -920,6 +936,12 @@ function RegisterForm() {
 
       let userId = authData?.user?.id;
       let linkToken = generateLinkToken();
+      // True only when THIS request's auth.signUp() call itself just created
+      // the auth user (no authError at all). False whenever we're reusing an
+      // existing account (the "email already registered" -> signIn path
+      // below overwrites userId with an account that existed before this
+      // request) — that account is never ours to roll back.
+      const isNewSignup = !authError;
 
       if (authError) {
         const message = typeof authError === 'object' && authError !== null
@@ -1010,63 +1032,48 @@ function RegisterForm() {
       }
 
       if (userId) {
-        // If this user already has a pending (not-yet-linked) token from an
-        // earlier attempt — e.g. a prior submit whose checkout failed —
-        // reuse it instead of overwriting it. Otherwise any Telegram
-        // "Start on Telegram" link they already opened (or a Lemon Squeezy
-        // checkout tab left open with the old token baked into its
-        // redirect_url) would report "Link Invalid or Expired" once this
-        // upsert replaces link_token with a new value.
-        if (formData.channel === "telegram") {
-          const { data: existingRow } = await supabase
-            .from("users")
-            .select("link_token, telegram_chat_id")
-            .eq("id", userId)
-            .maybeSingle();
+        // Profile write happens server-side now (see /api/finalize-registration)
+        // so it can run with the service-role key. That matters for one thing
+        // this client-side upsert could never do: if the phone/email turns out
+        // to be a duplicate the earlier check missed (a race, or the RPC call
+        // failing) and THIS request just created a brand-new auth user a
+        // moment ago via auth.signUp(), the route deletes that orphaned auth
+        // user again instead of leaving the email permanently stuck to a
+        // broken, profile-less account.
+        const finalizeRes = await fetch("/api/finalize-registration", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            isNewSignup,
+            phone: cleanedPhone || null,
+            linkToken,
+            email: formData.email.trim().toLowerCase(),
+            name: formData.name,
+            nickname: formData.nickname || formData.name,
+            country: formData.country,
+            currency: formData.currency,
+            language: resolvedLanguage,
+            timezone: formData.timezone,
+            plan: planParam,
+            isFreePlan,
+            channel: formData.channel,
+          }),
+        });
+        const finalizeData = await finalizeRes.json().catch(() => ({}));
 
-          if (existingRow?.link_token && !existingRow.telegram_chat_id) {
-            linkToken = existingRow.link_token;
-          }
-        }
-
-        const { error: dbError } = await supabase
-          .from("users")
-          .upsert([
-            {
-              id: userId,
-              phone_number: cleanedPhone || null,
-              link_token: linkToken,
-              email: formData.email.trim().toLowerCase(),
-              name: formData.name,
-              nickname: formData.nickname || formData.name,
-              country: formData.country,
-              currency: formData.currency,
-              language: resolvedLanguage,
-              timezone: formData.timezone,
-              plan: planParam.toUpperCase() === "FREE" ? "LITE" : planParam.toUpperCase(),
-              payment_status: isFreePlan ? "PAID" : "PENDING",
-              is_active: isFreePlan ? true : false,
-              // 7-day WhatsApp trial: only free/Lite signups on WhatsApp get a
-              // trial_ends_at — this is what app/api/whatsapp/route.ts checks
-              // to block messages once the trial's over, and what the
-              // reminder cron uses for day 1/4/6 nudges. Telegram is
-              // permanently free (no trial), and paid plans don't need one.
-              trial_ends_at:
-                isFreePlan && formData.channel === "whatsapp"
-                  ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                  : null,
-            }
-          ], { onConflict: "id" });
-
-        if (dbError) {
-          console.error("Database Insert Error:", dbError);
-          if (dbError.code === "23505") {
-            setErrorMsg("A user with this phone number or email already exists in the table.");
-          } else {
-            setErrorMsg("Failed to save user profile: " + dbError.message);
-          }
+        if (!finalizeRes.ok) {
+          console.error("finalize-registration error:", finalizeData);
+          setErrorMsg(finalizeData?.error || "Failed to save your profile. Please try again.");
           setLoading(false);
           return;
+        }
+
+        // Server may have reused an existing pending token (see the route's
+        // telegram reuse logic) — keep the client in sync so the redirect
+        // below uses the right one.
+        if (finalizeData?.linkToken) {
+          linkToken = finalizeData.linkToken;
         }
       }
 
@@ -1137,6 +1144,27 @@ function RegisterForm() {
                   Go to your dashboard
                 </Link>
               </p>
+
+              <AnimatePresence>
+                {showWaTroubleshoot && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-left overflow-hidden"
+                  >
+                    <p className="text-xs text-amber-200 leading-relaxed">
+                      Sent the message but nothing back yet? The bot matches you by the exact
+                      WhatsApp number you entered — if that number has a typo, or you sent it
+                      from a different number, it won&apos;t recognise you.{" "}
+                      <Link href="/dashboard" className="underline underline-offset-2 font-semibold">
+                        Log in to your dashboard
+                      </Link>{" "}
+                      to check or fix the number under Settings → Chat Connection.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>

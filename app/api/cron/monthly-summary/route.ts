@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import twilio from "twilio";
 import { OpenAI } from "openai";
+import { getStartOfMonthInTimezone } from "@/lib/timezone";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
@@ -78,17 +79,18 @@ export async function GET(req: NextRequest) {
     const { data: users, error: userErr } = await supabaseAdmin.from("users").select("*");
     if (userErr || !users) return NextResponse.json({ error: "No users found" }, { status: 400 });
 
-    // First day of current month
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
+    // Trigger only on the last day of the month at 9 PM
     for (const user of users) {
       const userTz = user.timezone || "Asia/Colombo";
 
-      // Trigger only on the last day of the month at 9 PM
       if (!isMonthEnd9PM(userTz)) {
         continue;
       }
+
+      // Per-user, computed in THEIR timezone — not the server's local Y-M
+      // (see lib/timezone.ts: that used to drop the month's first few hours
+      // of transactions for any user ahead of the server's UTC clock).
+      const firstDayOfMonth = getStartOfMonthInTimezone(userTz);
 
       // Fetch all transactions from 1st of the current month
       const { data: transactions } = await supabaseAdmin
