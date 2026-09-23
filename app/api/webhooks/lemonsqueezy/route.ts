@@ -147,6 +147,15 @@ export async function POST(req: Request) {
         if (paymentChannel) {
           updateData.active_channel = paymentChannel;
         }
+        // Starts (or restarts) the 14-day free-channel-switch grace period —
+        // see connect-channel/route.ts. Only on a genuinely NEW
+        // subscription/order, never on subscription_updated (which also
+        // fires for plain renewals) — otherwise the grace period would
+        // quietly extend forever every billing cycle instead of only
+        // applying right after an actual payment.
+        if (eventName === "subscription_created" || eventName === "order_created") {
+          updateData.plan_activated_at = new Date().toISOString();
+        }
 
         if (subscriptionId) {
           updateData.lemon_squeezy_subscription_id = subscriptionId;

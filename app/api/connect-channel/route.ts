@@ -73,7 +73,9 @@ export async function GET(req: Request) {
 
     const { data: row } = await supabaseAdmin
       .from("users")
-      .select("phone_number, telegram_chat_id, active_channel, whatsapp_connected_at, plan, payment_status, is_active")
+      .select(
+        "phone_number, telegram_chat_id, active_channel, whatsapp_connected_at, plan, payment_status, is_active, plan_activated_at"
+      )
       .eq("id", user.id)
       .maybeSingle();
 
@@ -85,6 +87,13 @@ export async function GET(req: Request) {
     const isPaidUser =
       !!row?.plan && row.plan.toLowerCase() !== "lite" && row.payment_status === "PAID" && row.is_active === true;
 
+    const GRACE_PERIOD_DAYS = 14;
+    let graceDaysLeft = 0;
+    if (isPaidUser && row?.plan_activated_at) {
+      const daysSince = (Date.now() - new Date(row.plan_activated_at).getTime()) / (1000 * 60 * 60 * 24);
+      graceDaysLeft = Math.max(0, Math.ceil(GRACE_PERIOD_DAYS - daysSince));
+    }
+
     return NextResponse.json({
       phone: row?.phone_number || "",
       whatsapp_connected: whatsappConnected,
@@ -93,6 +102,7 @@ export async function GET(req: Request) {
       connected: whatsappConnected || telegramConnected,
       plan: row?.plan || "LITE",
       is_paid: isPaidUser,
+      grace_days_left: graceDaysLeft,
     });
   } catch (error: any) {
     console.error("connect-channel GET error:", error);
@@ -115,7 +125,7 @@ export async function POST(req: Request) {
 
     const { data: currentRow, error: rowError } = await supabaseAdmin
       .from("users")
-      .select("id, phone_number, telegram_chat_id, plan, payment_status, is_active, active_channel")
+      .select("id, phone_number, telegram_chat_id, plan, payment_status, is_active, active_channel, plan_activated_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -125,6 +135,28 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+
+    // -------------------------------------------------------------------
+    // 14-DAY FREE-SWITCH GRACE PERIOD
+    //
+    // Right after ANY payment (first signup or a previous channel switch),
+    // a user gets 14 days to change their mind and switch channel again for
+    // free. Without this, someone who pays for WhatsApp and realizes the
+    // very next day they actually wanted Telegram would be charged twice in
+    // the same week for what's really just a quick correction — a bad first
+    // experience with a brand-new paying customer.
+    //
+    // plan_activated_at is stamped by the Lemon Squeezy webhook on every
+    // genuinely NEW subscription/order (not renewals), so this naturally
+    // resets each time they pay for a switch — giving 14 fresh days to
+    // settle on the right channel after THAT payment too, not just the
+    // original signup.
+    const GRACE_PERIOD_DAYS = 14;
+    const activatedAt = currentRow.plan_activated_at ? new Date(currentRow.plan_activated_at) : null;
+    const daysSinceActivation = activatedAt
+      ? (Date.now() - activatedAt.getTime()) / (1000 * 60 * 60 * 24)
+      : Infinity; // no timestamp on record (e.g. pre-migration account) — treat as grace period over, the safe default
+    const inGracePeriod = daysSinceActivation <= GRACE_PERIOD_DAYS;
 
     // -------------------------------------------------------------------
     // PAID CHANNEL SWITCH REQUIRES PAYMENT
@@ -143,6 +175,7 @@ export async function POST(req: Request) {
     //   - anything for a free/LITE user — channel is unrestricted for them
     //   - a paid user who has never connected any channel yet
     //     (active_channel is null) — nothing to "switch" away from
+    //   - a paid user still within their 14-day grace period after payment
     const isPaidUser =
       !!currentRow.plan &&
       currentRow.plan.toLowerCase() !== "lite" &&
@@ -150,7 +183,7 @@ export async function POST(req: Request) {
       currentRow.is_active === true;
 
     const isGenuineChannelSwitch =
-      isPaidUser && !!currentRow.active_channel && currentRow.active_channel !== channel;
+      isPaidUser && !!currentRow.active_channel && currentRow.active_channel !== channel && !inGracePeriod;
 
     if (isGenuineChannelSwitch) {
       return NextResponse.json(

@@ -451,6 +451,9 @@ export default function BrooDashboard() {
   // the OTHER channel is a real plan change, not a free reconnect — drives
   // whether the card's buttons read "Connect/Reconnect" or "Switch to X".
   const [isPaidUser, setIsPaidUser] = useState(false);
+  // Days left in the 14-day free-channel-switch window after a payment.
+  // 0 means either not paid, or the grace period has already passed.
+  const [graceDaysLeft, setGraceDaysLeft] = useState(0);
   // Holds the most recently generated wa.me link so it can be rendered as a
   // QR code next to the button — most useful here of all places, since the
   // dashboard itself is usually opened on a desktop browser where the plain
@@ -586,6 +589,12 @@ export default function BrooDashboard() {
           userData.payment_status === "PAID" &&
           userData.is_active === true
       );
+      if (userData.plan_activated_at) {
+        const daysSince = (Date.now() - new Date(userData.plan_activated_at).getTime()) / (1000 * 60 * 60 * 24);
+        setGraceDaysLeft(Math.max(0, Math.ceil(14 - daysSince)));
+      } else {
+        setGraceDaysLeft(0);
+      }
       if (userData.avatar_url) {
         setAvatarUrl(userData.avatar_url);
         setSelectedAvatar(userData.avatar_url);
@@ -1201,6 +1210,7 @@ export default function BrooDashboard() {
       setWhatsappConnectedAt((prev) => (status.whatsapp_connected ? prev || new Date().toISOString() : null));
       setTelegramConnected(!!status.telegram_connected);
       setIsPaidUser(!!status.is_paid);
+      setGraceDaysLeft(typeof status.grace_days_left === "number" ? status.grace_days_left : 0);
       if (status.phone) {
         setConnectPhone(status.phone);
         setUserPhone(status.phone);
@@ -3115,21 +3125,43 @@ export default function BrooDashboard() {
                 --------------------------------------------------------------- */}
             <div
               id="chat-connection-section"
-              className={`md:col-span-2 ${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}
+              className={`md:col-span-2 ${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}
             >
-              <div className={`flex items-center justify-between gap-3 border-b ${T.border2} pb-4`}>
-                <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2`}>
-                  <Zap size={18} className={`${accent.text400}`} /> Chat Connection
-                </h3>
-                <span
-                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border ${
-                    isChannelConnected
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                  }`}
-                >
-                  {isChannelConnected ? "Connected" : "Not connected"}
-                </span>
+              <div className={`flex flex-wrap items-center justify-between gap-3 border-b ${T.border2} pb-4`}>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_25}`}
+                  >
+                    <Zap size={16} className="text-slate-950" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>Chat Connection</h3>
+                    <p className={`text-[10px] ${T.textMuted} font-medium`}>WhatsApp &amp; Telegram</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isPaidUser && graceDaysLeft > 0 && (
+                    <span
+                      className="text-[10px] font-bold px-3 py-1.5 rounded-full border bg-cyan-500/15 text-cyan-300 border-cyan-500/30 flex items-center gap-1.5"
+                      title="You can switch channel for free until this window closes"
+                    >
+                      <RefreshCw size={10} /> {graceDaysLeft}-day free switch left
+                    </span>
+                  )}
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border flex items-center gap-1.5 ${
+                      isChannelConnected
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${isChannelConnected ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`}
+                    />
+                    {isChannelConnected ? "Connected" : "Not connected"}
+                  </span>
+                </div>
               </div>
 
               <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
@@ -3139,12 +3171,12 @@ export default function BrooDashboard() {
 
               {connectMsg && (
                 <div
-                  className={`p-3 rounded-xl text-xs flex items-start gap-2 backdrop-blur-md ${
+                  className={`p-3.5 rounded-2xl text-xs flex items-start gap-2.5 backdrop-blur-md border ${
                     connectMsg.type === "success"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25"
                       : connectMsg.type === "error"
-                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                      : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                      ? "bg-rose-500/10 text-rose-300 border-rose-500/25"
+                      : "bg-sky-500/10 text-sky-300 border-sky-500/25"
                   }`}
                 >
                   {connectMsg.type === "success" ? (
@@ -3154,7 +3186,7 @@ export default function BrooDashboard() {
                   ) : (
                     <RefreshCw size={14} className={`mt-0.5 flex-shrink-0 ${awaitingConnect ? "animate-spin" : ""}`} />
                   )}
-                  <span>{connectMsg.text}</span>
+                  <span className="leading-relaxed">{connectMsg.text}</span>
                 </div>
               )}
 
@@ -3356,17 +3388,25 @@ export default function BrooDashboard() {
               </div>
             </div>
 
-            <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
-              <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2 border-b ${T.border2} pb-4`}>
-                <User size={18} className={`${accent.text400}`} /> User Profile Settings
-              </h3>
+            <div className={`${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+              <div className={`flex items-center gap-3 border-b ${T.border2} pb-4`}>
+                <div
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_25}`}
+                >
+                  <User size={16} className="text-slate-950" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>User Profile</h3>
+                  <p className={`text-[10px] ${T.textMuted} font-medium`}>Photo, name & regional preferences</p>
+                </div>
+              </div>
 
               {profileMsg && (
-                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 backdrop-blur-md ${
-                  profileMsg.type === "success" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                <div className={`p-3.5 rounded-2xl text-xs flex items-center gap-2.5 backdrop-blur-md border ${
+                  profileMsg.type === "success" ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25" : "bg-rose-500/10 text-rose-300 border-rose-500/25"
                 }`}>
-                  {profileMsg.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                  {profileMsg.text}
+                  {profileMsg.type === "success" ? <CheckCircle2 size={14} className="flex-shrink-0" /> : <AlertCircle size={14} className="flex-shrink-0" />}
+                  <span className="leading-relaxed">{profileMsg.text}</span>
                 </div>
               )}
 
@@ -3583,16 +3623,24 @@ export default function BrooDashboard() {
               </form>
             </div>
 
-            <div className={`${T.cardBg} border ${T.border1} p-6 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit ${accent.hoverBorder500_30} transition duration-300`}>
-              <h3 className={`font-extrabold text-base ${T.textHead} flex items-center gap-2 border-b ${T.border2} pb-4`}>
-                <ShieldCheck size={18} className={`${accent.text400}`} /> Security Settings
-              </h3>
+            <div className={`${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit ${accent.hoverBorder500_30} transition duration-300`}>
+              <div className={`flex items-center gap-3 border-b ${T.border2} pb-4`}>
+                <div
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_25}`}
+                >
+                  <ShieldCheck size={16} className="text-slate-950" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>Security</h3>
+                  <p className={`text-[10px] ${T.textMuted} font-medium`}>Password & account protection</p>
+                </div>
+              </div>
 
               {passwordMsg && (
-                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 backdrop-blur-md ${
-                  passwordMsg.type === "success" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                <div className={`p-3.5 rounded-2xl text-xs flex items-center gap-2.5 backdrop-blur-md border ${
+                  passwordMsg.type === "success" ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25" : "bg-rose-500/10 text-rose-300 border-rose-500/25"
                 }`}>
-                  {passwordMsg.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                  {passwordMsg.type === "success" ? <CheckCircle2 size={14} className="flex-shrink-0" /> : <AlertCircle size={14} className="flex-shrink-0" />}
                   {passwordMsg.text}
                 </div>
               )}
