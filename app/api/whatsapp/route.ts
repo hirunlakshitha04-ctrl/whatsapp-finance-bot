@@ -444,7 +444,7 @@ export async function POST(req: NextRequest) {
             user_id: userProfile.id,
             type: "income",
             item: "Starting Capital",
-            category: "Savings/Investments",
+            category: "Starting Balance",
             amount: extracted.amount,
             currency: userCurrency,
           },

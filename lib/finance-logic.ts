@@ -253,6 +253,61 @@ export async function transcribeVoiceBuffer(
   }
 }
 
+// The category enums the `transactions.category` column accepts.
+// Keep these in lock-step with CATEGORY_OPTIONS / INCOME_CATEGORIES in
+// app/dashboard/page.tsx — the dashboard comment there warns the lists must
+// match EXACTLY, and category grouping (pie charts, exports) is done by
+// exact string match.
+export const EXPENSE_CATEGORIES = [
+  "Food & Groceries",
+  "Transport (Bus, Train, Fuel, Taxi)",
+  "Utilities (Bills, Internet, Phone)",
+  "Rent/Housing",
+  "Personal Care (Medical, Saloon, Hygiene)",
+  "Shopping (Clothes, Gadgets)",
+  "Entertainment (Movies, Subscriptions, Outings)",
+  "Education (Books, Courses)",
+  "Debt/Loans",
+  "Savings/Investments",
+  "Gifts & Charity",
+  "Miscellaneous (Unexpected)",
+] as const;
+
+// Income gets its OWN proper category set instead of being forced into the
+// expense list above. Forcing it into the expense list was the root cause
+// of income logging silently failing on both WhatsApp & Telegram — nothing
+// on that list fits "salary" / "bonus", so the model kept returning a
+// category outside the allowed set (e.g. "Salary", "Income"), which the DB
+// rejected on insert. "Starting Balance" is reserved for the onboarding
+// flow only — the model is never asked to pick it for a normal message.
+export const INCOME_CATEGORIES = [
+  "Salary/Wages",
+  "Business/Freelance",
+  "Investment Returns",
+  "Gifts & Support Received",
+  "Other Income",
+] as const;
+
+const RESERVED_INCOME_CATEGORIES = ["Starting Balance"] as const;
+
+// Defensive layer: even if the model ignores the prompt's category list,
+// never let a category outside the DB's allowed set through — that's what
+// was silently breaking every income save before.
+function sanitizeExtractedCategory(tx: ExtractedData): ExtractedData {
+  if (!tx) return tx;
+  const isIncome = tx.type === "income";
+  const validSet: readonly string[] = isIncome
+    ? [...INCOME_CATEGORIES, ...RESERVED_INCOME_CATEGORIES]
+    : EXPENSE_CATEGORIES;
+  if (!tx.category || !validSet.includes(tx.category)) {
+    return {
+      ...tx,
+      category: isIncome ? "Other Income" : "Miscellaneous (Unexpected)",
+    };
+  }
+  return tx;
+}
+
 // 🧠 AI Engine: Text Parser
 export async function extractTransaction(
   text: string,
@@ -271,7 +326,9 @@ User Settings -> Selected Language: "${language}", Call User As: "${nickname}", 
 
 INSTRUCTIONS:
 - CRITICAL ITEM RULE: The "item" description MUST be kept EXACTLY as the user wrote it — do NOT translate it into ${language} or any other language. Only trim whitespace / fix obvious casing; never reword or translate.
-- CRITICAL CATEGORY RULE: You MUST strictly choose the "category" ONLY from this exact standardized English list. Do NOT translate categories into other languages:
+- CRITICAL CATEGORY RULE: There are TWO separate category lists — pick the one that matches the "type" you detected, and choose ONE value from it EXACTLY as written (do not translate, do not invent a new category):
+
+  If type is "expense", choose ONE from:
   - Food & Groceries
   - Transport (Bus, Train, Fuel, Taxi)
   - Utilities (Bills, Internet, Phone)
@@ -284,6 +341,13 @@ INSTRUCTIONS:
   - Savings/Investments
   - Gifts & Charity
   - Miscellaneous (Unexpected)
+
+  If type is "income", choose ONE from:
+  - Salary/Wages (regular job pay, wages)
+  - Business/Freelance (business or freelance earnings)
+  - Investment Returns (interest, dividends, profit from investments)
+  - Gifts & Support Received (money gifted or sent by someone)
+  - Other Income (anything that doesn't clearly fit the above)
 - Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
 
 Return pure JSON:
@@ -291,7 +355,7 @@ Return pure JSON:
   "action": "log_transaction" | "set_budget" | "set_starting_balance",
   "type": "expense" | "income" | null,
   "item": "description string EXACTLY as the user typed it, no translation",
-  "category": "Strictly choose ONE from the allowed English category list above",
+  "category": "Strictly choose ONE from the allowed list for the detected type above",
   "amount": number,
   "currency": "${nativeCurrency}"
 }`,
@@ -300,7 +364,10 @@ Return pure JSON:
       ],
       response_format: { type: "json_object" },
     });
-    return JSON.parse(response.choices[0].message.content || "{}") as ExtractedData;
+    const parsed = JSON.parse(response.choices[0].message.content || "{}") as ExtractedData;
+    // Defensive second layer: even if the model ignores the prompt above,
+    // never let a category outside the DB's allowed set through.
+    return sanitizeExtractedCategory(parsed);
   } catch (err) {
     console.error("❌ Text Extraction error:", err);
     return null;
@@ -357,7 +424,8 @@ Return pure JSON:
       ],
       response_format: { type: "json_object" },
     });
-    return JSON.parse(openAiResponse.choices[0].message.content || "{}") as ExtractedData;
+    const parsed = JSON.parse(openAiResponse.choices[0].message.content || "{}") as ExtractedData;
+    return sanitizeExtractedCategory(parsed);
   } catch (err) {
     console.error("❌ Vision Extraction error:", err);
     return null;
@@ -380,6 +448,7 @@ export async function saveExtractedDirect(
   currency: string,
   websiteUrl: string
 ): Promise<string> {
+  tx = sanitizeExtractedCategory(tx);
   const formattedAmount = Number(tx.amount).toLocaleString();
   const baseMsgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
   const typeTag = tx.type === "income" ? baseMsgs.typeIncome : baseMsgs.typeExpense;
@@ -454,7 +523,7 @@ export async function handleConfirmTransaction(
       return emptyMsgs.noPending;
     }
 
-    const tx = session.pending_transaction as ExtractedData;
+    const tx = sanitizeExtractedCategory(session.pending_transaction as ExtractedData);
     const formattedAmount = Number(tx.amount).toLocaleString();
     const isIncome = tx.type === "income";
 

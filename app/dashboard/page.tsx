@@ -88,27 +88,10 @@ interface Transaction {
 }
 
 // NOTE: These strings must match EXACTLY what extractTransaction() /
-// extractFromImageBuffer() in finance-logic.ts return, otherwise the
-// same real-world category (e.g. Transport) gets split into two rows
-// in the dashboard breakdown because grouping is done by exact string match.
-const CATEGORY_COLORS: { [key: string]: string } = {
-  "Food & Groceries": "#F59E0B",
-  "Transport (Bus, Train, Fuel, Taxi)": "#3B82F6",
-  "Utilities (Bills, Internet, Phone)": "#EF4444",
-  "Rent/Housing": "#22C55E",
-  "Personal Care (Medical, Saloon, Hygiene)": "#06B6D4",
-  "Shopping (Clothes, Gadgets)": "#EC4899",
-  "Entertainment (Movies, Subscriptions, Outings)": "#8B5CF6",
-  "Education (Books, Courses)": "#0EA5E9",
-  "Debt/Loans": "#F97316",
-  "Savings/Investments": "#10B981",
-  "Gifts & Charity": "#D946EF",
-  "Miscellaneous (Unexpected)": "#64748B",
-  Salary: "#10B981",
-  "Starting Balance": "#6366F1",
-  Other: "#64748B"
-};
-
+// extractFromImageBuffer() in finance-logic.ts return (see EXPENSE_CATEGORIES
+// / INCOME_CATEGORIES there), otherwise the same real-world category (e.g.
+// Transport) gets split into two rows in the dashboard breakdown because
+// grouping is done by exact string match.
 const CATEGORY_OPTIONS = [
   "Food & Groceries",
   "Transport (Bus, Train, Fuel, Taxi)",
@@ -123,6 +106,48 @@ const CATEGORY_OPTIONS = [
   "Gifts & Charity",
   "Miscellaneous (Unexpected)",
 ];
+
+// Income has its own proper category set — it no longer gets forced into the
+// expense list above (that was the root cause of income logging failing on
+// WhatsApp/Telegram, and of every income row landing under a mismatched
+// expense-flavored category). "Starting Balance" is intentionally left out
+// of this picker list: it's a reserved, system-only category written once
+// by the onboarding flow, not something a user manually chooses.
+const INCOME_CATEGORIES = [
+  "Salary/Wages",
+  "Business/Freelance",
+  "Investment Returns",
+  "Gifts & Support Received",
+  "Other Income",
+];
+
+const CATEGORY_COLORS: { [key: string]: string } = {
+  "Food & Groceries": "#F59E0B",
+  "Transport (Bus, Train, Fuel, Taxi)": "#3B82F6",
+  "Utilities (Bills, Internet, Phone)": "#EF4444",
+  "Rent/Housing": "#22C55E",
+  "Personal Care (Medical, Saloon, Hygiene)": "#06B6D4",
+  "Shopping (Clothes, Gadgets)": "#EC4899",
+  "Entertainment (Movies, Subscriptions, Outings)": "#8B5CF6",
+  "Education (Books, Courses)": "#0EA5E9",
+  "Debt/Loans": "#F97316",
+  "Savings/Investments": "#10B981",
+  "Gifts & Charity": "#D946EF",
+  "Miscellaneous (Unexpected)": "#64748B",
+  "Salary/Wages": "#34D399",
+  "Business/Freelance": "#2DD4BF",
+  "Investment Returns": "#A3E635",
+  "Gifts & Support Received": "#FB923C",
+  "Other Income": "#38BDF8",
+  Salary: "#10B981",
+  "Starting Balance": "#6366F1",
+  Other: "#64748B"
+};
+
+// Which category list to show depends on whether the row/form is Income or
+// Expense — mixing them was the old (broken) behaviour.
+const getCategoryOptionsForType = (type: "income" | "expense") =>
+  type === "income" ? INCOME_CATEGORIES : CATEGORY_OPTIONS;
 
 const AVATAR_OPTIONS = [
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
@@ -3011,12 +3036,16 @@ export default function BrooDashboard() {
                                   onChange={(e) => setEditCategory(e.target.value)}
                                   className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} focus:outline-none`}
                                 >
-                                  {CATEGORY_OPTIONS.map(c => (
+                                  {getCategoryOptionsForType(editType).map(c => (
                                     <option key={c} value={c}>{c}</option>
                                   ))}
                                 </select>
                               ) : (
-                                <span className={`px-2.5 py-1 rounded-lg font-semibold text-[10px] ${T.ghostBg} ${T.textSubtle2} border ${T.border2} backdrop-blur-md`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold text-[10px] ${T.ghostBg} ${T.textSubtle2} border ${T.border2} backdrop-blur-md`}>
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: CATEGORY_COLORS[tx.category || "Other"] || "#64748B" }}
+                                  />
                                   {tx.category || "Other"}
                                 </span>
                               )}
@@ -3041,7 +3070,11 @@ export default function BrooDashboard() {
                               {isEditing ? (
                                 <select 
                                   value={editType} 
-                                  onChange={(e) => setEditType(e.target.value as "income" | "expense")}
+                                  onChange={(e) => {
+                                    const nextType = e.target.value as "income" | "expense";
+                                    setEditType(nextType);
+                                    setEditCategory(getCategoryOptionsForType(nextType)[0]);
+                                  }}
                                   className={`${T.blackBg60} border ${accent.border500} px-2 py-1 rounded-lg text-xs ${T.textHead} focus:outline-none`}
                                 >
                                   <option value="expense">Expense</option>
@@ -3806,7 +3839,7 @@ export default function BrooDashboard() {
                 onChange={(e) => setAddCategory(e.target.value)}
                 className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
               >
-                {CATEGORY_OPTIONS.map(c => (
+                {getCategoryOptionsForType(addType).map(c => (
                   <option key={c} value={c} className={`${T.slate950} ${T.textBody}`}>{c}</option>
                 ))}
               </select>
@@ -3827,7 +3860,11 @@ export default function BrooDashboard() {
                 <label className={`text-xs ${T.textMuted} font-bold block mb-1.5`}>Type</label>
                 <select
                   value={addType}
-                  onChange={(e) => setAddType(e.target.value as "income" | "expense")}
+                  onChange={(e) => {
+                    const nextType = e.target.value as "income" | "expense";
+                    setAddType(nextType);
+                    setAddCategory(getCategoryOptionsForType(nextType)[0]);
+                  }}
                   className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none ${accent.focusBorder500} transition ${T.colorScheme}`}
                 >
                   <option value="expense" className={`${T.slate950} ${T.textBody}`}>Expense</option>
