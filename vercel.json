@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/monthly-summary",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/process-recurring",
+      "schedule": "5 0 * * *"
     }
   ]
 }

@@ -12,6 +12,7 @@ import {
   transcribeVoiceBuffer,
   saveExtractedDirect,
   handleConfirmTransaction,
+  prepareFeatureExtraction,
   getRegisterMessage,
   getLinkMessage,
   getExcelLockedMessage,
@@ -516,8 +517,55 @@ export async function POST(req: NextRequest) {
       extractedTx = await extractTransaction(body, userCurrency, userLang, nickname);
     }
 
-    // 8️⃣ TEXT -> SAVE DIRECTLY | VOICE / IMAGE -> SEND PREVIEW FOR CONFIRM/EDIT
-    if (extractedTx && extractedTx.amount) {
+    // 8️⃣ FEATURE ACTIONS ALWAYS REQUIRE AN EXPLICIT CONFIRMATION.
+    // Ordinary text expenses/income keep the existing fast-save behaviour.
+    if (extractedTx && Number(extractedTx.amount || extractedTx.target_amount || 0) > 0) {
+      extractedTx = await prepareFeatureExtraction(extractedTx);
+
+      const featureActions = [
+        "create_recurring_expense",
+        "create_savings_goal",
+        "add_savings_contribution",
+        "create_debt",
+        "repay_debt",
+        "collect_debt",
+      ];
+      const isFeatureAction = featureActions.includes(extractedTx.action);
+      const pendingAction = sessionState?.pending_transaction?.action;
+      const hasPendingFeature = featureActions.includes(pendingAction);
+
+      // Never silently save a new ordinary transaction while a financial
+      // planning action is waiting for confirmation. This prevents an
+      // accidental message from bypassing the user's explicit Confirm/Edit.
+      if (hasPendingFeature && !isFeatureAction) {
+        await send(baseMsgs.featureEdit);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      if (isFeatureAction && extractedTx.action === "create_recurring_expense" && !extractedTx.frequency) {
+        await send(baseMsgs.missingRecurringFrequency);
+        return new NextResponse("OK", { status: 200 });
+      }
+
+      if (isFeatureAction) {
+        await supabaseAdmin.from("user_sessions").update({ pending_transaction: extractedTx }).eq(ID_COLUMN, from);
+        const details = (() => {
+          const money = `${userCurrency} ${Number(extractedTx.amount || extractedTx.target_amount || 0).toLocaleString()}`;
+          switch (extractedTx.action) {
+            case "create_recurring_expense": return `🔁 *Recurring Expense*\n• ${extractedTx.item}\n• Amount: *${money}*\n• Frequency: *${extractedTx.frequency}*\n• Next payment: *${extractedTx.next_due_date || "next occurrence"}*`;
+            case "create_savings_goal": return `🎯 *Savings Goal*\n• Goal: *${extractedTx.goal_name || extractedTx.item}*\n• Target: *${userCurrency} ${Number(extractedTx.target_amount || extractedTx.amount || 0).toLocaleString()}*`;
+            case "add_savings_contribution": return `💰 *Savings Contribution*\n• Goal: *${extractedTx.goal_name || extractedTx.item}*\n• Add: *${money}*`;
+            case "create_debt": return `🤝 *Debt*\n• Person: *${extractedTx.person_name || "Unknown"}*\n• Amount: *${money}*\n• ${extractedTx.debt_direction === "owed_to_user" ? "They owe you" : "You owe them"}`;
+            case "repay_debt": return `💸 *Debt Repayment*\n• Person: *${extractedTx.person_name || "Unknown"}*\n• Payment: *${money}*`;
+            case "collect_debt": return `💵 *Debt Collection*\n• Person: *${extractedTx.person_name || "Unknown"}*\n• Received: *${money}*`;
+            default: return "";
+          }
+        })();
+        const featurePreview = await getLocalizedMessages(userLang, nickname, userCurrency, websiteUrl, { details });
+        await send(featurePreview.featurePreview);
+        return new NextResponse("OK", { status: 200 });
+      }
+
       if (!mediaUrl) {
         const directMsg = await saveExtractedDirect(ID_COLUMN, from, userProfile, extractedTx, userLang, nickname, userCurrency, websiteUrl);
         await send(directMsg);

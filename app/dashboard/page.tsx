@@ -87,6 +87,37 @@ interface Transaction {
   entry_type?: "ocr" | "text" | "manual";
 }
 
+interface RecurringExpense {
+  id: string;
+  item: string;
+  category: string;
+  amount: number;
+  currency: string;
+  frequency: "daily" | "weekly" | "monthly";
+  next_due_date: string;
+  active: boolean;
+}
+
+interface SavingsGoal {
+  id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  currency: string;
+  target_date?: string | null;
+  active: boolean;
+}
+
+interface Debt {
+  id: string;
+  person_name: string;
+  principal_amount: number;
+  remaining_amount: number;
+  currency: string;
+  direction: "owed_by_user" | "owed_to_user";
+  status: "open" | "settled";
+}
+
 interface SecuritySession {
   id: string;
   session_id: string;
@@ -440,6 +471,9 @@ export default function BrooDashboard() {
   };
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState<string>("USD");
   const [nickname, setNickname] = useState<string>("Bro");
@@ -640,11 +674,13 @@ export default function BrooDashboard() {
     setUserId(session.user.id);
     void syncSecuritySession(session.access_token);
 
-    // Fetch user profile & budget data from Supabase using upsert/maybeSingle safety to avoid 422/PGRST116 errors
+    // Resolve the profile by the authenticated Supabase user id. `users.id` is
+    // the global account identity shared by WhatsApp + Telegram, so the dashboard
+    // must never resolve ownership by email when an auth id is already available.
     const { data: userData } = await supabase
       .from("users")
       .select("*")
-      .eq("email", session.user.email)
+      .eq("id", session.user.id)
       .maybeSingle();
 
     let phoneToUse = userData?.phone_number?.trim() || "";
@@ -767,8 +803,22 @@ export default function BrooDashboard() {
         .order("created_at", { ascending: false });
 
       setTransactions(txData ? [...txData] : []);
+
+      // These tables are optional until the financial-features migration is
+      // applied. A missing table must not break the existing dashboard.
+      const [recurringRes, goalsRes, debtsRes] = await Promise.all([
+        supabase.from("recurring_expenses").select("*").eq("user_id", userData.id).eq("active", true).order("next_due_date", { ascending: true }),
+        supabase.from("savings_goals").select("*").eq("user_id", userData.id).eq("active", true).order("created_at", { ascending: false }),
+        supabase.from("debts").select("*").eq("user_id", userData.id).eq("status", "open").order("created_at", { ascending: false }),
+      ]);
+      setRecurringExpenses(recurringRes.data ? [...recurringRes.data] : []);
+      setSavingsGoals(goalsRes.data ? [...goalsRes.data] : []);
+      setDebts(debtsRes.data ? [...debtsRes.data] : []);
     } else {
       setTransactions([]);
+      setRecurringExpenses([]);
+      setSavingsGoals([]);
+      setDebts([]);
     }
 
     setLoading(false);
@@ -1610,6 +1660,59 @@ export default function BrooDashboard() {
   [rangeFilteredTransactions]);
 
   const accountBalance = totalIncome - totalExpense;
+
+  // Lifetime liquid position is intentionally separate from the selected
+  // dashboard date range. Net worth must not change just because the user
+  // filters the overview to one week or one month.
+  const lifetimeCashBalance = useMemo(
+    () => transactions.reduce((sum, t) => sum + (t.type === "income" ? Number(t.amount || 0) : -Number(t.amount || 0)), 0),
+    [transactions]
+  );
+
+  const totalReceivable = useMemo(
+    () => debts.filter(d => d.direction === "owed_to_user").reduce((sum, d) => sum + Number(d.remaining_amount || 0), 0),
+    [debts]
+  );
+  const totalPayable = useMemo(
+    () => debts.filter(d => d.direction === "owed_by_user").reduce((sum, d) => sum + Number(d.remaining_amount || 0), 0),
+    [debts]
+  );
+  const totalSavingsAssets = useMemo(
+    () => savingsGoals.reduce((sum, g) => sum + Number(g.current_amount || 0), 0),
+    [savingsGoals]
+  );
+  const netWorth = lifetimeCashBalance + totalSavingsAssets + totalReceivable - totalPayable;
+
+  const currentMonthHealth = useMemo(() => {
+    const income = transactions.filter(t => t.type === "income" && !["Starting Balance", "Debt/Loans"].includes(t.category || "") && new Date(t.created_at).getMonth() === now.getMonth() && new Date(t.created_at).getFullYear() === now.getFullYear()).reduce((a,t)=>a+Number(t.amount||0),0);
+    const expense = transactions.filter(t => t.type === "expense" && t.category !== "Debt/Loans" && new Date(t.created_at).getMonth() === now.getMonth() && new Date(t.created_at).getFullYear() === now.getFullYear()).reduce((a,t)=>a+Number(t.amount||0),0);
+    const saving = transactions.filter(t => t.type === "expense" && t.category === "Savings/Investments" && new Date(t.created_at).getMonth() === now.getMonth() && new Date(t.created_at).getFullYear() === now.getFullYear()).reduce((a,t)=>a+Number(t.amount||0),0);
+    const savingsRate = income > 0 ? (saving / income) * 100 : 0;
+    const budgetUse = monthlyBudget > 0 ? (expense / monthlyBudget) * 100 : 0;
+    const debtLoad = income > 0 ? (totalPayable / income) * 100 : (totalPayable > 0 ? 100 : 0);
+    let score = 50;
+    if (income > 0) score += Math.max(-20, Math.min(20, savingsRate));
+    if (monthlyBudget > 0) score += budgetUse <= 80 ? 15 : budgetUse <= 100 ? 0 : -20;
+    if (debtLoad <= 20) score += 10; else if (debtLoad > 50) score -= 15;
+    if (netWorth >= 0) score += 5; else score -= 15;
+    const normalized = Math.max(0, Math.min(100, Math.round(score)));
+    const label = normalized >= 70 ? "Good" : normalized >= 45 ? "Needs Attention" : "Critical";
+    return { score: normalized, label, income, expense, savingsRate, budgetUse, saving };
+  }, [transactions, savingsGoals, monthlyBudget, totalPayable, netWorth, now]);
+
+  const cashFlowForecast = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    const recent = transactions.filter(t => new Date(t.created_at) >= cutoff);
+    const income90 = recent.filter(t => t.type === "income" && !["Starting Balance", "Debt/Loans"].includes(t.category || "")).reduce((a,t)=>a+Number(t.amount||0),0);
+    const recurringNames = new Set(recurringExpenses.map(r => r.item.trim().toLowerCase()));
+    const expense90 = recent.filter(t => t.type === "expense" && !["Savings/Investments", "Debt/Loans"].includes(t.category || "") && !recurringNames.has((t.item || "").trim().toLowerCase())).reduce((a,t)=>a+Number(t.amount||0),0);
+    const expectedIncome = income90 / 3;
+    const expectedExpenses = expense90 / 3;
+    const in30 = new Date(); in30.setDate(in30.getDate() + 30);
+    const expectedPayments = recurringExpenses.filter(r => r.active && new Date(r.next_due_date) <= in30).reduce((a,r)=>a+Number(r.amount||0),0);
+    return { expectedIncome, expectedExpenses, expectedPayments, expectedRemaining: lifetimeCashBalance + expectedIncome - expectedExpenses - expectedPayments };
+  }, [transactions, recurringExpenses, lifetimeCashBalance]);
 
   // Independent of the "From date / To date" summary filter above — tracks
   // whichever month is selected via budgetViewDate (defaults to the current
@@ -2617,6 +2720,68 @@ export default function BrooDashboard() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Financial planning intelligence: no data-entry forms here.
+                The bot collects the underlying data through WhatsApp/Telegram;
+                the dashboard only summarizes and explains it. */}
+            <div id="financial-planning" className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.25)]`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><Wallet size={17} className={accent.text400}/> Net Worth</h3>
+                  <span className={`text-[10px] font-bold ${netWorth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{netWorth >= 0 ? "Positive" : "Negative"}</span>
+                </div>
+                <div className={`text-2xl font-black ${T.textHead}`}>{currency} {netWorth.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                <div className={`mt-3 text-[10px] ${T.textMuted} space-y-1`}>
+                  <div className="flex justify-between"><span>Liquid cash</span><span>{currency} {lifetimeCashBalance.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Savings goals</span><span>+{currency} {totalSavingsAssets.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Money owed to you</span><span>+{currency} {totalReceivable.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Money you owe</span><span>-{currency} {totalPayable.toLocaleString()}</span></div>
+                </div>
+              </div>
+
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.25)]`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><ShieldCheck size={17} className={accent.text400}/> Monthly Financial Health</h3>
+                  <span className={`text-xs font-black ${currentMonthHealth.score >= 70 ? "text-emerald-400" : currentMonthHealth.score >= 45 ? "text-amber-400" : "text-rose-400"}`}>{currentMonthHealth.label}</span>
+                </div>
+                <div className={`text-3xl font-black ${T.textHead}`}>{currentMonthHealth.score}<span className={`text-sm ${T.textMuted}`}>/100</span></div>
+                <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div className={`h-full rounded-full ${currentMonthHealth.score >= 70 ? "bg-emerald-400" : currentMonthHealth.score >= 45 ? "bg-amber-400" : "bg-rose-400"}`} style={{width:`${currentMonthHealth.score}%`}}/></div>
+                <div className={`grid grid-cols-2 gap-2 mt-4 text-[10px] ${T.textMuted}`}>
+                  <span>Spending: {currency} {currentMonthHealth.expense.toLocaleString()}</span>
+                  <span>Saving rate: {currentMonthHealth.savingsRate.toFixed(0)}%</span>
+                  <span>Budget used: {monthlyBudget ? `${currentMonthHealth.budgetUse.toFixed(0)}%` : "Not set"}</span>
+                  <span>Debt: {currency} {totalPayable.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.25)]`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><TrendingUp size={17} className={accent.text400}/> Next 30 Days</h3>
+                  <span className={`text-[10px] ${T.textMuted}`}>Forecast</span>
+                </div>
+                <div className={`text-2xl font-black ${T.textHead}`}>{currency} {cashFlowForecast.expectedRemaining.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                <div className={`mt-3 space-y-1 text-[10px] ${T.textMuted}`}>
+                  <div className="flex justify-between"><span>Expected income</span><span>+{currency} {cashFlowForecast.expectedIncome.toLocaleString(undefined,{maximumFractionDigits:0})}</span></div>
+                  <div className="flex justify-between"><span>Expected expenses</span><span>-{currency} {cashFlowForecast.expectedExpenses.toLocaleString(undefined,{maximumFractionDigits:0})}</span></div>
+                  <div className="flex justify-between"><span>Upcoming recurring payments</span><span>-{currency} {cashFlowForecast.expectedPayments.toLocaleString(undefined,{maximumFractionDigits:0})}</span></div>
+                </div>
+              </div>
+
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl lg:col-span-2`}>
+                <div className="flex items-center justify-between mb-4"><h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><Target size={17} className={accent.text400}/> Savings Goals</h3><span className={`text-[10px] ${T.textMuted}`}>{savingsGoals.length} active</span></div>
+                {savingsGoals.length ? <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{savingsGoals.slice(0,4).map(g=>{const pct=Math.min(100,(Number(g.current_amount||0)/Math.max(1,Number(g.target_amount||0)))*100);return <div key={g.id} className={`${T.blackBg30} border ${T.border3} rounded-2xl p-3`}><div className="flex justify-between gap-3"><span className={`text-xs font-bold ${T.textHead}`}>{g.name}</span><span className={`text-[10px] ${accent.text400} font-black`}>{pct.toFixed(0)}%</span></div><div className="h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden"><div className={`h-full ${accent.bg500} rounded-full`} style={{width:`${pct}%`}}/></div><div className={`mt-2 text-[10px] ${T.textMuted}`}>{currency} {Number(g.current_amount||0).toLocaleString()} / {currency} {Number(g.target_amount||0).toLocaleString()}</div></div>})}</div> : <div className={`text-xs ${T.textMuted}`}>No savings goals yet. Create one by messaging the bot, e.g. “I want to save 300000 for a laptop”.</div>}
+              </div>
+
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl`}>
+                <div className="flex items-center justify-between mb-4"><h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><Repeat size={17} className={accent.text400}/> Upcoming Payments</h3><span className={`text-[10px] ${T.textMuted}`}>{recurringExpenses.length} active</span></div>
+                {recurringExpenses.length ? <div className="space-y-2">{recurringExpenses.slice(0,5).map(r=><div key={r.id} className="flex items-center justify-between gap-3"><div><div className={`text-xs font-bold ${T.textHead}`}>{r.item}</div><div className={`text-[10px] ${T.textMuted}`}>{r.frequency} · {r.next_due_date}</div></div><span className={`text-xs font-black ${T.textHead}`}>{currency} {Number(r.amount).toLocaleString()}</span></div>)}</div> : <div className={`text-xs ${T.textMuted}`}>No recurring payments yet. Add one through WhatsApp or Telegram.</div>}
+              </div>
+
+              <div className={`${T.cardBg} border ${T.border1} p-5 rounded-[28px] backdrop-blur-2xl lg:col-span-3`}>
+                <div className="flex items-center justify-between mb-4"><h3 className={`font-extrabold text-sm ${T.textHead} flex items-center gap-2`}><Wallet size={17} className={accent.text400}/> Debt Overview</h3><span className={`text-[10px] ${T.textMuted}`}>{debts.length} open</span></div>
+                {debts.length ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">{debts.slice(0,6).map(d=><div key={d.id} className={`${T.blackBg30} border ${T.border3} rounded-2xl p-3 flex justify-between items-center`}><div><div className={`text-xs font-bold ${T.textHead}`}>{d.person_name}</div><div className={`text-[10px] ${d.direction === "owed_to_user" ? "text-emerald-400" : "text-rose-400"}`}>{d.direction === "owed_to_user" ? "Owes you" : "You owe"}</div></div><div className={`text-sm font-black ${T.textHead}`}>{currency} {Number(d.remaining_amount).toLocaleString()}</div></div>)}</div> : <div className={`text-xs ${T.textMuted}`}>No open debts. Borrowing, lending and repayments are managed through the bot with confirmation.</div>}
+              </div>
             </div>
 
             <div

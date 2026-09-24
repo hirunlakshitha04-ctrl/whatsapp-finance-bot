@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
     // 1. Financial data
     await supabaseAdmin.from("transactions").delete().eq("user_id", user.id);
     await supabaseAdmin.from("budgets").delete().eq("user_id", user.id);
+    await supabaseAdmin.from("recurring_expenses").delete().eq("user_id", user.id);
+    await supabaseAdmin.from("savings_goals").delete().eq("user_id", user.id);
+    await supabaseAdmin.from("debts").delete().eq("user_id", user.id);
 
     // 2. Bot session state & usage counters — keyed by phone_number
     //    (WhatsApp) and/or telegram_chat_id, not user_id, so both need

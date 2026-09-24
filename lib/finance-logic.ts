@@ -18,13 +18,31 @@ export type UserIdColumn = "phone_number" | "telegram_chat_id";
 
 // ---------------------- Types ----------------------
 export interface ExtractedData {
-  action: "log_transaction" | "set_budget" | "set_starting_balance";
+  action:
+    | "log_transaction"
+    | "set_budget"
+    | "set_starting_balance"
+    | "create_recurring_expense"
+    | "create_savings_goal"
+    | "add_savings_contribution"
+    | "create_debt"
+    | "repay_debt"
+    | "collect_debt";
   type: "expense" | "income" | null;
   item: string;
   category: string;
   amount: number;
   currency: string;
   confirmation_message?: string;
+  frequency?: "daily" | "weekly" | "monthly" | null;
+  next_due_date?: string | null;
+  day_of_month?: number | null;
+  day_of_week?: number | null;
+  goal_name?: string | null;
+  target_amount?: number | null;
+  target_date?: string | null;
+  person_name?: string | null;
+  debt_direction?: "owed_by_user" | "owed_to_user" | null;
 }
 
 export interface LocalizedMessages {
@@ -48,6 +66,12 @@ export interface LocalizedMessages {
   dailyOcrLimitReached: string;
   dailyVoiceLimitReached: string;
   voiceLangMismatch: string;
+  featurePreview: string;
+  featureEdit: string;
+  missingRecurringFrequency: string;
+  debtNotFound: string;
+  debtOverpayment: string;
+  savedFeature: string;
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -63,7 +87,7 @@ export async function getLocalizedMessages(
   nickname: string,
   currency: string,
   websiteUrl: string='https://brofinai.com', // මෙන්න මෙහෙම දාන්න
-  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string } = {}
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string; details?: string } = {}
 ): Promise<LocalizedMessages> {
   const targetLang = (lang || "English").trim();
   const key = targetLang.toLowerCase();
@@ -89,6 +113,12 @@ export async function getLocalizedMessages(
     dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\nHey {NICKNAME}, upgrade to BROO CORE (30 scans/mo) or BROO MAX (unlimited) for more scanning power:\n👉 {WEBSITE}/#pricing`,
     dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\nHey {NICKNAME}, upgrade to BROO MAX for unlimited voice tracking:\n👉 {WEBSITE}/#pricing`,
     voiceLangMismatch: `🎤 *Language Not Recognized*\n\nHey {NICKNAME}, I couldn't clearly understand that voice note. Please speak in *{LANGUAGE}* or *English* so I can process it accurately. 🙏`,
+    featurePreview: `🔎 *Please confirm this*\n\n{DETAILS}\n\nReply *Confirm* to save it.\nReply *Edit* and send the corrected details.`,
+    featureEdit: `✏️ No problem, {NICKNAME}. Send the corrected details and I'll check them again before saving.`,
+    missingRecurringFrequency: `🔁 I found a recurring payment, but I need the frequency first.\n\nPlease say *daily*, *weekly*, or *monthly*.\nExample: *Rent 50000 every month*`,
+    debtNotFound: `⚠️ I couldn't find an open debt for *{PERSON}*. Please send the person's name and amount again, or reply *Edit*.`,
+    debtOverpayment: `⚠️ The repayment amount is greater than the remaining debt for *{PERSON}*. Please send the correct amount, or reply *Edit*.`,
+    savedFeature: `✅ *Saved!*\n\n{DETAILS}`,
   };
 
   if (key === "singlish") {
@@ -113,6 +143,12 @@ export async function getLocalizedMessages(
       dailyOcrLimitReached: `⚠️ *Daily Receipt Scan Limit Reached (1/1 Scan)*\n\n{NICKNAME}, තව Scans ලබාගැනීමට **BROO CORE** (මාසෙට 30) හෝ **BROO MAX** (Unlimited) එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       dailyVoiceLimitReached: `⚠️ *Daily Voice Limit Reached (5/5 Notes)*\n\n{NICKNAME}, Unlimited Voice Tracking සඳහා **BROO MAX** එකට Upgrade වෙන්න:\n👉 {WEBSITE}/#pricing`,
       voiceLangMismatch: `🎤 *Language Not Recognized*\n\n{NICKNAME}, ඔබේ Voice Note එක මට හරියටම තේරෙන්නෙ නෑ. කරුණාකර *{LANGUAGE}* හෝ *English* භාෂාවෙන් Clear ලෙස කතා කරන්න. 🙏`,
+      featurePreview: `🔎 *මේක Save කරන්න කලින් Confirm කරන්න*\n\n{DETAILS}\n\nSave කරන්න *Confirm* කියලා Reply කරන්න.\nවෙනස් කරන්න *Edit* කියලා Reply කරලා නිවැරදි විස්තර එවන්න.`,
+      featureEdit: `✏️ හරි {NICKNAME}. Correct details ටික ආයෙත් එවන්න. Save කරන්න කලින් මම ඒක ආයෙත් check කරන්නම්.`,
+      missingRecurringFrequency: `🔁 Recurring payment එක හඳුනාගත්තා, හැබැයි frequency එක ඕන.\n\n*daily*, *weekly*, හෝ *monthly* කියලා කියන්න.\nඋදාහරණ: *Rent 50000 every month*`,
+      debtNotFound: `⚠️ *{PERSON}* ගේ open debt එකක් හොයාගන්න බැරි වුණා. Personගේ නම සහ amount එක ආයෙත් එවන්න, නැත්නම් *Edit* කරන්න.`,
+      debtOverpayment: `⚠️ *{PERSON}* ට තියෙන remaining debt එකට වඩා repayment amount එක වැඩියි. Correct amount එක එවන්න, නැත්නම් *Edit* කරන්න.`,
+      savedFeature: `✅ *Save උනා!*\n\n{DETAILS}`,
     };
     return fillTemplate(SINGLISH_TEMPLATE, nickname, currency, websiteUrl, contextData);
   }
@@ -131,7 +167,7 @@ export async function getLocalizedMessages(
 Rules:
 - Translate ONLY human-readable sentences into ${targetLang}.
 - CRITICAL: KEEP THE WORDS "Confirm" AND "Edit" IN ENGLISH IN THE PREVIEW INSTRUCTION (e.g., "Reply Confirm to save / Reply Edit to change"). DO NOT TRANSLATE "Confirm" AND "Edit" COMMAND WORDS!
-- NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}, {LANGUAGE}.
+- NEVER translate or remove tokens inside curly braces: {NICKNAME}, {CURRENCY}, {AMOUNT}, {ITEM}, {WEBSITE}, {TYPETAG}, {CATEGORY}, {LANGUAGE}, {DETAILS}.
 - Keep all formatting intact: *, _, |, ---, \\n, and emojis.
 - Translate "typeIncome" and "typeExpense" (keep emoji prefix).
 - Return pure JSON matching the template keys.
@@ -163,7 +199,7 @@ function fillTemplate(
   nickname: string,
   currency: string,
   websiteUrl: string,
-  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string }
+  contextData: { amount?: string; item?: string; isIncome?: boolean; typeTag?: string; category?: string; language?: string; details?: string }
 ): LocalizedMessages {
   const replacements: [string, string][] = [
     ["{NICKNAME}", nickname],
@@ -174,6 +210,7 @@ function fillTemplate(
     ["{TYPETAG}", contextData.typeTag || ""],
     ["{CATEGORY}", contextData.category || ""],
     ["{LANGUAGE}", contextData.language || ""],
+    ["{DETAILS}", contextData.details || ""],
   ];
 
   const fill = (str: string) => replacements.reduce((acc, [token, value]) => acc.split(token).join(value), str);
@@ -199,6 +236,12 @@ function fillTemplate(
     dailyOcrLimitReached: fill(template.dailyOcrLimitReached),
     dailyVoiceLimitReached: fill(template.dailyVoiceLimitReached),
     voiceLangMismatch: fill(template.voiceLangMismatch),
+    featurePreview: fill(template.featurePreview),
+    featureEdit: fill(template.featureEdit),
+    missingRecurringFrequency: fill(template.missingRecurringFrequency),
+    debtNotFound: fill(template.debtNotFound),
+    debtOverpayment: fill(template.debtOverpayment),
+    savedFeature: fill(template.savedFeature),
   };
 }
 
@@ -433,16 +476,39 @@ INSTRUCTIONS:
   - Investment Returns (interest, dividends, profit from investments)
   - Gifts & Support Received (money gifted or sent by someone)
   - Other Income (anything that doesn't clearly fit the above)
-- Identify action: 'log_transaction', 'set_budget', or 'set_starting_balance'.
+- Identify exactly ONE action:
+  * log_transaction = ordinary income/expense
+  * set_budget = budget command
+  * set_starting_balance = onboarding only
+  * create_recurring_expense = a repeating payment such as rent, salary deduction, subscription, bill, etc.
+  * create_savings_goal = user creates a target such as "save 300000 for a laptop"
+  * add_savings_contribution = user adds money to an existing savings goal
+  * create_debt = user borrows money (owes someone) OR lends money (someone owes the user)
+  * repay_debt = user pays back someone they owe
+  * collect_debt = someone pays back money they owe the user
+- NEVER guess a recurring frequency. Only set frequency when the user explicitly says daily, weekly, or monthly (including phrases like every day/week/month, per week/month).
+- For recurring expenses, preserve the exact item wording, and set next_due_date to the next occurrence when it can be determined from the message; otherwise use null. day_of_month/day_of_week may be used when explicitly stated.
+- For savings goals, goal_name must be the user's target name (e.g. laptop), target_amount is the requested goal amount, and for a contribution goal_name identifies the existing goal.
+- For debts, person_name is the other person's name. debt_direction = owed_by_user when the user borrowed money / owes that person; owed_to_user when that person owes the user.
+- For repay_debt/collect_debt, do NOT create a new debt; identify the existing person and amount being settled.
 
 Return pure JSON:
 {
-  "action": "log_transaction" | "set_budget" | "set_starting_balance",
+  "action": "log_transaction" | "set_budget" | "set_starting_balance" | "create_recurring_expense" | "create_savings_goal" | "add_savings_contribution" | "create_debt" | "repay_debt" | "collect_debt",
   "type": "expense" | "income" | null,
   "item": "description string EXACTLY as the user typed it, no translation",
-  "category": "Strictly choose ONE from the allowed list for the detected type above",
+  "category": "Strictly choose ONE from the allowed list for the detected type above, or Debt/Loans for debt repayment/collection",
   "amount": number,
-  "currency": "${nativeCurrency}"
+  "currency": "${nativeCurrency}",
+  "frequency": "daily" | "weekly" | "monthly" | null,
+  "next_due_date": "YYYY-MM-DD" | null,
+  "day_of_month": number | null,
+  "day_of_week": number | null,
+  "goal_name": "string" | null,
+  "target_amount": number | null,
+  "target_date": "YYYY-MM-DD" | null,
+  "person_name": "string" | null,
+  "debt_direction": "owed_by_user" | "owed_to_user" | null
 }`,
         },
         { role: "user", content: text },
@@ -521,6 +587,269 @@ Return pure JSON:
 // DB HELPERS — channel-agnostic via idColumn/idValue
 // (idColumn is 'phone_number' for WhatsApp, 'telegram_chat_id' for Telegram)
 // =====================================================================
+
+
+// =====================================================================
+// FEATURE HELPERS — recurring expenses, savings goals and debts
+// These are intentionally saved only through the explicit Confirm flow.
+// =====================================================================
+
+function localDateString(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function nextDateForFrequency(
+  frequency: "daily" | "weekly" | "monthly",
+  base = new Date(),
+  dayOfMonth?: number | null,
+  dayOfWeek?: number | null
+): string {
+  const d = new Date(base);
+  if (frequency === "daily") {
+    d.setDate(d.getDate() + 1);
+  } else if (frequency === "weekly") {
+    if (dayOfWeek !== null && dayOfWeek !== undefined) {
+      const delta = ((dayOfWeek - d.getDay()) + 7) % 7 || 7;
+      d.setDate(d.getDate() + delta);
+    } else {
+      d.setDate(d.getDate() + 7);
+    }
+  } else {
+    if (dayOfMonth && dayOfMonth >= 1 && dayOfMonth <= 31) {
+      const currentDay = d.getDate();
+      if (currentDay < dayOfMonth) {
+        d.setDate(1);
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(dayOfMonth, lastDay));
+      } else {
+        d.setDate(1);
+        d.setMonth(d.getMonth() + 1);
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(dayOfMonth, lastDay));
+      }
+    } else {
+      d.setMonth(d.getMonth() + 1);
+    }
+  }
+  return localDateString(d);
+}
+
+function featureDetails(tx: ExtractedData, currency: string): string {
+  const money = `${currency} ${Number(tx.amount || tx.target_amount || 0).toLocaleString()}`;
+  switch (tx.action) {
+    case "create_recurring_expense":
+      return `🔁 *Recurring Expense*\n• ${tx.item}\n• Amount: *${money}*\n• Frequency: *${tx.frequency || "not set"}*\n• Next payment: *${tx.next_due_date || "next occurrence"}*`;
+    case "create_savings_goal":
+      return `🎯 *Savings Goal*\n• Goal: *${tx.goal_name || tx.item}*\n• Target: *${currency} ${Number(tx.target_amount || tx.amount || 0).toLocaleString()}*`;
+    case "add_savings_contribution":
+      return `💰 *Savings Contribution*\n• Goal: *${tx.goal_name || tx.item}*\n• Add: *${money}*`;
+    case "create_debt":
+      return `🤝 *Debt*\n• Person: *${tx.person_name || "Unknown"}*\n• Amount: *${money}*\n• ${tx.debt_direction === "owed_to_user" ? "They owe you" : "You owe them"}`;
+    case "repay_debt":
+      return `💸 *Debt Repayment*\n• Person: *${tx.person_name || "Unknown"}*\n• Payment: *${money}*`;
+    case "collect_debt":
+      return `💵 *Debt Collection*\n• Person: *${tx.person_name || "Unknown"}*\n• Received: *${money}*`;
+    default:
+      return "";
+  }
+}
+
+function isFeatureAction(tx: ExtractedData | null): boolean {
+  return !!tx && [
+    "create_recurring_expense",
+    "create_savings_goal",
+    "add_savings_contribution",
+    "create_debt",
+    "repay_debt",
+    "collect_debt",
+  ].includes(tx.action);
+}
+
+export async function prepareFeatureExtraction(tx: ExtractedData): Promise<ExtractedData> {
+  const next = { ...tx };
+  if (next.action === "create_recurring_expense" && next.frequency && !next.next_due_date) {
+    next.next_due_date = nextDateForFrequency(next.frequency, new Date(), next.day_of_month, next.day_of_week);
+  }
+  return next;
+}
+
+export async function saveConfirmedFeature(
+  idColumn: UserIdColumn,
+  idValue: string,
+  userProfile: any,
+  tx: ExtractedData,
+  userLang: string,
+  nickname: string,
+  currency: string,
+  websiteUrl: string
+): Promise<string> {
+  const msgs = await getLocalizedMessages(userLang, nickname, currency, websiteUrl);
+  const details = featureDetails(tx, currency);
+  try {
+    if (tx.action === "create_recurring_expense") {
+      if (!tx.frequency) return msgs.missingRecurringFrequency;
+      const nextDue = tx.next_due_date || nextDateForFrequency(tx.frequency, new Date(), tx.day_of_month, tx.day_of_week);
+      const { error } = await supabaseAdmin.from("recurring_expenses").insert({
+        user_id: userProfile.id,
+        [idColumn]: idValue,
+        item: tx.item,
+        category: tx.category || "Miscellaneous (Unexpected)",
+        amount: tx.amount,
+        currency: tx.currency || currency,
+        frequency: tx.frequency,
+        next_due_date: nextDue,
+        day_of_month: tx.day_of_month || null,
+        day_of_week: tx.day_of_week ?? null,
+        active: true,
+      });
+      if (error) throw error;
+      return msgs.savedFeature.replace("{DETAILS}", details);
+    }
+
+    if (tx.action === "create_savings_goal") {
+      const target = Number(tx.target_amount || tx.amount || 0);
+      if (!target || target <= 0 || !tx.goal_name) throw new Error("Invalid savings goal");
+      const { data: existingGoal, error: existingErr } = await supabaseAdmin
+        .from("savings_goals")
+        .select("id")
+        .eq("user_id", userProfile.id)
+        .eq("active", true)
+        .ilike("name", tx.goal_name.trim())
+        .limit(1)
+        .maybeSingle();
+      if (existingErr) throw existingErr;
+      if (existingGoal) {
+        return `⚠️ You already have an active savings goal named *${tx.goal_name}*. Reply *Edit* and use a different goal name, or add money to the existing goal.`;
+      }
+      const { error } = await supabaseAdmin.from("savings_goals").insert({
+        user_id: userProfile.id,
+        name: tx.goal_name.trim(),
+        target_amount: target,
+        current_amount: 0,
+        currency: tx.currency || currency,
+        target_date: tx.target_date || null,
+        active: true,
+      });
+      if (error) throw error;
+      return msgs.savedFeature.replace("{DETAILS}", details);
+    }
+
+    if (tx.action === "add_savings_contribution") {
+      const { data: goal, error: goalErr } = await supabaseAdmin
+        .from("savings_goals")
+        .select("*")
+        .eq("user_id", userProfile.id)
+        .eq("active", true)
+        .ilike("name", tx.goal_name || tx.item || "")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (goalErr) throw goalErr;
+      if (!goal) return `⚠️ I couldn't find an active savings goal named *${tx.goal_name || tx.item}*. Reply *Edit* and send the goal name again.`;
+      const newAmount = Number(goal.current_amount || 0) + Number(tx.amount || 0);
+      const { error: updateErr } = await supabaseAdmin.from("savings_goals").update({ current_amount: newAmount, updated_at: new Date().toISOString() }).eq("id", goal.id);
+      if (updateErr) throw updateErr;
+      // Moving cash into a savings goal is a transfer: it reduces liquid cash
+      // but is added back to net worth through the goal asset balance.
+      const { error: txErr } = await supabaseAdmin.from("transactions").insert({
+        [idColumn]: idValue,
+        user_id: userProfile.id,
+        type: "expense",
+        item: `Savings: ${goal.name}`,
+        category: "Savings/Investments",
+        amount: tx.amount,
+        currency: tx.currency || currency,
+      });
+      if (txErr) throw txErr;
+      return msgs.savedFeature.replace("{DETAILS}", `${details}\n• New balance: *${currency} ${newAmount.toLocaleString()}*`);
+    }
+
+    if (tx.action === "create_debt") {
+      const principal = Number(tx.amount || 0);
+      if (!principal || principal <= 0 || !tx.person_name || !tx.debt_direction) throw new Error("Invalid debt");
+      const { error: debtErr } = await supabaseAdmin.from("debts").insert({
+        user_id: userProfile.id,
+        person_name: tx.person_name.trim(),
+        principal_amount: principal,
+        remaining_amount: principal,
+        currency: tx.currency || currency,
+        direction: tx.debt_direction,
+        status: "open",
+      });
+      if (debtErr) throw debtErr;
+      // Borrowed money increases cash; money lent out decreases cash.
+      const txType = tx.debt_direction === "owed_by_user" ? "income" : "expense";
+      const { error: txErr } = await supabaseAdmin.from("transactions").insert({
+        [idColumn]: idValue,
+        user_id: userProfile.id,
+        type: txType,
+        item: tx.debt_direction === "owed_by_user" ? `Borrowed from ${tx.person_name}` : `Lent to ${tx.person_name}`,
+        category: "Debt/Loans",
+        amount: principal,
+        currency: tx.currency || currency,
+      });
+      if (txErr) throw txErr;
+      return msgs.savedFeature.replace("{DETAILS}", details);
+    }
+
+    if (tx.action === "repay_debt" || tx.action === "collect_debt") {
+      if (!tx.person_name || !tx.amount || tx.amount <= 0) throw new Error("Invalid repayment");
+      const direction = tx.action === "repay_debt" ? "owed_by_user" : "owed_to_user";
+      const { data: debtRows, error: debtErr } = await supabaseAdmin
+        .from("debts")
+        .select("*")
+        .eq("user_id", userProfile.id)
+        .eq("direction", direction)
+        .eq("status", "open")
+        .ilike("person_name", tx.person_name.trim())
+        .order("created_at", { ascending: true });
+      if (debtErr) throw debtErr;
+      if (!debtRows || debtRows.length === 0) return msgs.debtNotFound.replace("{PERSON}", tx.person_name);
+      const totalRemaining = debtRows.reduce((sum: number, d: any) => sum + Number(d.remaining_amount || 0), 0);
+      if (Number(tx.amount) > totalRemaining) return msgs.debtOverpayment.replace("{PERSON}", tx.person_name);
+
+      // Apply one repayment across every open debt for this person, oldest
+      // first. This prevents multiple loans to the same person from becoming
+      // disconnected balances.
+      let paymentLeft = Number(tx.amount);
+      let finalRemaining = totalRemaining;
+      for (const debt of debtRows) {
+        if (paymentLeft <= 0) break;
+        const rowRemaining = Number(debt.remaining_amount || 0);
+        const applied = Math.min(rowRemaining, paymentLeft);
+        const rowNewRemaining = rowRemaining - applied;
+        paymentLeft -= applied;
+        finalRemaining -= applied;
+        const { error: updateErr } = await supabaseAdmin.from("debts").update({
+          remaining_amount: rowNewRemaining,
+          status: rowNewRemaining === 0 ? "settled" : "open",
+          updated_at: new Date().toISOString(),
+        }).eq("id", debt.id);
+        if (updateErr) throw updateErr;
+      }
+      const txType = tx.action === "repay_debt" ? "expense" : "income";
+      const { error: txErr } = await supabaseAdmin.from("transactions").insert({
+        [idColumn]: idValue,
+        user_id: userProfile.id,
+        type: txType,
+        item: tx.action === "repay_debt" ? `Debt repayment to ${tx.person_name}` : `Debt received from ${tx.person_name}`,
+        category: "Debt/Loans",
+        amount: tx.amount,
+        currency: tx.currency || currency,
+      });
+      if (txErr) throw txErr;
+      return msgs.savedFeature.replace("{DETAILS}", `${details}\n• Remaining: *${currency} ${finalRemaining.toLocaleString()}*`);
+    }
+
+    throw new Error("Unsupported feature action");
+  } catch (err) {
+    console.error("❌ Feature save error:", err);
+    return msgs.dbError;
+  }
+}
 
 // Save Extracted Transaction/Budget Directly (used for TEXT input — no Confirm/Edit step)
 export async function saveExtractedDirect(
@@ -609,7 +938,23 @@ export async function handleConfirmTransaction(
     }
 
     const tx = sanitizeExtractedCategory(session.pending_transaction as ExtractedData);
-    const formattedAmount = Number(tx.amount).toLocaleString();
+    const formattedAmount = Number(tx.amount || tx.target_amount || 0).toLocaleString();
+
+    // Feature records (recurring payments, savings goals, debts) are never
+    // auto-saved. They reach this function only after the user explicitly
+    // replied with Confirm.
+    if ([
+      "create_recurring_expense",
+      "create_savings_goal",
+      "add_savings_contribution",
+      "create_debt",
+      "repay_debt",
+      "collect_debt",
+    ].includes(tx.action)) {
+      const featureResult = await saveConfirmedFeature(idColumn, idValue, userProfile, tx, userLang, nickname, currency, websiteUrl);
+      await supabaseAdmin.from("user_sessions").update({ pending_transaction: null, step: "ACTIVE" }).eq(idColumn, idValue);
+      return featureResult;
+    }
     const isIncome = tx.type === "income";
 
     const typeTag = isIncome ? emptyMsgs.typeIncome : emptyMsgs.typeExpense;
