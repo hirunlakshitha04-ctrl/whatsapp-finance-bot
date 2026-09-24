@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { normalizePhoneForCountry } from "@/lib/regional-profile";
 
 // ---------------------------------------------------------------------------
 // CONNECT / RECONNECT / CHANGE-NUMBER endpoint (called from the dashboard)
@@ -31,15 +32,8 @@ type Channel = "whatsapp" | "telegram";
 // Same normalisation the register page applies, kept in sync deliberately:
 // a leading 0 is treated as a Sri Lankan local number, anything else is
 // assumed to already carry its country code.
-function normalizePhone(raw: string): string {
-  let cleaned = raw.trim().replace(/[^0-9+]/g, "");
-  if (!cleaned) return "";
-  if (cleaned.startsWith("0")) {
-    cleaned = "+94" + cleaned.slice(1);
-  } else if (!cleaned.startsWith("+")) {
-    cleaned = `+${cleaned}`;
-  }
-  return cleaned;
+function normalizePhone(raw: string, country?: string | null): string {
+  return normalizePhoneForCountry(raw, country);
 }
 
 function isPlausiblePhone(phone: string): boolean {
@@ -253,6 +247,7 @@ export async function POST(req: Request) {
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     updates.link_token = linkToken;
+    updates.link_token_expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const { error: updateError } = await supabaseAdmin
       .from("users")

@@ -31,7 +31,7 @@ export default function LoginPage() {
       // Input එක Email එකක් නොවේ නම් (Phone Number එකක් නම්)
       if (!cleanInput.includes("@")) {
         const purePhone = cleanInput.replace(/[^0-9+]/g, "");
-        const formattedPhone = purePhone.startsWith("+") ? purePhone : `+94${purePhone.replace(/^0/, "")}`;
+        const formattedPhone = purePhone.startsWith("+") ? purePhone : `+${purePhone.replace(/^0+/, "")}`;
 
         // 🔒 Uses the get_email_by_phone RPC (SECURITY DEFINER) instead of
         // a direct table select — this only ever returns an email, never

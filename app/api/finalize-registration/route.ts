@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthenticatedUser } from "@/lib/auth-server";
+import { getRegionalProfile } from "@/lib/regional-profile";
 
 // ---------------------------------------------------------------------------
 // FINALIZE REGISTRATION — writes the public.users profile row and, if that
@@ -29,11 +31,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
+    const authenticatedUser = await getAuthenticatedUser(req);
     userId = body?.userId;
     isNewSignup = !!body?.isNewSignup;
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    if (!authenticatedUser || !userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (authenticatedUser.id !== userId) {
+      return NextResponse.json({ error: "User mismatch" }, { status: 403 });
     }
 
     const {
@@ -51,6 +57,11 @@ export async function POST(req: NextRequest) {
       channel,
     } = body || {};
 
+    const regional = getRegionalProfile(country, { currency, language });
+    const resolvedCurrency = regional.currency;
+    const resolvedLanguage = regional.language;
+    const resolvedTimezone = timezone || "UTC";
+
     // Same "reuse a pending, not-yet-linked token" protection the register
     // page used to do client-side — kept here so an in-flight Telegram link
     // (or a Lemon Squeezy tab with the old token baked into redirect_url)
@@ -59,11 +70,16 @@ export async function POST(req: NextRequest) {
     if (channel === "telegram") {
       const { data: existingRow } = await supabaseAdmin
         .from("users")
-        .select("link_token, telegram_chat_id")
+        .select("link_token, link_token_expires_at, telegram_chat_id")
         .eq("id", userId)
         .maybeSingle();
 
-      if (existingRow?.link_token && !existingRow.telegram_chat_id) {
+      if (
+        existingRow?.link_token &&
+        existingRow?.link_token_expires_at &&
+        new Date(existingRow.link_token_expires_at).getTime() > Date.now() &&
+        !existingRow.telegram_chat_id
+      ) {
         finalLinkToken = existingRow.link_token;
       }
     }
@@ -76,13 +92,18 @@ export async function POST(req: NextRequest) {
             id: userId,
             phone_number: phone || null,
             link_token: finalLinkToken,
+            link_token_expires_at: finalLinkToken
+              ? new Date(Date.now() + 10 * 60 * 1000).toISOString()
+              : null,
             email: typeof email === "string" ? email.trim().toLowerCase() : email,
             name,
             nickname: nickname || name,
             country,
-            currency,
-            language,
-            timezone,
+            country_code: regional.countryCode || null,
+            locale: regional.locale,
+            currency: resolvedCurrency,
+            language: resolvedLanguage,
+            timezone: resolvedTimezone,
             plan: plan?.toUpperCase() === "FREE" ? "LITE" : plan?.toUpperCase(),
             payment_status: isFreePlan ? "PAID" : "PENDING",
             is_active: isFreePlan ? true : false,
@@ -96,7 +117,7 @@ export async function POST(req: NextRequest) {
       );
 
     if (dbError) {
-      console.error("finalize-registration upsert error:", dbError);
+      console.error("Registration profile write failed");
 
       // ROLLBACK: this request itself just created a brand-new auth user a
       // moment ago via auth.signUp(), and the profile write for it failed.
@@ -107,7 +128,7 @@ export async function POST(req: NextRequest) {
           // Rollback itself failed — log loudly so this doesn't go unnoticed,
           // but still tell the user the truth (their account wasn't created)
           // rather than pretending the rollback worked.
-          console.error("finalize-registration rollback FAILED — orphaned auth user:", userId, deleteErr);
+          console.error("Registration rollback failed");
         }
       }
 

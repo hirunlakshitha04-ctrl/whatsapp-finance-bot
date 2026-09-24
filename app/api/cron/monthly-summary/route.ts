@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
     // Trigger only on the last day of the month at 9 PM
     for (const user of users) {
-      const userTz = user.timezone || "Asia/Colombo";
+      const userTz = user.timezone || "UTC";
 
       if (!isMonthEnd9PM(userTz)) {
         continue;
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      const currency = user.base_currency || user.currency || "LKR";
+      const currency = user.base_currency || user.currency || "USD";
       const nickname = user.how_to_call_you || user.nickname || "Bro";
       const userLang = user.language || user.preferred_language || "English";
 

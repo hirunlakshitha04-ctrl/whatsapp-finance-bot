@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import ConnectQrCode from "@/components/ConnectQrCode";
+import { getRegionalProfile, normalizePhoneForCountry, countryFromRegion } from "@/lib/regional-profile";
 import {
   Bot, 
   Sparkles, 
@@ -640,6 +641,7 @@ function RegisterForm() {
   const [showWaTroubleshoot, setShowWaTroubleshoot] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [detectedTimezone, setDetectedTimezone] = useState("");
 
   // Channel-driven color theme — WhatsApp reads green throughout the page
   // (bubble borders, headings, inputs, button), Telegram reads blue. Recomputed
@@ -699,11 +701,18 @@ function RegisterForm() {
     // user pick — better than guessing wrong.
     try {
       const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const matchedCountry = Object.keys(COUNTRY_TIMEZONE_MAP).find(
-        (c) => COUNTRY_TIMEZONE_MAP[c] === browserTz
-      );
+      setDetectedTimezone(browserTz);
+      let matchedCountry = "";
+      try {
+        const region = new Intl.Locale(navigator.language).region;
+        if (region) matchedCountry = countryFromRegion(region) || "";
+      } catch {}
+      if (!matchedCountry) {
+        matchedCountry = Object.keys(COUNTRY_TIMEZONE_MAP).find((c) => COUNTRY_TIMEZONE_MAP[c] === browserTz) || "";
+      }
       if (matchedCountry) {
-        setFormData((prev) => ({ ...prev, country: matchedCountry, timezone: browserTz }));
+        const profile = getRegionalProfile(matchedCountry);
+        setFormData((prev) => ({ ...prev, country: matchedCountry, currency: profile.currency, language: profile.language, timezone: browserTz }));
       }
     } catch {
       // Intl API unavailable/blocked — leave country blank, no auto-fill.
@@ -773,8 +782,9 @@ function RegisterForm() {
       setFormData({ ...formData, [name]: checked });
     } else if (name === "country") {
       // Auto-update timezone in the background whenever the country changes.
-      const autoTz = COUNTRY_TIMEZONE_MAP[value] || formData.timezone;
-      setFormData({ ...formData, country: value, timezone: autoTz });
+      const profile = getRegionalProfile(value);
+      const autoTz = detectedTimezone || COUNTRY_TIMEZONE_MAP[value] || formData.timezone;
+      setFormData({ ...formData, country: value, currency: profile.currency, language: profile.language, timezone: autoTz });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -905,12 +915,7 @@ function RegisterForm() {
     // there's nothing to collect or clean here.
     let cleanedPhone = "";
     if (formData.channel === "whatsapp") {
-      cleanedPhone = formData.phone_number.trim().replace(/[^0-9+]/g, "");
-      if (cleanedPhone.startsWith("0")) {
-        cleanedPhone = "+94" + cleanedPhone.slice(1);
-      } else if (!cleanedPhone.startsWith("+")) {
-        cleanedPhone = `+${cleanedPhone}`;
-      }
+      cleanedPhone = normalizePhoneForCountry(formData.phone_number, formData.country);
     }
 
     // One-time token used only to link a Telegram chat_id back to this user
@@ -1059,9 +1064,19 @@ function RegisterForm() {
         // moment ago via auth.signUp(), the route deletes that orphaned auth
         // user again instead of leaving the email permanently stuck to a
         // broken, profile-less account.
+        const { data: { session: finalizeSession } } = await supabase.auth.getSession();
+        if (!finalizeSession?.access_token) {
+          setErrorMsg("Your account session could not be verified. Please log in again and retry.");
+          setLoading(false);
+          return;
+        }
+
         const finalizeRes = await fetch("/api/finalize-registration", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${finalizeSession.access_token}`,
+          },
           body: JSON.stringify({
             userId,
             isNewSignup,
@@ -1544,7 +1559,7 @@ function RegisterForm() {
                     required
                     value={formData.phone_number}
                     onChange={handleChange}
-                    placeholder="+94771234567"
+                    placeholder={formData.country === "Sri Lanka" ? "+94771234567" : "+1 555 123 4567"}
                     className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                   />
                 </div>

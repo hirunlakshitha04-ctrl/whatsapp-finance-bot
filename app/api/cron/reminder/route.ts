@@ -39,7 +39,7 @@ async function sendWhatsApp(phone: string, body: string) {
     await twilioClient.messages.create({ from: TWILIO_WHATSAPP_NUMBER, to: `whatsapp:${phone}`, body });
     return true;
   } catch (err) {
-    console.error(`❌ Failed to send WhatsApp reminder to ${phone}:`, err);
+    console.error("Failed to send WhatsApp reminder");
     return false;
   }
 }

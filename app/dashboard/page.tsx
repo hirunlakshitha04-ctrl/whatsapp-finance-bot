@@ -87,6 +87,16 @@ interface Transaction {
   entry_type?: "ocr" | "text" | "manual";
 }
 
+interface SecuritySession {
+  id: string;
+  session_id: string;
+  device_name: string;
+  location_label: string;
+  last_active_at: string;
+  created_at: string;
+  current: boolean;
+}
+
 // NOTE: These strings must match EXACTLY what extractTransaction() /
 // extractFromImageBuffer() in finance-logic.ts return (see EXPENSE_CATEGORIES
 // / INCOME_CATEGORIES there), otherwise the same real-world category (e.g.
@@ -431,7 +441,7 @@ export default function BrooDashboard() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currency, setCurrency] = useState<string>("Rs.");
+  const [currency, setCurrency] = useState<string>("USD");
   const [nickname, setNickname] = useState<string>("Bro");
   const [userPhone, setUserPhone] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
@@ -564,6 +574,58 @@ export default function BrooDashboard() {
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
+  const [securitySessions, setSecuritySessions] = useState<SecuritySession[]>([]);
+  const [securitySessionsLoading, setSecuritySessionsLoading] = useState(false);
+  const [securitySessionsMsg, setSecuritySessionsMsg] = useState<string | null>(null);
+
+  const refreshSecuritySessions = useCallback(async (accessToken: string) => {
+    setSecuritySessionsLoading(true);
+    try {
+      const res = await fetch("/api/security/sessions", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not load active sessions.");
+      setSecuritySessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      setSecuritySessionsMsg(null);
+    } catch (err: any) {
+      setSecuritySessionsMsg(err?.message || "Could not load active sessions.");
+    } finally {
+      setSecuritySessionsLoading(false);
+    }
+  }, []);
+
+  const syncSecuritySession = useCallback(async (accessToken: string) => {
+    try {
+      await fetch("/api/security/sessions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      await refreshSecuritySessions(accessToken);
+    } catch {
+      // Session tracking must never block the dashboard itself.
+    }
+  }, [refreshSecuritySessions]);
+
+  const handleLogoutOtherSessions = useCallback(async () => {
+    setSecuritySessionsLoading(true);
+    setSecuritySessionsMsg(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session expired. Please log in again.");
+      const res = await fetch("/api/security/sessions", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not log out other devices.");
+      setSecuritySessionsMsg("All other active sessions have been logged out.");
+      await refreshSecuritySessions(session.access_token);
+    } catch (err: any) {
+      setSecuritySessionsMsg(err?.message || "Could not log out other devices.");
+      setSecuritySessionsLoading(false);
+    }
+  }, [refreshSecuritySessions]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -576,6 +638,7 @@ export default function BrooDashboard() {
 
     setUserEmail(session.user.email || "");
     setUserId(session.user.id);
+    void syncSecuritySession(session.access_token);
 
     // Fetch user profile & budget data from Supabase using upsert/maybeSingle safety to avoid 422/PGRST116 errors
     const { data: userData } = await supabase
@@ -709,7 +772,7 @@ export default function BrooDashboard() {
     }
 
     setLoading(false);
-  }, [router]);
+  }, [router, syncSecuritySession]);
 
   useEffect(() => {
     fetchData();
@@ -1019,7 +1082,7 @@ export default function BrooDashboard() {
       );
       setShowAddModal(false);
     } catch (err: any) {
-      console.error("Error adding transaction:", err);
+      console.error("Transaction create failed");
       alert("Failed to add transaction: " + err.message);
     } finally {
       setAddLoading(false);
@@ -1062,7 +1125,7 @@ export default function BrooDashboard() {
 
       setEditingId(null);
     } catch (err: any) {
-      console.error("Error updating transaction:", err);
+      console.error("Transaction update failed");
       alert("Failed to save transaction: " + err.message);
     } finally {
       setSaveLoading(false);
@@ -1085,7 +1148,7 @@ export default function BrooDashboard() {
         throw new Error("Transaction not found or you don't have permission to delete it.");
       }
     } catch (err: any) {
-      console.error("Error deleting transaction:", err);
+      console.error("Transaction delete failed");
       // Put it back since the server-side delete didn't actually happen.
       setTransactions(prev => {
         if (prev.some(t => t.id === tx.id)) return prev;
@@ -3734,6 +3797,55 @@ export default function BrooDashboard() {
                   {profileLoading ? <RefreshCw size={14} className="animate-spin" /> : "Save Profile Settings"}
                 </button>
               </form>
+            </div>
+
+            <div className={`${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] md:col-span-2 ${accent.hoverBorder500_30} transition duration-300`}>
+              <div className={`flex flex-wrap items-center justify-between gap-3 border-b ${T.border2} pb-4`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_25}`}>
+                    <ShieldCheck size={16} className="text-slate-950" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>Active Sessions</h3>
+                    <p className={`text-[10px] ${T.textMuted} font-medium`}>Devices currently signed in to your account</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogoutOtherSessions}
+                  disabled={securitySessionsLoading || securitySessions.filter((s) => !s.current).length === 0}
+                  className={`px-3 py-2 rounded-xl ${T.ghostBg10} ${T.ghostHover20} ${T.textSubtle2} text-[10px] font-extrabold transition disabled:opacity-40`}
+                >
+                  Log out other devices
+                </button>
+              </div>
+
+              {securitySessionsMsg && (
+                <div className={`p-3 rounded-xl text-xs border ${T.border2} ${T.textSubtle2}`}>{securitySessionsMsg}</div>
+              )}
+
+              {securitySessionsLoading && securitySessions.length === 0 ? (
+                <div className={`text-xs ${T.textMuted}`}>Loading active sessions…</div>
+              ) : securitySessions.length === 0 ? (
+                <div className={`text-xs ${T.textMuted}`}>No active-session records yet. Refresh the page if you just signed in.</div>
+              ) : (
+                <div className="space-y-2">
+                  {securitySessions.map((session) => (
+                    <div key={session.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${T.blackBg30} border ${T.border2} rounded-2xl p-4`}>
+                      <div>
+                        <div className={`text-xs font-extrabold ${T.textHead} flex items-center gap-2`}>
+                          {session.device_name}
+                          {session.current && <span className="text-[9px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">This device</span>}
+                        </div>
+                        <div className={`text-[10px] ${T.textMuted} mt-1`}>{session.location_label} · Last active: {new Date(session.last_active_at).toLocaleString()}</div>
+                      </div>
+                      {!session.current && (
+                        <span className={`text-[10px] ${T.textMuted}`}>Can be revoked with “Log out other devices”</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className={`${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] h-fit ${accent.hoverBorder500_30} transition duration-300`}>

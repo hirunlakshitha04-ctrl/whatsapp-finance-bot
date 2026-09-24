@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       });
 
     if (insertError) {
-      console.error("OTP insert error:", insertError);
+      console.error("OTP record creation failed");
       return NextResponse.json(GENERIC_RESPONSE);
     }
 

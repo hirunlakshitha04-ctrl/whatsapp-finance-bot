@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     await supabaseAdmin.from("password_resets").delete().eq("email", cleanEmail);
     return NextResponse.json({ success: true, message: "Password updated successfully!" });
   } catch (err) {
-    console.error("Reset Password API Error:", err);
+    console.error("Password reset verification failed");
     return NextResponse.json({ success: false, error: "Failed to reset password." }, { status: 500 });
   }
 }

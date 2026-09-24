@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     let sent = 0;
 
     for (const user of users) {
-      const userTz = user.timezone || "Asia/Colombo";
+      const userTz = user.timezone || "UTC";
       if (!isSunday9PM(userTz)) continue;
 
       const { data: transactions } = await supabaseAdmin
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         if (tx.type === "expense") totalExpense += Number(tx.amount);
       });
 
-      const currency = user.base_currency || user.currency || "LKR";
+      const currency = user.base_currency || user.currency || "USD";
       const nickname = user.how_to_call_you || user.nickname || "Bro";
       const userLang = user.language || user.preferred_language || "English";
 

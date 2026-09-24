@@ -45,7 +45,7 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 
     if (!res.ok) {
       const errBody = await res.text();
-      console.error(`❌ Telegram sendMessage failed [${res.status}] chatId=${chatId}:`, errBody);
+      console.error("Telegram sendMessage failed", { status: res.status });
 
       // Legacy "Markdown" parse_mode is strict about unmatched/nested entities
       // (unescaped _ * [ ] ( ) ` in the text will 400 with "can't parse entities").
@@ -59,7 +59,7 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
       }
     }
   } catch (err) {
-    console.error(`❌ Telegram sendMessage network error chatId=${chatId}:`, err);
+    console.error("Telegram sendMessage network error");
   }
 }
 
@@ -154,13 +154,15 @@ export async function POST(req: NextRequest) {
       // single-use regardless of the row's current telegram_chat_id. The
       // CROSS-ACCOUNT DUPLICATE CHECK just below still blocks a genuinely
       // different Telegram account from claiming someone else's token.
-      const { data: pendingUser } = await supabaseAdmin
-        .from("users")
-        .select("*")
-        .eq("link_token", linkToken)
-        .maybeSingle();
+      // Atomically consume the token. This enforces both the 10-minute TTL
+      // and single-use semantics even when two webhook requests arrive at once.
+      const { data: consumedUsers, error: consumeError } = await supabaseAdmin.rpc(
+        "consume_link_token",
+        { p_token: linkToken }
+      );
+      const pendingUser = consumedUsers?.[0];
 
-      if (!pendingUser) {
+      if (consumeError || !pendingUser) {
         // Token already used, expired, or never existed
         await send(`⚠️ *Link Invalid or Expired*\n\nThis link isn't valid anymore. Please go back to the website and tap "Start on Telegram" again to get a fresh link.`);
         return new NextResponse("OK", { status: 200 });
@@ -190,11 +192,11 @@ export async function POST(req: NextRequest) {
 
       const { error: linkErr } = await supabaseAdmin
         .from("users")
-        .update({ [ID_COLUMN]: from, link_token: null })
+        .update({ [ID_COLUMN]: from })
         .eq("id", pendingUser.id);
 
       if (linkErr) {
-        console.error("❌ Telegram Account Link Error:", linkErr);
+        console.error("Telegram account-link write failed");
         // 23505 = unique violation — the check above missed a concurrent
         // request that linked this exact chat id a moment earlier. Same
         // message as the check above rather than the generic fallback,

@@ -122,13 +122,15 @@ export async function POST(req: NextRequest) {
         return new NextResponse("OK", { status: 200 });
       }
 
-      const { data: tokenUser } = await supabaseAdmin
-        .from("users")
-        .select("*")
-        .eq("link_token", linkToken)
-        .maybeSingle();
+      // Atomically consume the token. This enforces both the 10-minute TTL
+      // and single-use semantics even when two webhook requests arrive at once.
+      const { data: consumedUsers, error: consumeError } = await supabaseAdmin.rpc(
+        "consume_link_token",
+        { p_token: linkToken }
+      );
+      const tokenUser = consumedUsers?.[0];
 
-      if (!tokenUser) {
+      if (consumeError || !tokenUser) {
         // Token doesn't exist / already used / expired
         await send(`⚠️ This link has expired or was already used. Please go back to the website and try again:\n👉 ${websiteUrl}/register`);
         return new NextResponse("OK", { status: 200 });
@@ -208,11 +210,11 @@ export async function POST(req: NextRequest) {
       // and its 23505 violation is exactly what this catches.
       const { error: linkPhoneErr } = await supabaseAdmin
         .from("users")
-        .update({ phone_number: from, link_token: null })
+        .update({ phone_number: from })
         .eq("id", tokenUser.id);
 
       if (linkPhoneErr) {
-        console.error("❌ WhatsApp phone link error:", linkPhoneErr);
+        console.error("WhatsApp account-link write failed");
         if (linkPhoneErr.code === "23505") {
           await send(
             `⚠️ *Already Connected*\n\nThis WhatsApp number is already linked to a different Brofinai account. If this is your number, log in to that account and use "Connect WhatsApp" from the dashboard.`

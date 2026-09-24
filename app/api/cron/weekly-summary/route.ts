@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     for (const user of users) {
-      const userTz = user.timezone || "Asia/Colombo";
+      const userTz = user.timezone || "UTC";
 
       // Trigger only on Sunday at 9 PM local time
       if (!isSunday9PM(userTz)) {
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      const currency = user.base_currency || user.currency || "LKR";
+      const currency = user.base_currency || user.currency || "USD";
       const nickname = user.how_to_call_you || user.nickname || "Bro";
       const userLang = user.language || user.preferred_language || "English";
 

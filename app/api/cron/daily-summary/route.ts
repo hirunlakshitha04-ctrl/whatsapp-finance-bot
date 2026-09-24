@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Loop through users and filter who currently have 9 PM in their timezone
     for (const user of users) {
-      const userTz = user.timezone || "Asia/Colombo";
+      const userTz = user.timezone || "UTC";
 
       // Check if current local time in user's timezone is 9:00 PM
       if (!is9PMInTimezone(userTz)) {
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      const currency = user.base_currency || user.currency || "LKR";
+      const currency = user.base_currency || user.currency || "USD";
       const nickname = user.how_to_call_you || user.nickname || "Bro";
       const userLang = user.language || user.preferred_language || "English";
 

@@ -70,7 +70,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Portal link error:", error);
     return NextResponse.json(
-      { error: "Internal error", details: error.message },
+      { error: "Internal error" },
       { status: 500 }
     );
   }

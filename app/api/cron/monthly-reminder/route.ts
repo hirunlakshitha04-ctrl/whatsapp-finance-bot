@@ -67,9 +67,9 @@ export async function GET(req: NextRequest) {
           to: `whatsapp:${phone}`,
           body: messageBody,
         });
-        console.log(`✅ Monthly Renewal reminder sent to: ${phone}`);
+        console.log("Monthly Renewal reminder sent");
       } catch (sendErr) {
-        console.error(`❌ Failed to send WhatsApp to ${phone}:`, sendErr);
+        console.error("Failed to send monthly renewal WhatsApp message");
       }
     });
 

@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("get-user-plan error:", error);
     return NextResponse.json(
-      { error: "Server error", details: error.message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
