@@ -2109,6 +2109,86 @@ export default function BrooDashboard() {
     URL.revokeObjectURL(url);
   };
 
+  // ---------------------------------------------------------------------
+  // GDPR "right to access / data portability" & CCPA "right to know" —
+  // unlike handleExportExcel above (Core/Max only, current month), this is
+  // free for every plan and dumps the user's FULL history + profile, since
+  // `transactions` is already fetched unfiltered by month (see fetchData).
+  // ---------------------------------------------------------------------
+  const handleDownloadMyData = () => {
+    const escapeCsv = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines: string[] = [];
+
+    lines.push("BroFInAi — Your Data Export");
+    lines.push(`Generated,${escapeCsv(new Date().toISOString())}`);
+    lines.push("");
+    lines.push("Account Info");
+    lines.push(`Name,${escapeCsv(profileName)}`);
+    lines.push(`Email,${escapeCsv(userEmail)}`);
+    lines.push(`Phone,${escapeCsv(profilePhone)}`);
+    lines.push(`Currency,${escapeCsv(currency)}`);
+    lines.push("");
+    lines.push("Transactions");
+    lines.push(["Date", "Type", "Category", "Item", "Amount", "Currency"].map(escapeCsv).join(","));
+    transactions.forEach((tx) => {
+      lines.push(
+        [tx.created_at, tx.type, tx.category || "", tx.item || "", tx.amount, currency]
+          .map(escapeCsv)
+          .join(",")
+      );
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `brofinai-my-data-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ---------------------------------------------------------------------
+  // GDPR "right to erasure" / CCPA "right to delete" — self-service account
+  // deletion. Requires the user to type DELETE to confirm (see the modal),
+  // then calls /api/delete-account which wipes every table (see that route
+  // for exactly what's removed) and the Supabase Auth identity itself.
+  // ---------------------------------------------------------------------
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountMsg, setDeleteAccountMsg] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
+    setDeleteAccountLoading(true);
+    setDeleteAccountMsg(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setDeleteAccountMsg("Your session expired. Please log in again and retry.");
+        setDeleteAccountLoading(false);
+        return;
+      }
+      const res = await fetch("/api/delete-account", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteAccountMsg(data?.error || "Something went wrong deleting your account. Please try again or email support@brofinai.com.");
+        setDeleteAccountLoading(false);
+        return;
+      }
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (err: any) {
+      setDeleteAccountMsg(err?.message || "Something went wrong. Please try again or email support@brofinai.com.");
+      setDeleteAccountLoading(false);
+    }
+  };
+
   const navItems: { id: string; label: string; icon: any; onClick: () => void; active: boolean }[] = [
     { id: "nav-overview", label: "Overview", icon: LayoutDashboard, onClick: () => setActiveTab("overview"), active: activeTab === "overview" },
     { id: "nav-transactions", label: "Transactions", icon: List, onClick: () => openSectionPopup("transactions"), active: false },
@@ -3755,6 +3835,53 @@ export default function BrooDashboard() {
                 </form>
               )}
             </div>
+
+            {/* ---------------------------------------------------------------
+                PRIVACY & DATA — GDPR "right to access / portability / erasure"
+                and CCPA "right to know / delete" self-service tools. Every
+                plan gets these free; they don't route through support email.
+                --------------------------------------------------------------- */}
+            <div className={`md:col-span-2 ${T.cardBg} border ${T.border1} p-6 sm:p-7 rounded-[32px] backdrop-blur-2xl space-y-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] ${accent.hoverBorder500_30} transition duration-300`}>
+              <div className={`flex items-center gap-3 border-b ${T.border2} pb-4`}>
+                <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${accent.from400} to-teal-500 shadow-lg ${accent.shadow500_25}`}>
+                  <ShieldCheck size={16} className="text-slate-950" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>Privacy &amp; Data</h3>
+                  <p className={`text-[10px] ${T.textMuted} font-medium`}>Your GDPR / CCPA rights — export or delete anytime</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={`${T.blackBg30} border ${T.border2} rounded-2xl p-4 backdrop-blur-md space-y-3`}>
+                  <p className={`text-xs font-bold ${T.textHead}`}>Download my data</p>
+                  <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
+                    Get a CSV of every transaction and your account details — free on every plan.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadMyData}
+                    className={`w-full ${T.inputBg} border ${T.border2} hover:${accent.hoverBorder500_30} text-xs font-bold ${T.textBody} py-2.5 rounded-xl transition flex items-center justify-center gap-2`}
+                  >
+                    <Download size={14} /> Export as CSV
+                  </button>
+                </div>
+
+                <div className="border border-rose-500/30 bg-rose-500/5 rounded-2xl p-4 backdrop-blur-md space-y-3">
+                  <p className="text-xs font-bold text-rose-300">Delete my account</p>
+                  <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
+                    Permanently removes your account, transactions, budgets, and bot connection. Cannot be undone.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteAccountMsg(null); setDeleteConfirmText(""); setShowDeleteAccountModal(true); }}
+                    className="w-full border border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 text-xs font-bold text-rose-300 py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={14} /> Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -3807,6 +3934,57 @@ export default function BrooDashboard() {
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {showDeleteAccountModal && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${T.blackBg60} backdrop-blur-sm px-4`}>
+          <div className={`${T.modalBg} border border-rose-500/30 rounded-[28px] p-6 w-full max-w-sm space-y-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 bg-rose-500/20 border border-rose-500/40">
+                <Trash2 size={16} className="text-rose-300" />
+              </div>
+              <h3 className={`font-extrabold text-base ${T.textHead} leading-tight`}>Delete your account?</h3>
+            </div>
+
+            <p className={`text-xs ${T.textMuted} leading-relaxed`}>
+              This permanently deletes your account, every transaction, every budget, and disconnects
+              your WhatsApp/Telegram bot. This cannot be undone. Type <span className="font-bold text-rose-300">DELETE</span> to confirm.
+            </p>
+
+            {deleteAccountMsg && (
+              <div className="p-3 rounded-xl text-xs bg-rose-500/10 text-rose-300 border border-rose-500/25">
+                {deleteAccountMsg}
+              </div>
+            )}
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE"
+              className={`w-full ${T.inputBg} border ${T.border2} text-xs ${T.textBody} p-3 rounded-xl focus:outline-none focus:border-rose-500 transition`}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(false)}
+                disabled={deleteAccountLoading}
+                className={`w-full ${T.inputBg} border ${T.border2} text-xs font-bold ${T.textBody} py-3 rounded-xl transition disabled:opacity-60`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteAccountLoading || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+                className="w-full bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteAccountLoading ? <RefreshCw size={14} className="animate-spin" /> : "Delete Forever"}
+              </button>
+            </div>
           </div>
         </div>
       )}

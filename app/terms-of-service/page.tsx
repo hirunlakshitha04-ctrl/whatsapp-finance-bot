@@ -46,7 +46,7 @@ export default function TermsOfServicePage() {
       <div className="max-w-4xl mx-auto px-6 py-16">
         <div className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-600 mb-3">Legal</div>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-sm text-slate-500 mb-10">Last updated: August 24, 2026</p>
+        <p className="text-sm text-slate-500 mb-10">Last updated: September 24, 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8 text-[15px] leading-relaxed">
           <p>
@@ -196,10 +196,30 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-slate-900 mb-3">11. Governing Law</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-3">11. Governing Law &amp; Your Local Rights</h2>
+            {/*
+              LEGAL REVIEW NEEDED: "Sri Lanka" below is a placeholder pending
+              a lawyer's sign-off on the actual jurisdiction the operating
+              entity wants to litigate/arbitrate in for a global user base
+              (Singapore and Delaware are common neutral choices for SaaS
+              companies serving multiple regions — this needs a human legal
+              decision, not a default from code). Whatever jurisdiction is
+              chosen, the mandatory-consumer-rights carve-out below should
+              stay: it's what keeps this clause enforceable for users in the
+              EEA/UK and other places where you legally can't contract out of
+              local consumer protection law, so removing it isn't a fix.
+            */}
             <p>
               These Terms are governed by the laws of Sri Lanka, without regard to conflict-of-law
-              principles.
+              principles, except where the mandatory consumer-protection or data-protection laws of
+              your own country of residence give you rights that cannot be waived by contract — in
+              that case, those local mandatory rights still apply to you regardless of this clause.
+            </p>
+            <p className="mt-3">
+              If you're a consumer residing in the European Economic Area, the UK, or another
+              jurisdiction with non-waivable consumer protections, nothing in these Terms limits your
+              right to bring a claim in your own local courts or to rely on the mandatory protections
+              your local law provides.
             </p>
           </section>
 

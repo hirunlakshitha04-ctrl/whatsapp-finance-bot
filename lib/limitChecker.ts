@@ -1,14 +1,14 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getLocalizedMessages } from "@/lib/finance-logic";
 
 // ⚠️ NOT CURRENTLY CALLED FROM ANY LIVE ROUTE (as of 2026-08-18).
 // app/api/whatsapp/route.ts has its own inline limit-check logic
 // (see recordLimitHit() there) which is what's actually live in
 // production. This file is kept as a channel-agnostic reference /
 // future refactor target — before wiring it in, note it differs from
-// the live inline logic in 3 ways that need reconciling:
+// the live inline logic in 2 ways that need reconciling:
 //   1. Keyed by user.id here vs phone_number in route.ts
-//   2. Hardcoded messages here vs finance-logic.ts's localized templates
-//   3. Would also need to be wired into app/api/telegram/route.ts —
+//   2. Would also need to be wired into app/api/telegram/route.ts —
 //      BUT DON'T, at least not as-is: Telegram is intentionally free
 //      and does NOT track limit_hits_this_week (business decision,
 //      2026-08-18). This file's recordLimitHit() below fires purely on
@@ -17,6 +17,14 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 //      again. Any future refactor must keep that channel check.
 // Also confirm the `limit_hits_this_week` column migration (bottom of
 // this file) has actually been run before relying on this counter.
+//
+// (Cleanup note, 2026-09-24: this used to carry its own hardcoded
+// Sinhala-only limit messages, duplicating — and drifting from — the
+// proper multi-language templates in finance-logic.ts's
+// getLocalizedMessages(). If this were ever wired in as-is, every
+// non-Sinhala user would silently get Sinhala upgrade prompts. Now it
+// calls the same localized templates the live WhatsApp route already
+// uses, so there's nothing left here to drift.)
 //
 // NOTE: keyed by Supabase `id` (primary key) instead of `phone_number` —
 // dashboard login already resolves a user via WhatsApp number OR email,
@@ -63,9 +71,7 @@ export async function checkUserLimits(
     }).eq("id", userId);
   }
 
-  // 🔧 FIX: DB stores plan as "LITE" / "CORE" / "MAX" (uppercase) — without
-  // .toLowerCase() here, `plan === "lite"` never matched, so Lite users
-  // were never actually limit-checked at all (unlimited free usage).
+  // DB stores plan as "LITE" / "CORE" / "MAX" (uppercase) — normalize before comparing.
   const plan = (user.plan || "lite").toLowerCase();
 
   // Helper: every time we're about to block a user, that's a strong
@@ -78,57 +84,39 @@ export async function checkUserLimits(
       .eq("id", userId);
   };
 
+  // Localized templates — same ones the live WhatsApp route uses, so a
+  // limit message here reads identically to any other bot message the
+  // user has already seen, in their own registered language.
+  const nickname = user.nickname || user.name || "there";
+  const currency = user.currency || "USD";
+  const userLang = user.language || user.preferred_language || "English";
+  const websiteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com";
+  const getMsgs = () => getLocalizedMessages(userLang, nickname, currency, websiteUrl);
+
   // --- 1. EXPENSE & INCOME TRACKING LIMIT ---
   if (type === "expense_income") {
-    if (plan === "lite" && dailyTx >= 3) {
+    if ((plan === "lite" && dailyTx >= 3) || (plan === "core" && dailyTx >= 10)) {
       await recordLimitHit();
-      return {
-        allowed: false,
-        message: `⚠️ *Daily Limit Reached!* (3/3 Expenses)\n\nBroo Lite එකේ දවසකට ඇතුලත් කළ හැක්කේ Transactions 3ක් පමණි.\n\n🚀 Unlimited tracking සඳහා **Broo Core ($2.55/mo)** හෝ **Broo Max ($5.99/mo)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
-      };
-    }
-    if (plan === "core" && dailyTx >= 10) {
-      await recordLimitHit();
-      return {
-        allowed: false,
-        message: `⚠️ *Daily Limit Reached!* (10/10 Expenses)\n\nBroo Core එකේ දවසකට Max Transactions 10යි.\n\n🚀 Unlimited tracking සඳහා **Broo Max ($5.99/mo)** එකට Upgrade වන්න:\n🔗 https://brofinai.com/upgrade`
-      };
+      const msgs = await getMsgs();
+      return { allowed: false, message: msgs.dailyTxLimitReached };
     }
   }
 
   // --- 2. AI RECEIPT OCR PHOTO SCANNING LIMIT ---
   if (type === "ocr") {
-    if (plan === "lite" && dailyOcr >= 1) {
+    if ((plan === "lite" && dailyOcr >= 1) || (plan === "core" && monthlyOcr >= 30)) {
       await recordLimitHit();
-      return {
-        allowed: false,
-        message: `⚠️ *Daily OCR Scan Limit Reached!* (1/1 Scan)\n\nBroo Lite එකේ දවසකට Receipt Scans 1යි.\n\n📸 මාසෙට Scans 30ක් සඳහා **Broo Core ($2.55)** හෝ Unlimited Scans සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
-      };
-    }
-    if (plan === "core" && monthlyOcr >= 30) {
-      await recordLimitHit();
-      return {
-        allowed: false,
-        message: `⚠️ *Monthly OCR Limit Reached!* (30/30 Scans)\n\nBroo Core හි මෙම මාසයේ Scans 30 සීමාව අවසන්.\n\n🚀 Unlimited Scans සඳහා **Broo Max ($5.99)** එකට Upgrade වන්න:\n🔗 https://brofinai.com/upgrade`
-      };
+      const msgs = await getMsgs();
+      return { allowed: false, message: msgs.dailyOcrLimitReached };
     }
   }
 
   // --- 3. VOICE TRACKING LIMIT ---
   if (type === "voice") {
-    if (plan === "lite") {
+    if (plan === "lite" || (plan === "core" && dailyVoice >= 5)) {
       await recordLimitHit();
-      return {
-        allowed: false,
-        message: `🎙️ *Voice Tracking is Locked!*\n\nBroo Lite එකේ Voice Notes මඟින් Expenses ඇතුලත් කළ නොහැක.\n\n🚀 Voice Notes 5ක්/දිනකට සඳහා **Broo Core ($2.55)** හෝ Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
-      };
-    }
-    if (plan === "core" && dailyVoice >= 5) {
-      await recordLimitHit();
-      return {
-        allowed: false,
-        message: `⚠️ *Daily Voice Limit Reached!* (5/5 Voice Notes)\n\nBroo Core හි දිනකට Voice Notes 5 සීමාව අවසන්.\n\n🚀 Unlimited Voice Tracking සඳහා **Broo Max ($5.99)** ලබාගන්න:\n🔗 https://brofinai.com/upgrade`
-      };
+      const msgs = await getMsgs();
+      return { allowed: false, message: msgs.dailyVoiceLimitReached };
     }
   }
 

@@ -202,14 +202,99 @@ function fillTemplate(
   };
 }
 
-// Maps the user's registered language to a Whisper ISO code + comparable name.
+// Maps the user's registered language to a Whisper ISO code + the exact
+// lowercase name Whisper's own API returns in `detectedLanguage` (verified
+// against Whisper's official supported-language list) — the mismatch check
+// in whatsapp/route.ts & telegram/route.ts does a straight string compare
+// against this `name`, so it must match Whisper's naming exactly, not just
+// be "a reasonable English name" for the language.
+//
+// Used to be English/Tamil/Sinhala only, which meant every other language
+// a user could select at registration (Hindi, Spanish, Arabic, French, and
+// ~65 more — see WORLD_LANGUAGES in app/register/page.tsx) silently skipped
+// mismatch validation entirely. Expanded to cover every language on that
+// list that Whisper actually supports. A few WORLD_LANGUAGES entries are
+// intentionally left out because Whisper's own model doesn't recognise them
+// as a distinct language (Igbo, Irish, Kurdish, Xhosa, Zulu) — those still
+// return null here, same as before, which just means "skip the check",
+// never a wrong check.
 // Returns null for "Singlish" (mixed code-switched speech) so mismatch validation is skipped.
 export function getWhisperLanguageInfo(userLang: string): { isoCode: string; name: string } | null {
   const key = (userLang || "").trim().toLowerCase();
   const map: Record<string, { isoCode: string; name: string }> = {
+    afrikaans: { isoCode: "af", name: "afrikaans" },
+    albanian: { isoCode: "sq", name: "albanian" },
+    amharic: { isoCode: "am", name: "amharic" },
+    arabic: { isoCode: "ar", name: "arabic" },
+    armenian: { isoCode: "hy", name: "armenian" },
+    azerbaijani: { isoCode: "az", name: "azerbaijani" },
+    bengali: { isoCode: "bn", name: "bengali" },
+    bosnian: { isoCode: "bs", name: "bosnian" },
+    bulgarian: { isoCode: "bg", name: "bulgarian" },
+    burmese: { isoCode: "my", name: "burmese" },
+    chinese: { isoCode: "zh", name: "chinese" },
+    croatian: { isoCode: "hr", name: "croatian" },
+    czech: { isoCode: "cs", name: "czech" },
+    danish: { isoCode: "da", name: "danish" },
+    dutch: { isoCode: "nl", name: "dutch" },
     english: { isoCode: "en", name: "english" },
-    tamil: { isoCode: "ta", name: "tamil" },
+    estonian: { isoCode: "et", name: "estonian" },
+    filipino: { isoCode: "tl", name: "tagalog" },
+    finnish: { isoCode: "fi", name: "finnish" },
+    french: { isoCode: "fr", name: "french" },
+    georgian: { isoCode: "ka", name: "georgian" },
+    german: { isoCode: "de", name: "german" },
+    greek: { isoCode: "el", name: "greek" },
+    gujarati: { isoCode: "gu", name: "gujarati" },
+    hausa: { isoCode: "ha", name: "hausa" },
+    hebrew: { isoCode: "he", name: "hebrew" },
+    hindi: { isoCode: "hi", name: "hindi" },
+    hungarian: { isoCode: "hu", name: "hungarian" },
+    icelandic: { isoCode: "is", name: "icelandic" },
+    indonesian: { isoCode: "id", name: "indonesian" },
+    italian: { isoCode: "it", name: "italian" },
+    japanese: { isoCode: "ja", name: "japanese" },
+    kannada: { isoCode: "kn", name: "kannada" },
+    kazakh: { isoCode: "kk", name: "kazakh" },
+    khmer: { isoCode: "km", name: "khmer" },
+    korean: { isoCode: "ko", name: "korean" },
+    lao: { isoCode: "lo", name: "lao" },
+    latvian: { isoCode: "lv", name: "latvian" },
+    lithuanian: { isoCode: "lt", name: "lithuanian" },
+    macedonian: { isoCode: "mk", name: "macedonian" },
+    malay: { isoCode: "ms", name: "malay" },
+    malayalam: { isoCode: "ml", name: "malayalam" },
+    marathi: { isoCode: "mr", name: "marathi" },
+    mongolian: { isoCode: "mn", name: "mongolian" },
+    nepali: { isoCode: "ne", name: "nepali" },
+    norwegian: { isoCode: "no", name: "norwegian" },
+    pashto: { isoCode: "ps", name: "pashto" },
+    "persian/farsi": { isoCode: "fa", name: "persian" },
+    persian: { isoCode: "fa", name: "persian" },
+    polish: { isoCode: "pl", name: "polish" },
+    portuguese: { isoCode: "pt", name: "portuguese" },
+    punjabi: { isoCode: "pa", name: "punjabi" },
+    romanian: { isoCode: "ro", name: "romanian" },
+    russian: { isoCode: "ru", name: "russian" },
+    serbian: { isoCode: "sr", name: "serbian" },
+    sindhi: { isoCode: "sd", name: "sindhi" },
     sinhala: { isoCode: "si", name: "sinhala" },
+    slovak: { isoCode: "sk", name: "slovak" },
+    slovenian: { isoCode: "sl", name: "slovenian" },
+    somali: { isoCode: "so", name: "somali" },
+    spanish: { isoCode: "es", name: "spanish" },
+    swahili: { isoCode: "sw", name: "swahili" },
+    swedish: { isoCode: "sv", name: "swedish" },
+    tamil: { isoCode: "ta", name: "tamil" },
+    telugu: { isoCode: "te", name: "telugu" },
+    thai: { isoCode: "th", name: "thai" },
+    turkish: { isoCode: "tr", name: "turkish" },
+    ukrainian: { isoCode: "uk", name: "ukrainian" },
+    urdu: { isoCode: "ur", name: "urdu" },
+    uzbek: { isoCode: "uz", name: "uzbek" },
+    vietnamese: { isoCode: "vi", name: "vietnamese" },
+    welsh: { isoCode: "cy", name: "welsh" },
+    yoruba: { isoCode: "yo", name: "yoruba" },
   };
   return map[key] || null;
 }

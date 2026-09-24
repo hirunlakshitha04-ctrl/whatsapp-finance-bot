@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
       <div className="max-w-4xl mx-auto px-6 py-16">
         <div className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-600 mb-3">Legal</div>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-sm text-slate-500 mb-10">Last updated: August 24, 2026</p>
+        <p className="text-sm text-slate-500 mb-10">Last updated: September 24, 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8 text-[15px] leading-relaxed">
           <p>
@@ -121,7 +121,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-slate-900 mb-3">7. Your Rights</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-3">7. Your Rights &amp; Self-Service Tools</h2>
             <p>Depending on your location, you may have the right to:</p>
             <ul className="list-disc pl-6 space-y-1.5">
               <li>Access the data we hold about you</li>
@@ -130,8 +130,73 @@ export default function PrivacyPolicyPage() {
               <li>Request deletion of your data</li>
             </ul>
             <p className="mt-3">
-              To exercise these rights, contact us at{" "}
+              You don't need to email us to exercise the export or deletion rights — they're
+              self-service. Log in to your{" "}
+              <Link href="/dashboard" className="text-emerald-600 hover:underline">dashboard</Link>{" "}
+              → <strong>Settings → Privacy &amp; Data</strong> to instantly download a CSV of every
+              transaction and account detail we hold, or to permanently delete your account
+              (transactions, budgets, and bot connection included). Account deletion is irreversible
+              and typically takes effect immediately.
+            </p>
+            <p className="mt-3">
+              For anything else — correction requests, questions about what we hold, or if
+              self-service isn't working for you — contact us at{" "}
               <a href="mailto:support@brofinai.com" className="text-emerald-600 hover:underline">support@brofinai.com</a>.
+              We respond to verified requests within 30 days (or sooner where local law requires it).
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3">7a. EEA / UK Users — Your GDPR Rights</h2>
+            <p>
+              If you're located in the European Economic Area or the UK, the General Data Protection
+              Regulation (GDPR) / UK GDPR gives you additional, specific rights over your personal
+              data, and requires us to tell you the legal basis we rely on to process it.
+            </p>
+            <p className="mt-3 font-semibold text-slate-800">Legal basis for processing:</p>
+            <ul className="list-disc pl-6 space-y-1.5">
+              <li><strong>Contract</strong> — processing your messages, receipts, and transaction data is necessary to provide the expense-tracking Service you signed up for.</li>
+              <li><strong>Consent</strong> — for optional features you opt into, like daily/weekly/monthly summary messages, which you can withdraw at any time.</li>
+              <li><strong>Legitimate interests</strong> — for fraud prevention, abuse detection, and improving the Service, balanced against your privacy interests.</li>
+              <li><strong>Legal obligation</strong> — where we must retain or disclose information to comply with the law (e.g. tax records related to payments).</li>
+            </ul>
+            <p className="mt-3 font-semibold text-slate-800">Your GDPR rights:</p>
+            <ul className="list-disc pl-6 space-y-1.5">
+              <li><strong>Right to access</strong> — a copy of the personal data we hold about you.</li>
+              <li><strong>Right to rectification</strong> — correction of inaccurate or incomplete data.</li>
+              <li><strong>Right to erasure</strong> ("right to be forgotten") — deletion of your data, self-service via the dashboard (Section 7 above).</li>
+              <li><strong>Right to restrict processing</strong> — limit how we use your data in certain circumstances.</li>
+              <li><strong>Right to data portability</strong> — receive your data in a portable format (CSV export, Section 7 above) or have it transferred to another provider where technically feasible.</li>
+              <li><strong>Right to object</strong> — object to processing based on legitimate interests, including profiling.</li>
+              <li><strong>Right to withdraw consent</strong> — at any time, without affecting the lawfulness of processing before withdrawal.</li>
+              <li><strong>Right to lodge a complaint</strong> — with your local data protection supervisory authority if you believe we've mishandled your data.</li>
+            </ul>
+            <p className="mt-3">
+              <strong>International transfers:</strong> our infrastructure and AI/hosting providers may
+              process data outside the EEA/UK (e.g. the United States). Where that happens, we rely on
+              appropriate safeguards such as Standard Contractual Clauses or an equivalent lawful
+              transfer mechanism.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3">7b. California Residents — Your CCPA/CPRA Rights</h2>
+            <p>
+              If you're a California resident, the California Consumer Privacy Act (CCPA), as amended
+              by the CPRA, gives you the following rights over your personal information:
+            </p>
+            <ul className="list-disc pl-6 space-y-1.5">
+              <li><strong>Right to know</strong> — what categories of personal information we collect, use, and disclose, and for what purpose (see Sections 1–4 above).</li>
+              <li><strong>Right to delete</strong> — request deletion of your personal information, self-service via the dashboard (Section 7 above).</li>
+              <li><strong>Right to correct</strong> — request correction of inaccurate personal information.</li>
+              <li><strong>Right to opt out of sale/sharing</strong> — we do not sell or share your personal information for cross-context behavioral advertising, so there's nothing to opt out of.</li>
+              <li><strong>Right to limit use of sensitive personal information</strong> — we don't use your financial transaction data for anything beyond providing the Service itself.</li>
+              <li><strong>Right to non-discrimination</strong> — we won't deny you the Service, charge you differently, or provide a lower quality of service for exercising any of these rights.</li>
+            </ul>
+            <p className="mt-3">
+              To exercise any CCPA/CPRA right, use the dashboard self-service tools (Section 7) or
+              email <a href="mailto:support@brofinai.com" className="text-emerald-600 hover:underline">support@brofinai.com</a> —
+              we'll verify your identity via your registered phone/email before acting on the request.
             </p>
           </section>
 

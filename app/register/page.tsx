@@ -613,10 +613,10 @@ function RegisterForm() {
     confirmPassword: "",
     phone_number: "",
     channel: initialChannel,
-    country: "Sri Lanka",
+    country: "",
     language: "en",
     currency: "USD",
-    timezone: "Asia/Colombo",
+    timezone: "",
     nickname: "",
     privacy_accepted: false,
   });
@@ -690,10 +690,23 @@ function RegisterForm() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Timezone is derived automatically from the selected country (no user prompt needed).
-    const initialTz = COUNTRY_TIMEZONE_MAP[formData.country];
-    if (initialTz) {
-      setFormData((prev) => ({ ...prev, timezone: initialTz }));
+    // Auto-detect country from the browser's own IANA timezone instead of
+    // defaulting every signup to Sri Lanka (which was confusing/wrong for
+    // every non-Sri Lankan user, and meant a silent wrong timezone too if
+    // someone didn't think to change it). Reverse-lookup against the same
+    // map used for the country -> timezone direction below, so the two
+    // never disagree. If nothing matches, leave country blank and make the
+    // user pick — better than guessing wrong.
+    try {
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const matchedCountry = Object.keys(COUNTRY_TIMEZONE_MAP).find(
+        (c) => COUNTRY_TIMEZONE_MAP[c] === browserTz
+      );
+      if (matchedCountry) {
+        setFormData((prev) => ({ ...prev, country: matchedCountry, timezone: browserTz }));
+      }
+    } catch {
+      // Intl API unavailable/blocked — leave country blank, no auto-fill.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -877,6 +890,12 @@ function RegisterForm() {
 
     if (formData.channel === "whatsapp" && !formData.phone_number.trim()) {
       setErrorMsg("Please enter a valid WhatsApp phone number.");
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.country) {
+      setErrorMsg("Please select your country.");
       setLoading(false);
       return;
     }
@@ -1597,8 +1616,12 @@ function RegisterForm() {
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
+                  required
                   className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none ${theme.focusRing} focus:ring-1 transition`}
                 >
+                  <option value="" disabled className="bg-slate-900 text-slate-400">
+                    Select your country
+                  </option>
                   {WORLD_COUNTRIES.map((c) => (
                     <option key={c} value={c} className="bg-slate-900 text-white">
                       {c}
