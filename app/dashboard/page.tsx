@@ -12,7 +12,7 @@ import {
   Sparkles, LogOut, Settings, LayoutDashboard,
   Download, CheckCircle2, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, Zap, BarChart3, Filter, Ban, Trash2,
   User, Mail, Phone, Camera, Globe, ChevronLeft, ChevronRight,
-  List, PiggyBank, Target, Repeat, HelpCircle, Bell, ArrowUpRight, ArrowDownRight,
+  List, PiggyBank, Target, Repeat, HelpCircle, ArrowUpRight, ArrowDownRight,
   FileText, Plus, Crown, Sun, Moon, Menu
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from "recharts";
@@ -72,6 +72,51 @@ const ACCENT = {
     pageBg: "from-blue-500 via-blue-800 to-slate-950",
     glowTop: "bg-blue-400/30",
     glowBottom: "bg-sky-300/20",
+  },
+
+  violet: {
+    text300: "text-violet-300", text400: "text-violet-400", bg500: "bg-violet-500",
+    bg500_15: "bg-violet-500/15", bg500_20: "bg-violet-500/20", border400: "border-violet-400",
+    border400_40: "border-violet-400/40", border500: "border-violet-500", border500_30: "border-violet-500/30",
+    focusBorder500: "focus:border-violet-500", hoverBg400: "hover:bg-violet-400",
+    hoverText300: "hover:text-violet-300", hoverText400: "hover:text-violet-400",
+    hoverBorder500_30: "hover:border-violet-500/30", from400: "from-violet-400",
+    shadow500_10: "shadow-violet-500/10", shadow500_25: "shadow-violet-500/25",
+    selectionBg500: "selection:bg-violet-500", pageBg: "from-violet-500 via-violet-800 to-slate-950",
+    glowTop: "bg-violet-400/30", glowBottom: "bg-fuchsia-300/20",
+  },
+  amber: {
+    text300: "text-amber-300", text400: "text-amber-400", bg500: "bg-amber-500",
+    bg500_15: "bg-amber-500/15", bg500_20: "bg-amber-500/20", border400: "border-amber-400",
+    border400_40: "border-amber-400/40", border500: "border-amber-500", border500_30: "border-amber-500/30",
+    focusBorder500: "focus:border-amber-500", hoverBg400: "hover:bg-amber-400",
+    hoverText300: "hover:text-amber-300", hoverText400: "hover:text-amber-400",
+    hoverBorder500_30: "hover:border-amber-500/30", from400: "from-amber-400",
+    shadow500_10: "shadow-amber-500/10", shadow500_25: "shadow-amber-500/25",
+    selectionBg500: "selection:bg-amber-500", pageBg: "from-amber-400 via-orange-700 to-slate-950",
+    glowTop: "bg-amber-400/30", glowBottom: "bg-orange-300/20",
+  },
+  rose: {
+    text300: "text-rose-300", text400: "text-rose-400", bg500: "bg-rose-500",
+    bg500_15: "bg-rose-500/15", bg500_20: "bg-rose-500/20", border400: "border-rose-400",
+    border400_40: "border-rose-400/40", border500: "border-rose-500", border500_30: "border-rose-500/30",
+    focusBorder500: "focus:border-rose-500", hoverBg400: "hover:bg-rose-400",
+    hoverText300: "hover:text-rose-300", hoverText400: "hover:text-rose-400",
+    hoverBorder500_30: "hover:border-rose-500/30", from400: "from-rose-400",
+    shadow500_10: "shadow-rose-500/10", shadow500_25: "shadow-rose-500/25",
+    selectionBg500: "selection:bg-rose-500", pageBg: "from-rose-500 via-rose-800 to-slate-950",
+    glowTop: "bg-rose-400/30", glowBottom: "bg-pink-300/20",
+  },
+  cyan: {
+    text300: "text-cyan-300", text400: "text-cyan-400", bg500: "bg-cyan-500",
+    bg500_15: "bg-cyan-500/15", bg500_20: "bg-cyan-500/20", border400: "border-cyan-400",
+    border400_40: "border-cyan-400/40", border500: "border-cyan-500", border500_30: "border-cyan-500/30",
+    focusBorder500: "focus:border-cyan-500", hoverBg400: "hover:bg-cyan-400",
+    hoverText300: "hover:text-cyan-300", hoverText400: "hover:text-cyan-400",
+    hoverBorder500_30: "hover:border-cyan-500/30", from400: "from-cyan-400",
+    shadow500_10: "shadow-cyan-500/10", shadow500_25: "shadow-cyan-500/25",
+    selectionBg500: "selection:bg-cyan-500", pageBg: "from-cyan-500 via-cyan-800 to-slate-950",
+    glowTop: "bg-cyan-400/30", glowBottom: "bg-sky-300/20",
   },
 } as const;
 
@@ -438,6 +483,22 @@ export default function BrooDashboard() {
   const [navAnimKey, setNavAnimKey] = useState(0);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const isLight = theme === "light";
+  const [accentColor, setAccentColor] = useState<keyof typeof ACCENT>("whatsapp");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("brofinai-dashboard-accent") as keyof typeof ACCENT | null;
+      if (saved && saved in ACCENT) {
+        setAccentColor(saved);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("brofinai-dashboard-accent", accentColor);
+    } catch {}
+  }, [accentColor]);
 
   // Complete, literal Tailwind class strings for both modes (never built by
   // string concatenation) so the JIT scanner can find and generate every
@@ -534,7 +595,7 @@ export default function BrooDashboard() {
   // Accent palette driven by which channel this account is linked to —
   // emerald/green for WhatsApp, sky/blue for Telegram. Defaults to the
   // WhatsApp palette before the linked channel has loaded from Supabase.
-  const accent = ACCENT[linkedChannel === "telegram" ? "telegram" : "whatsapp"];
+  const accent = ACCENT[accentColor];
 
   // 🎯 BUDGET STATES LOADED FROM SUPABASE
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
@@ -2211,6 +2272,194 @@ export default function BrooDashboard() {
     });
 
     // =====================================================================
+    // SHEET 2: Monthly Analysis — executive summary + embedded charts
+    // =====================================================================
+    const svgToPngDataUrl = async (svg: string, width = 900, height = 420) => {
+      const svgData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      const img = new Image();
+      img.decoding = "async";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Could not render export chart."));
+        img.src = svgData;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas is unavailable.");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL("image/png");
+    };
+
+    const analysisWs = workbook.addWorksheet("Monthly Analysis", { views: [{ showGridLines: false }] });
+    analysisWs.columns = [
+      { width: 24 }, { width: 18 }, { width: 18 }, { width: 18 },
+      { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 },
+    ];
+
+    analysisWs.mergeCells("A1:H1");
+    analysisWs.getCell("A1").value = `BROFINAI — ${monthLabel} FINANCIAL ANALYSIS`;
+    analysisWs.getCell("A1").font = { name: FONT_NAME, size: 18, bold: true, color: { argb: WHITE } };
+    analysisWs.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    analysisWs.getCell("A1").alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    analysisWs.getRow(1).height = 32;
+
+    const analysisIncome = monthIncomeList.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const analysisExpense = monthExpenseList.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const analysisNet = analysisIncome - analysisExpense;
+    const analysisSavingsRate = analysisIncome > 0 ? (analysisNet / analysisIncome) * 100 : 0;
+    const analysisCategoryTotals = monthExpenseList.reduce<Record<string, number>>((acc, t) => {
+      const key = t.category || "General";
+      acc[key] = (acc[key] || 0) + Number(t.amount || 0);
+      return acc;
+    }, {});
+    const analysisCategories = Object.entries(analysisCategoryTotals).sort((a, b) => b[1] - a[1]);
+    const topCategories = analysisCategories.slice(0, 8);
+
+    // KPI cards
+    const kpis = [
+      ["TOTAL INCOME", analysisIncome, INCOME_HEADER],
+      ["TOTAL EXPENSES", analysisExpense, EXPENSE_HEADER],
+      ["NET CASH FLOW", analysisNet, analysisNet >= 0 ? INCOME_HEADER : EXPENSE_HEADER],
+      ["SAVINGS RATE", analysisSavingsRate / 100, BUDGET_HEADER],
+    ];
+    kpis.forEach(([label, value, fill], idx) => {
+      const col = idx * 2 + 1;
+      const start = String.fromCharCode(64 + col);
+      const end = String.fromCharCode(64 + col + 1);
+      analysisWs.mergeCells(`${start}3:${end}3`);
+      analysisWs.getCell(`${start}3`).value = label;
+      analysisWs.getCell(`${start}3`).font = { name: FONT_NAME, size: 9, bold: true, color: { argb: WHITE } };
+      analysisWs.getCell(`${start}3`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill as string } };
+      analysisWs.getCell(`${start}3`).alignment = { horizontal: "center", vertical: "middle" };
+      analysisWs.mergeCells(`${start}4:${end}5`);
+      analysisWs.getCell(`${start}4`).value = idx === 3
+        ? `${(analysisSavingsRate).toFixed(1)}%`
+        : `${currency} ${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      analysisWs.getCell(`${start}4`).font = { name: FONT_NAME, size: 16, bold: true };
+      analysisWs.getCell(`${start}4`).alignment = { horizontal: "center", vertical: "middle" };
+      analysisWs.getCell(`${start}4`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      analysisWs.getCell(`${start}4`).border = cellBorder;
+    });
+
+    // Expense category analysis table
+    analysisWs.mergeCells("A7:D7");
+    analysisWs.getCell("A7").value = "SPENDING BY CATEGORY";
+    analysisWs.getCell("A7").font = { name: FONT_NAME, size: 12, bold: true, color: { argb: WHITE } };
+    analysisWs.getCell("A7").fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    ["Category", "Amount", "% of Expenses", "Transactions"].forEach((h, i) => {
+      analysisWs.getRow(8).getCell(i + 1).value = h;
+    });
+    styleHeaderRow(analysisWs, 8, 4, BUDGET_HEADER);
+    topCategories.forEach(([cat, amount], idx) => {
+      const row = 9 + idx;
+      const count = monthExpenseList.filter(t => (t.category || "General") === cat).length;
+      analysisWs.getRow(row).getCell(1).value = cat;
+      analysisWs.getRow(row).getCell(2).value = amount;
+      analysisWs.getRow(row).getCell(3).value = analysisExpense ? amount / analysisExpense : 0;
+      analysisWs.getRow(row).getCell(4).value = count;
+      analysisWs.getRow(row).getCell(2).numFmt = CURRENCY_FMT;
+      analysisWs.getRow(row).getCell(3).numFmt = "0.0%";
+      for (let c = 1; c <= 4; c++) {
+        const cell = analysisWs.getRow(row).getCell(c);
+        cell.border = cellBorder;
+        cell.font = { name: FONT_NAME, size: 10 };
+      }
+    });
+
+    // Planning snapshot
+    const planningStart = 9;
+    analysisWs.mergeCells(`F${planningStart}:H${planningStart}`);
+    analysisWs.getCell(`F${planningStart}`).value = "FINANCIAL PLANNING SNAPSHOT";
+    analysisWs.getCell(`F${planningStart}`).font = { name: FONT_NAME, size: 12, bold: true, color: { argb: WHITE } };
+    analysisWs.getCell(`F${planningStart}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TITLE_FILL } };
+    const planningRows = [
+      ["Savings goals", savingsGoals.length],
+      ["Savings progress", totalSavingsAssets],
+      ["Upcoming payments", recurringExpenses.length],
+      ["Upcoming payment value", recurringExpenses.reduce((a, r) => a + Number(r.amount || 0), 0)],
+      ["Open debts / loans", debts.length],
+      ["You owe", totalPayable],
+      ["Owed to you", totalReceivable],
+      ["Net worth", netWorth],
+    ];
+    planningRows.forEach(([label, value], idx) => {
+      const row = planningStart + 1 + idx;
+      analysisWs.mergeCells(`F${row}:G${row}`);
+      analysisWs.getCell(`F${row}`).value = label;
+      analysisWs.getCell(`H${row}`).value = value;
+      analysisWs.getCell(`F${row}`).font = { name: FONT_NAME, size: 10, bold: true };
+      analysisWs.getCell(`H${row}`).font = { name: FONT_NAME, size: 10, bold: true };
+      analysisWs.getCell(`H${row}`).alignment = { horizontal: "right" };
+      if (typeof value === "number" && !["Savings goals", "Upcoming payments", "Open debts / loans"].includes(label)) {
+        analysisWs.getCell(`H${row}`).numFmt = CURRENCY_FMT;
+      }
+      for (const c of ["F", "G", "H"]) analysisWs.getCell(`${c}${row}`).border = cellBorder;
+    });
+
+    // Embedded bar + pie charts: generated as PNGs so they work in normal Excel/WPS/mobile previews.
+    const barData = topCategories.slice(0, 6);
+    const maxBar = Math.max(1, ...barData.map(([, v]) => v));
+    const barSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+      <rect width="900" height="420" fill="#ffffff"/>
+      <text x="35" y="42" font-family="Arial" font-size="24" font-weight="700" fill="#1f2937">Top Spending Categories</text>
+      ${barData.map(([cat, value], i) => {
+        const y = 78 + i * 52;
+        const w = Math.max(8, (value / maxBar) * 560);
+        const safeCat = String(cat).replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[ch] || ch));
+        return `<text x="35" y="${y + 22}" font-family="Arial" font-size="15" fill="#475569">${safeCat.slice(0, 25)}</text>
+          <rect x="220" y="${y}" width="${w.toFixed(1)}" height="30" rx="8" fill="#22c55e"/>
+          <text x="${Math.min(805, 230 + w)}" y="${y + 21}" font-family="Arial" font-size="14" font-weight="700" fill="#1f2937">${currency} ${Number(value).toLocaleString()}</text>`;
+      }).join("")}
+    </svg>`;
+
+    const pieValues = topCategories.slice(0, 7);
+    const pieTotal = pieValues.reduce((a, [, v]) => a + v, 0) || 1;
+    const pieColors = ["#22c55e", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#64748b"];
+    let angle = -Math.PI / 2;
+    const piePaths = pieValues.map(([cat, value], i) => {
+      const next = angle + (Number(value) / pieTotal) * Math.PI * 2;
+      const x1 = 270 + 135 * Math.cos(angle), y1 = 215 + 135 * Math.sin(angle);
+      const x2 = 270 + 135 * Math.cos(next), y2 = 215 + 135 * Math.sin(next);
+      const large = next - angle > Math.PI ? 1 : 0;
+      const path = `<path d="M270 215 L${x1.toFixed(1)} ${y1.toFixed(1)} A135 135 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${pieColors[i % pieColors.length]}"/>`;
+      angle = next;
+      return path;
+    }).join("");
+    const legend = pieValues.map(([cat, value], i) => {
+      const y = 75 + i * 43;
+      const safeCat = String(cat).replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[ch] || ch));
+      return `<rect x="510" y="${y}" width="18" height="18" rx="4" fill="${pieColors[i % pieColors.length]}"/>
+        <text x="540" y="${y + 14}" font-family="Arial" font-size="14" fill="#475569">${safeCat.slice(0, 30)} — ${((Number(value)/pieTotal)*100).toFixed(1)}%</text>`;
+    }).join("");
+    const pieSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+      <rect width="900" height="420" fill="#ffffff"/>
+      <text x="35" y="42" font-family="Arial" font-size="24" font-weight="700" fill="#1f2937">Expense Mix</text>
+      ${piePaths}
+      ${legend}
+    </svg>`;
+
+    try {
+      const [barPng, piePng] = await Promise.all([
+        svgToPngDataUrl(barSvg),
+        svgToPngDataUrl(pieSvg),
+      ]);
+      const barImage = workbook.addImage({ base64: barPng, extension: "png" });
+      const pieImage = workbook.addImage({ base64: piePng, extension: "png" });
+      analysisWs.addImage(barImage, "A19:H35");
+      analysisWs.addImage(pieImage, "A37:H53");
+    } catch {
+      // The numeric analysis remains fully usable if a restricted browser blocks canvas rendering.
+      analysisWs.getCell("A19").value = "Charts could not be embedded in this browser. The tables above contain the complete analysis.";
+    }
+
+    analysisWs.getCell("A55").value = "Generated by BroFInAi · Monthly analysis includes income, expenses, category mix, savings, upcoming payments and debt/loan snapshot.";
+    analysisWs.getCell("A55").font = { name: FONT_NAME, size: 9, italic: true, color: { argb: "FF64748B" } };
+
+    // =====================================================================
     // SHEET 2: All Records — All Income, All Expenses
     // =====================================================================
     const allIncomeList = transactions.filter(t => t.type === "income");
@@ -2461,6 +2710,30 @@ export default function BrooDashboard() {
                 <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Add Budget</span>
               </button>
               <button
+                type="button"
+                onClick={() => document.getElementById("savings-goals-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition`}
+              >
+                <span className={`p-2 rounded-xl ${accent.bg500_20} ${accent.text400}`}><Target size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Saving Goals</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById("upcoming-payments-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition`}
+              >
+                <span className={`p-2 rounded-xl ${accent.bg500_20} ${accent.text400}`}><Repeat size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Upcoming Payments</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById("debt-loans-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className={`flex flex-col items-center gap-2 ${T.ghostBg} ${T.ghostHover10} border ${T.border2} rounded-2xl py-4 transition`}
+              >
+                <span className={`p-2 rounded-xl ${accent.bg500_20} ${accent.text400}`}><Wallet size={16} /></span>
+                <span className={`text-[10px] font-bold ${T.textSubtle} text-center`}>Debt / Loans</span>
+              </button>
+              <button
                 onClick={handleExportExcel}
                 disabled={subscriptionPlan === "lite"}
                 title={subscriptionPlan === "lite" ? "Upgrade to export reports" : undefined}
@@ -2542,20 +2815,6 @@ export default function BrooDashboard() {
               }`}
             >
               {isLight ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => scrollToSection("budget-section")}
-              title={overBudgetCount > 0 ? `${overBudgetCount} categor${overBudgetCount === 1 ? "y" : "ies"} over budget` : "No alerts"}
-              className={`relative ${T.ghostBg} ${T.ghostHover10} ${T.textSubtle} p-2.5 rounded-2xl border ${T.border2} backdrop-blur-md transition shadow-md`}
-            >
-              <Bell size={16} />
-              {overBudgetCount > 0 && (
-                <span className={`absolute -top-1.5 -right-1.5 bg-rose-500 ${T.textHead} text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border-2 border-slate-900`}>
-                  {overBudgetCount}
-                </span>
-              )}
             </button>
 
             <button
@@ -3954,6 +4213,35 @@ export default function BrooDashboard() {
 
                 </div>
 
+                <div className={`pt-4 border-t ${T.border2} space-y-3`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className={`text-xs ${T.textSubtle2} font-bold block`}>Dashboard Accent Color</label>
+                      <p className={`text-[10px] ${T.textMuted} mt-1`}>Choose the main highlight color used across your dashboard.</p>
+                    </div>
+                    <span className={`w-3 h-3 rounded-full ${accent.bg500} shadow-lg ${accent.shadow500_25}`} />
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {([
+                      ["whatsapp", "Emerald", "bg-emerald-500", "border-emerald-300"],
+                      ["telegram", "Sky", "bg-sky-500", "border-sky-300"],
+                      ["violet", "Violet", "bg-violet-500", "border-violet-300"],
+                      ["amber", "Amber", "bg-amber-500", "border-amber-300"],
+                      ["rose", "Rose", "bg-rose-500", "border-rose-300"],
+                      ["cyan", "Cyan", "bg-cyan-500", "border-cyan-300"],
+                    ] as const).map(([key, label, dot, ring]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setAccentColor(key)}
+                        title={label}
+                        aria-label={`Use ${label} dashboard color`}
+                        className={`w-9 h-9 rounded-xl ${dot} border-2 ${accentColor === key ? ring : "border-transparent"} shadow-sm transition hover:scale-105`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <button 
                   type="submit" 
                   disabled={profileLoading}
@@ -4130,20 +4418,6 @@ export default function BrooDashboard() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className={`${T.blackBg30} border ${T.border2} rounded-2xl p-4 backdrop-blur-md space-y-3`}>
-                  <p className={`text-xs font-bold ${T.textHead}`}>Download my data</p>
-                  <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
-                    Get a CSV of every transaction and your account details — free on every plan.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleDownloadMyData}
-                    className={`w-full ${T.inputBg} border ${T.border2} hover:${accent.hoverBorder500_30} text-xs font-bold ${T.textBody} py-2.5 rounded-xl transition flex items-center justify-center gap-2`}
-                  >
-                    <Download size={14} /> Export as CSV
-                  </button>
-                </div>
-
                 <div className="border border-rose-500/30 bg-rose-500/5 rounded-2xl p-4 backdrop-blur-md space-y-3">
                   <p className="text-xs font-bold text-rose-300">Delete my account</p>
                   <p className={`text-[11px] ${T.textMuted} leading-relaxed`}>
