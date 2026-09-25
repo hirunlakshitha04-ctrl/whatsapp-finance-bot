@@ -5,15 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-
-declare global {
-  interface Window {
-    Paddle?: {
-      Initialize: (options: { token: string }) => void;
-      Checkout: { open: (options: any) => void };
-    };
-  }
-}
+import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import {
   Sparkles,
   Check,
@@ -27,8 +19,6 @@ import {
 type Channel = "whatsapp" | "telegram";
 type PlanId = "free" | "core" | "max";
 
-// Brand marks for the two supported chat channels — same filled-SVG style
-// used across the rest of the site (landing page, dashboard).
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.87.5 3.68 1.47 5.27L2 22l4.94-1.56a9.9 9.9 0 0 0 5.1 1.4h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.02c-.24.68-1.4 1.3-1.93 1.36-.5.06-1.12.08-1.8-.11a13.8 13.8 0 0 1-2-.71 11.05 11.05 0 0 1-4.36-3.86c-.42-.58-.85-1.26-.95-1.98-.1-.7.06-1.28.5-1.72.19-.19.42-.29.66-.29h.47c.16 0 .37-.03.55.42l.78 1.9c.06.16.1.28.02.44-.08.16-.13.26-.26.4l-.36.42c-.11.13-.23.27-.1.5.14.24.62 1.03 1.34 1.67.92.83 1.7 1.09 1.94 1.21.24.13.38.11.53-.06l.55-.63c.2-.24.38-.2.62-.11l1.71.81c.24.11.4.16.46.26.06.11.06.63-.18 1.3Z" />
@@ -41,9 +31,6 @@ const TelegramIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Per-channel accent colors for the highlighted (Core) plan card, the small
-// channel-label pill next to each price, and text accents — mirrors the
-// landing page's channel-aware pricing treatment exactly.
 const CHANNEL_META: Record<
   Channel,
   { label: string; icon: React.FC<{ className?: string }>; text: string; highlightBg: string }
@@ -64,9 +51,6 @@ const CHANNEL_META: Record<
 
 const PLAN_RANK: Record<PlanId, number> = { free: 0, core: 1, max: 2 };
 
-// Same plan data as the landing page's pricing section, so this standalone
-// page (direct /pricing visits + the dashboard's upgrade flow) always
-// matches it exactly.
 const PRICING_PLANS: {
   id: PlanId;
   name: string;
@@ -142,8 +126,6 @@ const PRICING_PLANS: {
   },
 ];
 
-// Full row-by-row feature comparison (collapsible table under the cards) —
-// same data as the landing page.
 const FEATURE_COMPARISON: { label: string; free: string | boolean; core: string | boolean; max: string | boolean }[] = [
   { label: "Text transaction logging", free: "3/day", core: "10/day", max: "Unlimited" },
   { label: "Receipt scan (AI vision)", free: "1/day", core: "30/month", max: "Unlimited" },
@@ -159,8 +141,6 @@ function PricingContent() {
 
   const isUpgrade = searchParams.get("mode") === "upgrade";
   const userId = searchParams.get("user_id") || "";
-  // Some older links still pass "lite" instead of "free" for the entry plan —
-  // normalize so the rank comparisons below work either way.
   const currentPlanRaw = (searchParams.get("current_plan") || "free").toLowerCase();
   const currentPlan: PlanId = currentPlanRaw === "lite" ? "free" : (currentPlanRaw as PlanId);
   const paramChannel = searchParams.get("current_channel") as Channel | null;
@@ -171,32 +151,21 @@ function PricingContent() {
   );
   const [checkoutLoading, setCheckoutLoading] = useState<PlanId | null>(null);
   const [checkoutError, setCheckoutError] = useState<string>("");
-  const paddleReady = React.useRef(false);
+  const paddleInstanceRef = React.useRef<Paddle | undefined>(undefined);
 
   useEffect(() => {
-    const existing = document.querySelector<HTMLScriptElement>('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]');
-    const wireUp = () => {
-      if (!window.Paddle) return;
-      window.Paddle.Initialize({ token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "" });
-      paddleReady.current = true;
-    };
-    if (existing) {
-      if (window.Paddle) wireUp();
-      else existing.addEventListener("load", wireUp, { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    script.async = true;
-    script.onload = wireUp;
-    document.body.appendChild(script);
-    return () => script.remove();
+    initializePaddle({
+      environment: (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT as 'sandbox' | 'production') || 'sandbox',
+      token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "",
+    }).then((paddle) => {
+      if (paddle) {
+        paddleInstanceRef.current = paddle;
+      }
+    });
   }, []);
+
   const [showComparison, setShowComparison] = useState(false);
 
-  // If the dashboard tells us which channel is already linked, that's the
-  // only sensible default in upgrade mode — no point showing them a channel
-  // they haven't connected yet as the pre-selected one.
   useEffect(() => {
     if (isUpgrade && (paramChannel === "telegram" || paramChannel === "whatsapp")) {
       setChannel(paramChannel);
@@ -211,12 +180,6 @@ function PricingContent() {
     setCheckoutError("");
     setCheckoutLoading(planId);
     try {
-      // 🔒 The backend now verifies the caller's identity via their Supabase
-      // auth session instead of trusting the ?user_id= query param — that
-      // param used to be all that gated who could "upgrade" (and read/rewrite
-      // link_token for) a given account. Grab the current access token and
-      // send it along; if there's no active session, send the user back to
-      // log in rather than silently failing server-side.
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         setCheckoutError("Your session has expired — please log in again from the dashboard.");
@@ -238,16 +201,12 @@ function PricingContent() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (data?.transactionId && paddleReady.current && window.Paddle) {
-        window.Paddle.Checkout.open({
+      if (data?.transactionId && paddleInstanceRef.current) {
+        paddleInstanceRef.current.Checkout.open({
           transactionId: data.transactionId,
           settings: { displayMode: "overlay", variant: "one-page", theme: "light" },
         });
       } else {
-        // Surface the backend's actual error (e.g. "Not authenticated",
-        // "Missing Paddle environment configuration for this
-        // plan/channel") instead of a generic message — makes future
-        // failures diagnosable from the UI instead of only in server logs.
         setCheckoutError(
           data?.error
             ? `Couldn't start checkout: ${data.error}`
@@ -268,7 +227,6 @@ function PricingContent() {
   return (
     <main className="min-h-screen bg-white font-sans text-slate-900">
       <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
-        {/* Site Logo */}
         <Link
           href="/"
           className="flex items-center justify-center gap-2.5 font-bold text-xl tracking-tight mb-10 hover:opacity-90 transition"
@@ -279,7 +237,6 @@ function PricingContent() {
           </span>
         </Link>
 
-        {/* Header */}
         <div className="text-center space-y-3 mb-14">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-xs font-semibold tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
@@ -305,16 +262,11 @@ function PricingContent() {
 
         {!isUpgrade && (
           <>
-            {/* Channel chooser — two premium cards that double as the channel
-                toggle, same as the landing page's pricing section. WhatsApp is
-                positioned as the recommended, full-featured experience with its
-                7-day trial; Telegram as a genuinely free, permanent alternative. */}
             <div className="max-w-3xl mx-auto mb-3 flex items-center justify-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shrink-0">1</span>
               <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Pick where you'll track</span>
             </div>
             <div className="max-w-3xl mx-auto mb-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* WhatsApp option */}
               <button
                 type="button"
                 onClick={() => setChannel("whatsapp")}
@@ -362,7 +314,6 @@ function PricingContent() {
                 </Link>
               </button>
 
-              {/* Telegram option */}
               <button
                 type="button"
                 onClick={() => setChannel("telegram")}
@@ -416,8 +367,6 @@ function PricingContent() {
           </>
         )}
 
-        {/* Step label + compact channel switcher — drives the price shown on
-            every plan card below. */}
         <div className="flex flex-col items-center gap-3 mb-10">
           {!isUpgrade && (
             <div className="flex items-center gap-2">
@@ -453,7 +402,6 @@ function PricingContent() {
           </div>
         )}
 
-        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-6xl mx-auto">
           {PRICING_PLANS.map((plan) => {
             const isCurrentPlan = isUpgrade && plan.id === currentPlan;
@@ -474,7 +422,6 @@ function PricingContent() {
                     : ""
                 } ${isDowngrade ? "opacity-50" : ""}`}
               >
-                {/* Highlight Badge */}
                 {isRecommended && !isCurrentPlan && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 bg-slate-900 text-white font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md shadow-slate-900/30">
                     <Sparkles className="w-3 h-3" />
@@ -482,8 +429,6 @@ function PricingContent() {
                   </div>
                 )}
 
-                {/* Card background — highlighted plan gets a full gradient
-                    fill (dark, on-brand); the other two stay flat white cards. */}
                 <div
                   className={`absolute inset-0 rounded-3xl border transition-colors duration-300 backdrop-blur-xl ${
                     isRecommended
@@ -494,7 +439,6 @@ function PricingContent() {
 
                 <div className="relative z-10 flex flex-col justify-between h-full px-7 py-7 md:px-9 md:py-9">
                   <div>
-                    {/* Header */}
                     <div className="mb-6">
                       <span className={`text-xs font-bold uppercase tracking-wider ${isRecommended ? "text-white/80" : meta.text}`}>
                         {plan.name}
@@ -566,7 +510,6 @@ function PricingContent() {
 
                     <div className={`w-full h-[1px] my-6 ${isRecommended ? "bg-white/15" : "bg-slate-900/10"}`} />
 
-                    {/* Features List */}
                     <ul className="space-y-3.5 mb-8">
                       {plan.features.map((feat, idx) => (
                         <li key={idx} className="flex items-center gap-3 text-xs">
@@ -589,7 +532,6 @@ function PricingContent() {
                     </ul>
                   </div>
 
-                  {/* Action Button — behavior differs by mode */}
                   {isUpgrade ? (
                     isCurrentPlan ? (
                       <div className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-full text-xs tracking-wider uppercase font-bold bg-slate-100 text-slate-500 border border-slate-200">
@@ -631,7 +573,6 @@ function PricingContent() {
           })}
         </div>
 
-        {/* Full Feature Comparison — collapsible row-by-row table below the cards */}
         <div className="max-w-6xl mx-auto mt-10">
           <button
             type="button"
