@@ -25,7 +25,7 @@ const PLAN_LABELS: Record<string, string> = {
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
 
-  // These come from the redirect_url we handed Lemon Squeezy at checkout
+  // These come from the success URL we pass to Paddle Checkout
   // time (see /api/create-checkout), which echoes back the same channel,
   // plan, phone, link_token and already_linked flag the user submitted /
   // that create-checkout resolved on the register page.

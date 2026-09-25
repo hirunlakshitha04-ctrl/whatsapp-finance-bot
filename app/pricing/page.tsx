@@ -204,7 +204,7 @@ function PricingContent() {
       if (data?.transactionId && paddleInstanceRef.current) {
         paddleInstanceRef.current.Checkout.open({
           transactionId: data.transactionId,
-          settings: { displayMode: "overlay", variant: "one-page", theme: "light" },
+          settings: { displayMode: "overlay", variant: "one-page", theme: "light", successUrl: data.redirectUrl },
         });
       } else {
         setCheckoutError(

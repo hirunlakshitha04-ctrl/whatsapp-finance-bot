@@ -851,7 +851,7 @@ function RegisterForm() {
       }
       window.Paddle.Checkout.open({
         transactionId: data.transactionId,
-        settings: { displayMode: "overlay", variant: "one-page", theme: "light" },
+        settings: { displayMode: "overlay", variant: "one-page", theme: "light", successUrl: data.redirectUrl },
       });
     } catch (err) {
       console.error("Checkout start failed:", err);
