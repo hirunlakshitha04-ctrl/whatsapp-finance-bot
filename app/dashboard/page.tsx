@@ -2394,7 +2394,7 @@ export default function BrooDashboard() {
       analysisWs.getCell(`F${row}`).font = { name: FONT_NAME, size: 10, bold: true };
       analysisWs.getCell(`H${row}`).font = { name: FONT_NAME, size: 10, bold: true };
       analysisWs.getCell(`H${row}`).alignment = { horizontal: "right" };
-      if (typeof value === "number" && !["Savings goals", "Upcoming payments", "Open debts / loans"].includes(label)) {
+      if (typeof value === "number" && !["Savings goals", "Upcoming payments", "Open debts / loans"].includes(String(label))) {
         analysisWs.getCell(`H${row}`).numFmt = CURRENCY_FMT;
       }
       for (const c of ["F", "G", "H"]) analysisWs.getCell(`${c}${row}`).border = cellBorder;
