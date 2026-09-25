@@ -154,14 +154,36 @@ function PricingContent() {
   const paddleInstanceRef = React.useRef<Paddle | undefined>(undefined);
 
   useEffect(() => {
-    initializePaddle({
-      environment: (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT as 'sandbox' | 'production') || 'sandbox',
-      token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "",
-    }).then((paddle) => {
-      if (paddle) {
-        paddleInstanceRef.current = paddle;
-      }
-    });
+    let cancelled = false;
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
+    const environment = token.startsWith("test_")
+      ? "sandbox"
+      : token.startsWith("live_")
+      ? "production"
+      : null;
+
+    if (!token) {
+      setCheckoutError("Payment setup is incomplete: Paddle client token is missing.");
+      return;
+    }
+
+    if (!environment) {
+      setCheckoutError("Payment setup error: Paddle client token must start with test_ or live_.");
+      return;
+    }
+
+    initializePaddle({ environment, token })
+      .then((paddle) => {
+        if (!cancelled && paddle) paddleInstanceRef.current = paddle;
+      })
+      .catch((err) => {
+        console.error("Paddle initialization failed:", err);
+        if (!cancelled) setCheckoutError("Secure checkout could not load. Please try again.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const [showComparison, setShowComparison] = useState(false);

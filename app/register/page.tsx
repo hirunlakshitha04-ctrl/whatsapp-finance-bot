@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import ConnectQrCode from "@/components/ConnectQrCode";
+import { initializePaddle, type Paddle } from "@paddle/paddle-js";
 import { getRegionalProfile, normalizePhoneForCountry, countryFromRegion } from "@/lib/regional-profile";
 import {
   Bot, 
@@ -31,14 +32,6 @@ import {
 // creating a second createClient() here caused the "Multiple GoTrueClient
 // instances" warning and bloated this page's bundle unnecessarily.
 
-declare global {
-  interface Window {
-    Paddle?: {
-      Initialize: (options: { token: string; eventCallback?: (event: any) => void }) => void;
-      Checkout: { open: (options: any) => void };
-    };
-  }
-}
 
 const WORLD_COUNTRIES = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
@@ -719,37 +712,45 @@ function RegisterForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load Paddle.js once. Paddle Billing uses Checkout.open() with a
-  // transaction created by our server, and checkout.completed redirects to
-  // our success page.
-  const paddleReady = React.useRef(false);
-  const paddleSuccessUrlRef = React.useRef<string>("");
+  // Paddle must use the same environment as the server transaction API.
+  // A previous version initialized the register page without an environment,
+  // which makes Paddle.js default to production even when the server was using
+  // sandbox. That produces a generic "Something went wrong" checkout error.
+  const paddleInstanceRef = React.useRef<Paddle | undefined>(undefined);
 
   useEffect(() => {
-    const existing = document.querySelector<HTMLScriptElement>('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]');
-    const wireUp = () => {
-      if (!window.Paddle) return;
-      window.Paddle.Initialize({
-        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "",
-        eventCallback: (event) => {
-          if (event?.name === "checkout.completed" && paddleSuccessUrlRef.current) {
-            window.location.href = paddleSuccessUrlRef.current;
-          }
-        },
-      });
-      paddleReady.current = true;
-    };
-    if (existing) {
-      if (window.Paddle) wireUp();
-      else existing.addEventListener("load", wireUp, { once: true });
+    let cancelled = false;
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
+    const environment = token.startsWith("test_")
+      ? "sandbox"
+      : token.startsWith("live_")
+      ? "production"
+      : null;
+
+    if (!token) {
+      setErrorMsg("Payment setup is incomplete: Paddle client token is missing.");
       return;
     }
-    const script = document.createElement("script");
-    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    script.async = true;
-    script.onload = wireUp;
-    document.body.appendChild(script);
-    return () => script.remove();
+
+    if (!environment) {
+      setErrorMsg("Payment setup error: Paddle client token must start with test_ or live_.");
+      return;
+    }
+
+    initializePaddle({ environment, token })
+      .then((paddle) => {
+        if (!cancelled && paddle) paddleInstanceRef.current = paddle;
+      })
+      .catch((err) => {
+        console.error("Paddle initialization failed:", err);
+        if (!cancelled) {
+          setErrorMsg("Secure checkout could not load. Please try again in a moment.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -840,18 +841,25 @@ function RegisterForm() {
         return;
       }
 
-      paddleSuccessUrlRef.current = data.redirectUrl || "";
       if (!data.transactionId) {
         setErrorMsg("Could not create a Paddle transaction. Please try again.");
         return;
       }
-      if (!paddleReady.current || !window.Paddle) {
+
+      const paddle = paddleInstanceRef.current;
+      if (!paddle) {
         setErrorMsg("Secure checkout is still loading. Please try again in a moment.");
         return;
       }
-      window.Paddle.Checkout.open({
+
+      paddle.Checkout.open({
         transactionId: data.transactionId,
-        settings: { displayMode: "overlay", variant: "one-page", theme: "light", successUrl: data.redirectUrl },
+        settings: {
+          displayMode: "overlay",
+          variant: "one-page",
+          theme: "light",
+          successUrl: data.redirectUrl,
+        },
       });
     } catch (err) {
       console.error("Checkout start failed:", err);

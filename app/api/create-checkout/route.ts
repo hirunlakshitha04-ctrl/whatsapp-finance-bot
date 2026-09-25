@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
       name,
       channel,
       link_token: linkToken,
-      priceId: explicitPriceId,
       user_id: userId,
       mode,
     } = body;
@@ -72,7 +71,26 @@ export async function POST(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com";
     const planKey = (plan || "core").toLowerCase().trim();
     const channelKey = channel === "telegram" ? "telegram" : "whatsapp";
-    const priceId = resolvePriceId(planKey, channelKey, explicitPriceId);
+    const priceId = resolvePriceId(planKey, channelKey);
+    const environment = (process.env.PADDLE_ENVIRONMENT || "production").toLowerCase();
+    const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
+
+    if (environment !== "sandbox" && environment !== "production") {
+      return NextResponse.json(
+        { error: "Invalid PADDLE_ENVIRONMENT. Use sandbox or production." },
+        { status: 500 }
+      );
+    }
+
+    const expectedClientPrefix = environment === "sandbox" ? "test_" : "live_";
+    if (!clientToken.startsWith(expectedClientPrefix)) {
+      return NextResponse.json(
+        {
+          error: `Paddle environment mismatch: server is ${environment}, but NEXT_PUBLIC_PADDLE_CLIENT_TOKEN must start with ${expectedClientPrefix}.`,
+        },
+        { status: 500 }
+      );
+    }
 
     if (!process.env.PADDLE_API_KEY || !priceId) {
       console.error("Paddle configuration missing", {
@@ -165,6 +183,9 @@ export async function POST(req: NextRequest) {
         items: [{ price_id: priceId, quantity: 1 }],
         collection_mode: "automatic",
         custom_data: customData,
+        ...(process.env.PADDLE_CHECKOUT_URL
+          ? { checkout: { url: process.env.PADDLE_CHECKOUT_URL } }
+          : {}),
       }),
     });
 
@@ -178,14 +199,14 @@ export async function POST(req: NextRequest) {
         transactionId,
         url: transaction?.data?.checkout?.url || null,
         redirectUrl: successUrl,
+        environment,
       },
       { status: 200 }
     );
   } catch (error: any) {
     console.error("Checkout Route Server Exception:", error);
-    return NextResponse.json(
-      { error: error?.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    const message = error?.message || "Internal Server Error";
+    const status = message.toLowerCase().includes("paddle") ? 502 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
