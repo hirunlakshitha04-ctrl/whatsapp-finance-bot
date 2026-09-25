@@ -98,7 +98,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6 space-y-1.5">
               <li>WhatsApp / Meta and Telegram: as the messaging platforms through which the Service operates, subject to their own terms and privacy policies.</li>
               <li>AI &amp; infrastructure providers: to process messages and host data, under contracts requiring them to protect your data.</li>
-              <li>Payment processor (Lemon Squeezy): for handling subscription payments, if you upgrade to a paid plan.</li>
+              <li>Payment processor (Paddle): for handling subscription payments, if you upgrade to a paid plan.</li>
               <li>Legal authorities: if required by law, regulation, or valid legal process.</li>
             </ul>
           </section>
@@ -203,9 +203,9 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-slate-900 mb-3">8. Payment Information</h2>
             <p>
-              Subscription payments for Bro Core and Bro Max are processed by Lemon Squeezy, our
-              payment processor and Merchant of Record. We do not store your card details — Lemon
-              Squeezy handles payment processing, billing, and applicable tax collection directly.
+              Subscription payments for Bro Core and Bro Max are processed by Paddle.com, our
+              payment processor and Merchant of Record. We do not store your card details — Paddle
+              handles payment processing, billing, and applicable tax collection directly.
               See our{" "}
               <Link href="/refund-policy" className="text-emerald-600 hover:underline">Refund Policy</Link>{" "}
               for details on refunds.

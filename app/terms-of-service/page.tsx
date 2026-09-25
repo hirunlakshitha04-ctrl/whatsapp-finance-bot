@@ -138,7 +138,7 @@ export default function TermsOfServicePage() {
             <p className="mt-3">
               Paid plans (Bro Core, Bro Max) are billed monthly on a recurring basis, on the
               channel you subscribed on, until cancelled. Payments are processed securely by our
-              payment processor, Lemon Squeezy. You can upgrade, downgrade, or cancel your plan at
+              payment processor, Paddle.com. You can upgrade, downgrade, or cancel your plan at
               any time from your dashboard; cancellation takes effect at the end of your current
               billing cycle. Fees are non‑refundable except where required by law or as described
               in our{" "}

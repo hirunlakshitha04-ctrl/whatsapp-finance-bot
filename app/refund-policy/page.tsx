@@ -51,8 +51,8 @@ export default function RefundPolicyPage() {
         <div className="prose prose-slate max-w-none space-y-8 text-[15px] leading-relaxed">
           <p>
             This Refund Policy explains how refunds work for BroFInAi's paid subscription plans
-            (Bro Core and Bro Max), purchased and billed through our payment processor, Lemon
-            Squeezy. It should be read together with our{" "}
+            (Bro Core and Bro Max), purchased and billed through our payment processor, Paddle.com
+            Market Limited ("Paddle"). It should be read together with our{" "}
             <Link href="/terms-of-service" className="text-emerald-600 hover:underline">Terms of Service</Link>{" "}
             and{" "}
             <Link href="/privacy-policy" className="text-emerald-600 hover:underline">Privacy Policy</Link>.
@@ -103,7 +103,7 @@ export default function RefundPolicyPage() {
             </ul>
             <p className="mt-3">
               We aim to review and respond to every refund request within 5 business days. Approved
-              refunds are issued to your original payment method via Lemon Squeezy and may take
+              refunds are issued to your original payment method via Paddle and may take
               5–10 business days to appear, depending on your bank or card issuer.
             </p>
           </section>
@@ -124,7 +124,7 @@ export default function RefundPolicyPage() {
               If you believe you were charged in error, please contact us first so we can resolve
               it directly — this is faster than a chargeback. Filing a chargeback without contacting
               us first may result in your account being suspended while the dispute is investigated
-              by Lemon Squeezy.
+              by Paddle.
             </p>
           </section>
 

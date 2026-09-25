@@ -1978,7 +1978,7 @@ export default function BroFInAiLandingPage() {
 
           <div className="mt-10 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Encrypted payment processing via LemonSqueezy. Cancel anytime.</span>
+            <span>Encrypted payment processing via Paddle. Cancel anytime.</span>
           </div>
         </motion.div>
       </section>
