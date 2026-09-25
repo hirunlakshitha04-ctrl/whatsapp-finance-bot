@@ -33,10 +33,9 @@ import {
 
 declare global {
   interface Window {
-    createLemonSqueezy?: () => void;
-    LemonSqueezy?: {
-      Setup: (options: { eventHandler: (event: { event?: string }) => void }) => void;
-      Url: { Open: (url: string) => void };
+    Paddle?: {
+      Initialize: (options: { token: string; eventCallback?: (event: any) => void }) => void;
+      Checkout: { open: (options: any) => void };
     };
   }
 }
@@ -720,44 +719,37 @@ function RegisterForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load Lemon Squeezy overlay script once, up front, so it's ready by the
-  // time the user finishes filling the form and hits submit. We rely on the
-  // Checkout.Success event to redirect (NOT the redirect_url query param,
-  // which Lemon Squeezy does not reliably honour on static buy links) —
-  // this is what guarantees type=direct/phone/plan survive to the WhatsApp
-  // auto-message step.
-  const lemonReady = React.useRef(false);
-  const lemonSuccessUrlRef = React.useRef<string>("");
+  // Load Paddle.js once. Paddle Billing uses Checkout.open() with a
+  // transaction created by our server, and checkout.completed redirects to
+  // our success page.
+  const paddleReady = React.useRef(false);
+  const paddleSuccessUrlRef = React.useRef<string>("");
 
   useEffect(() => {
-    if (document.querySelector('script[src="https://app.lemonsqueezy.com/js/checkout.js"]')) {
-      if (window.LemonSqueezy) lemonReady.current = true;
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]');
+    const wireUp = () => {
+      if (!window.Paddle) return;
+      window.Paddle.Initialize({
+        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "",
+        eventCallback: (event) => {
+          if (event?.name === "checkout.completed" && paddleSuccessUrlRef.current) {
+            window.location.href = paddleSuccessUrlRef.current;
+          }
+        },
+      });
+      paddleReady.current = true;
+    };
+    if (existing) {
+      if (window.Paddle) wireUp();
+      else existing.addEventListener("load", wireUp, { once: true });
       return;
     }
     const script = document.createElement("script");
-    script.src = "https://app.lemonsqueezy.com/js/checkout.js";
+    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
     script.async = true;
-    script.onload = () => {
-      // IMPORTANT: Lemon Squeezy's docs require calling window.createLemonSqueezy()
-      // yourself in SPA/React apps — the script does NOT auto-initialize
-      // window.LemonSqueezy on its own here. Without this call, window.LemonSqueezy
-      // stays undefined forever and every checkout silently falls back to a
-      // plain full-page redirect (which is what was happening before).
-      if (typeof window.createLemonSqueezy === "function") {
-        window.createLemonSqueezy();
-      }
-      if (window.LemonSqueezy) {
-        window.LemonSqueezy.Setup({
-          eventHandler: (event) => {
-            if (event.event === "Checkout.Success" && lemonSuccessUrlRef.current) {
-              window.location.href = lemonSuccessUrlRef.current;
-            }
-          },
-        });
-        lemonReady.current = true;
-      }
-    };
+    script.onload = wireUp;
     document.body.appendChild(script);
+    return () => script.remove();
   }, []);
 
   useEffect(() => {
@@ -816,10 +808,9 @@ function RegisterForm() {
       return;
     }
 
-    // Ask our server route to create the checkout via Lemon Squeezy's official
-    // Checkout API. This is the ONLY way redirect_url + custom phone data are
-    // guaranteed to be honoured — building the buy-link URL by hand with query
-    // params (the old approach) is not reliably respected by Lemon Squeezy.
+    // Ask our server route to create a Paddle transaction. The transaction
+    // carries the user/channel metadata that the Paddle webhook uses for
+    // provisioning and account linking.
     handleRedirectAsync(currentPlan, cleanedPhone, linkToken);
   };
 
@@ -839,7 +830,7 @@ function RegisterForm() {
       });
       const data = await res.json();
 
-      if (!res.ok || !data.url) {
+      if (!res.ok || !data.transactionId) {
         console.error("Checkout API error:", data);
         setErrorMsg(
           data?.error
@@ -849,20 +840,19 @@ function RegisterForm() {
         return;
       }
 
-      const checkoutUrl: string = data.url;
-      // Lets the Checkout.Success event handler auto-redirect immediately
-      // when the overlay is used, instead of waiting for the user to click
-      // the confirmation button.
-      lemonSuccessUrlRef.current = data.redirectUrl || "";
-
-      // Overlay is a nice-to-have here (keeps the user on-site) — but since
-      // the server already guarantees redirect_url is correct, the plain
-      // full-page fallback is now just as reliable, not a risk anymore.
-      if (lemonReady.current && window.LemonSqueezy) {
-        window.LemonSqueezy.Url.Open(checkoutUrl);
-      } else {
-        window.location.href = checkoutUrl;
+      paddleSuccessUrlRef.current = data.redirectUrl || "";
+      if (!data.transactionId) {
+        setErrorMsg("Could not create a Paddle transaction. Please try again.");
+        return;
       }
+      if (!paddleReady.current || !window.Paddle) {
+        setErrorMsg("Secure checkout is still loading. Please try again in a moment.");
+        return;
+      }
+      window.Paddle.Checkout.open({
+        transactionId: data.transactionId,
+        settings: { displayMode: "overlay", variant: "one-page", theme: "light" },
+      });
     } catch (err) {
       console.error("Checkout start failed:", err);
       setErrorMsg("Could not start checkout. Please try again in a moment.");

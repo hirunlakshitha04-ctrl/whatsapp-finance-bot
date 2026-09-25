@@ -1,85 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { lemonSqueezySetup, createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
+import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { variantId, phone, email } = body;
+    const { phone, email, priceId } = body;
+    const resolvedPriceId = String(priceId || process.env.NEXT_PUBLIC_PADDLE_CORE_MONTHLY_PRICE_ID || "").trim();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com";
 
-    const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
-    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-
-    // Default Variant ID from Environment Variable
-    const rawVariantId = variantId || process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID;
-
-    if (!apiKey || !storeId || !rawVariantId) {
-      console.error("❌ Configuration Missing:", {
-        hasApiKey: !!apiKey,
-        storeId,
-        rawVariantId,
-      });
-      return NextResponse.json(
-        { error: "Missing Lemon Squeezy environment configuration" },
-        { status: 400 }
-      );
+    if (!process.env.PADDLE_API_KEY || !resolvedPriceId) {
+      return NextResponse.json({ error: "Missing Paddle environment configuration" }, { status: 400 });
     }
 
-    // Initialize Lemon Squeezy SDK
-    lemonSqueezySetup({
-      apiKey,
-      onError: (error) => console.error("Lemon Squeezy Setup Error:", error),
+    const environment = (process.env.PADDLE_ENVIRONMENT || "production").toLowerCase();
+    const baseUrl = environment === "sandbox" ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
+    const response = await fetch(`${baseUrl}/transactions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: [{ price_id: resolvedPriceId, quantity: 1 }],
+        collection_mode: "automatic",
+        custom_data: {
+          phone: phone ? String(phone) : "",
+          email: email ? String(email) : "",
+          source: "pulse-tier-card",
+          checkout_id: randomUUID(),
+        },
+      }),
+      cache: "no-store",
     });
 
-    const formattedStoreId = String(storeId).trim();
-    const formattedVariantId = Number(rawVariantId);
-
-    if (isNaN(formattedVariantId)) {
-      console.error("❌ Invalid Variant ID format:", rawVariantId);
-      return NextResponse.json(
-        { error: "Invalid Variant ID format" },
-        { status: 400 }
-      );
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return NextResponse.json({ error: json?.error?.detail || "Paddle checkout creation failed" }, { status: 422 });
     }
 
-    // Prepare Custom Metadata
-    const customData: Record<string, string> = {};
-    if (phone) customData.phone = String(phone);
-
-    // Create Checkout Session
-    const checkout = await createCheckout(formattedStoreId, formattedVariantId, {
-      checkoutData: {
-        email: email ? String(email) : undefined,
-        custom: customData,
-      },
-      productOptions: {
-        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://brofinai.com"}/dashboard`,
-      },
-    });
-
-    // Check SDK Response Error
-    if (checkout.error) {
-      console.error("❌ Lemon Squeezy API Returned Error:", checkout.error);
-      return NextResponse.json(
-        { error: checkout.error.message || "Failed to create checkout session" },
-        { status: 422 }
-      );
-    }
-
-    const checkoutUrl = checkout.data?.data?.attributes?.url;
-
-    if (!checkoutUrl) {
-      return NextResponse.json(
-        { error: "Checkout URL was not generated" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ url: checkoutUrl }, { status: 200 });
+    const transactionId = json?.data?.id;
+    const url = json?.data?.checkout?.url;
+    if (!transactionId && !url) return NextResponse.json({ error: "Paddle checkout was not created" }, { status: 502 });
+    return NextResponse.json({ transactionId, url }, { status: 200 });
   } catch (error: any) {
-    console.error("❌ Checkout Route Server Exception:", error);
-    return NextResponse.json(
-      { error: error?.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error("Paddle checkout route error:", error);
+    return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
   }
 }

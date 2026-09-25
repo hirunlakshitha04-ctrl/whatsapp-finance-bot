@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+
+declare global {
+  interface Window {
+    Paddle?: {
+      Initialize: (options: { token: string }) => void;
+      Checkout: { open: (options: any) => void };
+    };
+  }
+}
 import {
   Sparkles,
   Check,
@@ -162,6 +171,27 @@ function PricingContent() {
   );
   const [checkoutLoading, setCheckoutLoading] = useState<PlanId | null>(null);
   const [checkoutError, setCheckoutError] = useState<string>("");
+  const paddleReady = React.useRef(false);
+
+  useEffect(() => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]');
+    const wireUp = () => {
+      if (!window.Paddle) return;
+      window.Paddle.Initialize({ token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "" });
+      paddleReady.current = true;
+    };
+    if (existing) {
+      if (window.Paddle) wireUp();
+      else existing.addEventListener("load", wireUp, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+    script.async = true;
+    script.onload = wireUp;
+    document.body.appendChild(script);
+    return () => script.remove();
+  }, []);
   const [showComparison, setShowComparison] = useState(false);
 
   // If the dashboard tells us which channel is already linked, that's the
@@ -208,11 +238,14 @@ function PricingContent() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (data?.url) {
-        window.location.href = data.url;
+      if (data?.transactionId && paddleReady.current && window.Paddle) {
+        window.Paddle.Checkout.open({
+          transactionId: data.transactionId,
+          settings: { displayMode: "overlay", variant: "one-page", theme: "light" },
+        });
       } else {
         // Surface the backend's actual error (e.g. "Not authenticated",
-        // "Missing Lemon Squeezy environment configuration for this
+        // "Missing Paddle environment configuration for this
         // plan/channel") instead of a generic message — makes future
         // failures diagnosable from the UI instead of only in server logs.
         setCheckoutError(
@@ -657,7 +690,7 @@ function PricingContent() {
 
         <div className="mt-10 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Encrypted payment processing via LemonSqueezy. Cancel anytime.</span>
+          <span>Encrypted payment processing via Paddle. Cancel anytime.</span>
         </div>
       </div>
     </main>

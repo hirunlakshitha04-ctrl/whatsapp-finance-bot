@@ -16,7 +16,7 @@ export default function PulseTierCard({
 }: PulseTierCardProps) {
   const [loading, setLoading] = useState(false);
 
-  // ⚡ Step 5: Trigger Lemon Squeezy Payment Gateway
+  // ⚡ Trigger Paddle Payment Gateway
   const handleUpgrade = async () => {
     try {
       setLoading(true);
@@ -27,7 +27,7 @@ export default function PulseTierCard({
         body: JSON.stringify({
           email: userEmail,
           phone: userPhone,
-          variantId: variantId || process.env.NEXT_PUBLIC_LEMON_CORE_MONTHLY_VARIANT_ID,
+          priceId: variantId || process.env.NEXT_PUBLIC_PADDLE_CORE_MONTHLY_PRICE_ID,
         }),
       });
 
@@ -39,7 +39,7 @@ export default function PulseTierCard({
 
       const paymentData = await response.json();
 
-      // Redirect to Lemon Squeezy Checkout Page
+      // Redirect to Paddle Checkout Page
       if (paymentData.url) {
         window.location.href = paymentData.url;
       } else {

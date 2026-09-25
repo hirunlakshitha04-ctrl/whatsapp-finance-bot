@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "@paddle/paddle-js": "^1.6.5",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.7",
     "axios": "^1.18.1",
