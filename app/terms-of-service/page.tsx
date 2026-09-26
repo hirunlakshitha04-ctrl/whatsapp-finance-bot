@@ -198,16 +198,14 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-bold text-slate-900 mb-3">11. Governing Law &amp; Your Local Rights</h2>
             {/*
-              LEGAL REVIEW NEEDED: "Sri Lanka" below is a placeholder pending
-              a lawyer's sign-off on the actual jurisdiction the operating
-              entity wants to litigate/arbitrate in for a global user base
-              (Singapore and Delaware are common neutral choices for SaaS
-              companies serving multiple regions — this needs a human legal
-              decision, not a default from code). Whatever jurisdiction is
-              chosen, the mandatory-consumer-rights carve-out below should
-              stay: it's what keeps this clause enforceable for users in the
-              EEA/UK and other places where you legally can't contract out of
-              local consumer protection law, so removing it isn't a fix.
+              Confirmed: operator runs BroFInAi as an individual (no
+              registered company entity) based in Sri Lanka, so Sri Lanka is
+              the correct governing-law jurisdiction below. If a company is
+              incorporated later in a different jurisdiction, update this
+              clause accordingly. The mandatory-consumer-rights carve-out
+              should stay regardless — it's what keeps this clause
+              enforceable for users in the EEA/UK and other places where
+              local consumer protection law can't be contracted around.
             */}
             <p>
               These Terms are governed by the laws of Sri Lanka, without regard to conflict-of-law
